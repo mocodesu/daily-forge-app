@@ -1,4 +1,5 @@
 import { HapticPressable } from "@/components/haptic-pressable";
+import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
 import {
   DataManagementRepo,
@@ -16,13 +17,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Sharing from "expo-sharing";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 export default function DataManagementScreen() {
@@ -47,7 +42,6 @@ export default function DataManagementScreen() {
     }, [loadCounts]),
   );
 
-  // ── Export ─────────────────────────────────────────────────
   const handleExport = async () => {
     setBusy("export");
     try {
@@ -79,7 +73,6 @@ export default function DataManagementScreen() {
     }
   };
 
-  // ── Import ─────────────────────────────────────────────────
   const handleImport = async () => {
     setBusy("import");
     try {
@@ -110,7 +103,9 @@ export default function DataManagementScreen() {
           `• ${summary.milestones} milestones\n` +
           `• ${summary.hasProfile ? "1 profile" : "no profile"}\n` +
           `• ${summary.preferenceCount} preferences\n\n` +
-          `Export from v${payload.appVersion}, dated ${new Date(payload.exportedAt).toLocaleString()}.`,
+          `Export from v${payload.appVersion}, dated ${new Date(
+            payload.exportedAt,
+          ).toLocaleString()}.`,
         [
           { text: "Cancel", style: "cancel" },
           {
@@ -147,7 +142,6 @@ export default function DataManagementScreen() {
     }
   };
 
-  // ── Wipe ───────────────────────────────────────────────────
   const handleWipe = () => {
     Alert.alert(
       "Wipe all data?",
@@ -158,7 +152,6 @@ export default function DataManagementScreen() {
           text: "Export First",
           onPress: async () => {
             await handleExport();
-            // After the share sheet closes, ask again
             setTimeout(() => confirmWipe(), 500);
           },
         },
@@ -205,10 +198,8 @@ export default function DataManagementScreen() {
     );
   };
 
-  // ── Render ─────────────────────────────────────────────────
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {/* ── HEADER ────────────────────────────────────────── */}
+    <ScrollScreen>
       <View style={styles.header}>
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="h1" color="onBackground">
@@ -225,7 +216,6 @@ export default function DataManagementScreen() {
         </Pressable>
       </View>
 
-      {/* ── STORAGE ───────────────────────────────────────── */}
       <View style={styles.section}>
         <Text variant="subheadBold" color="onSurface">
           Storage
@@ -248,7 +238,6 @@ export default function DataManagementScreen() {
         )}
       </View>
 
-      {/* ── EXPORT / IMPORT ───────────────────────────────── */}
       <View style={styles.section}>
         <Text variant="subheadBold" color="onSurface">
           Backup
@@ -273,7 +262,6 @@ export default function DataManagementScreen() {
         />
       </View>
 
-      {/* ── DANGER ZONE ───────────────────────────────────── */}
       <View style={styles.section}>
         <Text variant="subheadBold" color="onSurface">
           Danger zone
@@ -300,9 +288,7 @@ export default function DataManagementScreen() {
           undo.
         </Text>
       </View>
-
-      <View style={{ height: 40 }} />
-    </ScrollView>
+    </ScrollScreen>
   );
 }
 
@@ -367,26 +353,14 @@ function ActionRow({
   );
 }
 
-const styles = StyleSheet.create((theme, rt) => ({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  content: {
-    paddingTop: rt.insets.top + theme.spacing.lg,
-    paddingHorizontal: theme.layout.screenPaddingH,
-    paddingBottom: theme.spacing.giant,
-    gap: theme.spacing.xl,
-  },
+const styles = StyleSheet.create((theme) => ({
   header: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: theme.spacing.md,
   },
-  section: {
-    gap: theme.spacing.sm,
-  },
+  section: { gap: theme.spacing.sm },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -412,6 +386,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.panelBorder,
+    minHeight: 68,
   },
   actionIcon: {
     width: 40,
@@ -420,10 +395,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     alignItems: "center",
     justifyContent: "center",
   },
-  actionBody: {
-    flex: 1,
-    gap: 2,
-  },
+  actionBody: { flex: 1, gap: 2, minWidth: 0 },
   dangerButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -433,8 +405,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thick,
     borderStyle: "dashed",
+    minHeight: 52,
   },
-  dangerHint: {
-    textAlign: "center",
-  },
+  dangerHint: { textAlign: "center" },
 }));

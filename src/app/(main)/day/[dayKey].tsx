@@ -1,9 +1,15 @@
+import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 interface RecordRow {
@@ -19,6 +25,7 @@ export default function DayDetailScreen() {
   const { theme } = useUnistyles();
   const db = useSQLiteContext();
   const { dayKey } = useLocalSearchParams<{ dayKey: string }>();
+  const { width } = useWindowDimensions();
 
   const [records, setRecords] = useState<RecordRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +81,9 @@ export default function DayDetailScreen() {
 
   const hasStartTimes = records.some((r) => r.started_at !== null);
 
-  // ── Date label ───────────────────────────────────────────
+  // Three cards look cramped on very narrow phones — drop to two.
+  const stackCards = width < 380;
+
   const dateLabel = (() => {
     try {
       const [y, m, d] = dayKey.split("-").map(Number);
@@ -99,8 +108,8 @@ export default function DayDetailScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {/* ── HEADER ──────────────────────────────────────── */}
+    <ScrollScreen>
+      {/* ── Header ─────────────────────────────────────── */}
       <View style={styles.header}>
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="h2" color="onBackground">
@@ -117,19 +126,17 @@ export default function DayDetailScreen() {
         </Pressable>
       </View>
 
-      {/* ── SESSION SUMMARY ─────────────────────────────── */}
+      {/* ── Session summary ────────────────────────────── */}
       <View style={styles.section}>
         <Text variant="subheadBold" color="onSurface">
           Session summary
         </Text>
 
-        <View style={styles.summaryRow}>
+        <View style={[styles.summaryRow, stackCards && styles.summaryRowStack]}>
           <SummaryCard
             title="Total time"
             value={totalWallClock !== null ? formatLong(totalWallClock) : "—"}
-            subtitle={
-              hasStartTimes ? "first start → last done" : "no start times"
-            }
+            subtitle={hasStartTimes ? "start → finish" : "no start times"}
           />
           <SummaryCard
             title="Work time"
@@ -139,7 +146,7 @@ export default function DayDetailScreen() {
           <SummaryCard
             title="Break time"
             value={totalBreakTime !== null ? formatLong(totalBreakTime) : "—"}
-            subtitle="time between"
+            subtitle="between exercises"
           />
         </View>
 
@@ -156,7 +163,7 @@ export default function DayDetailScreen() {
         )}
       </View>
 
-      {/* ── PER-EXERCISE BREAKDOWN ──────────────────────── */}
+      {/* ── Per-exercise breakdown ─────────────────────── */}
       <View style={styles.section}>
         <Text variant="subheadBold" color="onSurface">
           Per-exercise breakdown
@@ -174,9 +181,7 @@ export default function DayDetailScreen() {
           </View>
         )}
       </View>
-
-      <View style={{ height: 40 }} />
-    </ScrollView>
+    </ScrollScreen>
   );
 }
 
@@ -234,7 +239,7 @@ function RecordRow({ record, index }: { record: RecordRow; index: number }) {
 
       <View style={styles.recordBody}>
         <View style={styles.recordTitleRow}>
-          <Text variant="subheadBold" color="onSurface">
+          <Text variant="subheadBold" color="onSurface" numberOfLines={1}>
             {record.exercise_name ?? "Deleted exercise"}
           </Text>
           {record.is_daily === 0 && (
@@ -247,11 +252,11 @@ function RecordRow({ record, index }: { record: RecordRow; index: number }) {
         </View>
 
         {record.started_at !== null ? (
-          <Text variant="caption" color="mutedText">
+          <Text variant="caption" color="mutedText" numberOfLines={2}>
             {formatTime(record.started_at)} → {formatTime(record.completed_at)}
           </Text>
         ) : (
-          <Text variant="caption" color="mutedText">
+          <Text variant="caption" color="mutedText" numberOfLines={2}>
             Completed {formatTime(record.completed_at)} (no start time)
           </Text>
         )}
@@ -288,17 +293,7 @@ function formatLong(ms: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-const styles = StyleSheet.create((theme, rt) => ({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  content: {
-    paddingTop: rt.insets.top + theme.spacing.lg,
-    paddingHorizontal: theme.layout.screenPaddingH,
-    paddingBottom: theme.spacing.giant,
-    gap: theme.spacing.lg,
-  },
+const styles = StyleSheet.create((theme) => ({
   loading: {
     flex: 1,
     alignItems: "center",
@@ -311,12 +306,13 @@ const styles = StyleSheet.create((theme, rt) => ({
     justifyContent: "space-between",
     gap: theme.spacing.md,
   },
-  section: {
-    gap: theme.spacing.sm,
-  },
+  section: { gap: theme.spacing.sm },
   summaryRow: {
     flexDirection: "row",
     gap: theme.spacing.sm,
+  },
+  summaryRowStack: {
+    flexDirection: "column",
   },
   summaryCard: {
     flex: 1,
@@ -326,12 +322,14 @@ const styles = StyleSheet.create((theme, rt) => ({
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.panelBorder,
+    minHeight: 82,
   },
   timeRangeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.sm,
     paddingTop: theme.spacing.xs,
+    flexWrap: "wrap",
   },
   timePill: {
     gap: 2,
@@ -340,9 +338,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     borderRadius: theme.radii.sm,
     backgroundColor: theme.colors.panel,
   },
-  recordList: {
-    gap: theme.spacing.sm,
-  },
+  recordList: { gap: theme.spacing.sm },
   recordCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -352,6 +348,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.panelBorder,
+    minHeight: 68,
   },
   indexCircle: {
     width: 26,
@@ -360,14 +357,12 @@ const styles = StyleSheet.create((theme, rt) => ({
     alignItems: "center",
     justifyContent: "center",
   },
-  recordBody: {
-    flex: 1,
-    gap: 2,
-  },
+  recordBody: { flex: 1, gap: 2, minWidth: 0 },
   recordTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.xs,
+    flexWrap: "wrap",
   },
   oneOffPill: {
     paddingHorizontal: theme.spacing.xs,

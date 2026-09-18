@@ -1,4 +1,5 @@
 import { HapticPressable } from "@/components/haptic-pressable";
+import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
 import { CompletionsRepo } from "@/repositories/completions-repo";
 import { ExercisesRepo } from "@/repositories/exercises-repo";
@@ -7,8 +8,8 @@ import { dayKey } from "@/utils/day-key";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 export default function ExerciseDetailScreen() {
@@ -20,22 +21,42 @@ export default function ExerciseDetailScreen() {
   const [completedToday, setCompletedToday] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     (async () => {
-      const ex = await ExercisesRepo.getById(db, id);
-      setExercise(ex);
-      if (ex) {
-        const rec = await CompletionsRepo.getForExerciseOnDay(db, id, dayKey());
-        setCompletedToday(!!rec);
+      try {
+        const ex = await ExercisesRepo.getById(db, id);
+        if (!mountedRef.current) return;
+        setExercise(ex);
+        if (ex) {
+          const rec = await CompletionsRepo.getForExerciseOnDay(
+            db,
+            id,
+            dayKey(),
+          );
+          if (!mountedRef.current) return;
+          setCompletedToday(!!rec);
+        }
+      } catch (err) {
+        if (!mountedRef.current) return;
+        console.warn("[exercise-detail] load failed:", err);
+      } finally {
+        if (mountedRef.current) setLoading(false);
       }
-      setLoading(false);
     })();
   }, [db, id]);
 
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={theme.colors.primary} />
+        <ActivityIndicator color={theme.colors.primary} size="large" />
       </View>
     );
   }
@@ -59,14 +80,13 @@ export default function ExerciseDetailScreen() {
 
   const handleStart = () => {
     router.replace({
-      pathname: "/session/[id]",
+      pathname: "/(main)/session/[id]",
       params: { id: exercise.id },
     });
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {/* ── TYPE BADGES ─────────────────────────────────── */}
+    <ScrollScreen>
       <View style={styles.badgeRow}>
         <View style={styles.typeBadge}>
           <Ionicons
@@ -105,12 +125,10 @@ export default function ExerciseDetailScreen() {
         </View>
       </View>
 
-      {/* ── NAME ────────────────────────────────────────── */}
       <Text variant="h1" color="onBackground">
         {exercise.name}
       </Text>
 
-      {/* ── BODY PARTS ──────────────────────────────────── */}
       <View style={styles.chipRow}>
         {exercise.bodyParts.map((part) => (
           <View
@@ -130,7 +148,6 @@ export default function ExerciseDetailScreen() {
         ))}
       </View>
 
-      {/* ── STATS ───────────────────────────────────────── */}
       <View style={styles.statsRow}>
         <Stat label="Sets" value={String(exercise.sets)} />
         {isTimer ? (
@@ -155,7 +172,6 @@ export default function ExerciseDetailScreen() {
         )}
       </View>
 
-      {/* ── SESSION TIMER INFO ──────────────────────────── */}
       <View
         style={[
           styles.sessionCard,
@@ -185,7 +201,6 @@ export default function ExerciseDetailScreen() {
         </Text>
       </View>
 
-      {/* ── NOTES ───────────────────────────────────────── */}
       {exercise.notes.trim().length > 0 && (
         <View
           style={[
@@ -207,7 +222,6 @@ export default function ExerciseDetailScreen() {
 
       <View style={{ height: 20 }} />
 
-      {/* ── ACTIONS ─────────────────────────────────────── */}
       {completedToday ? (
         <View style={styles.completedRow}>
           <Ionicons
@@ -252,7 +266,7 @@ export default function ExerciseDetailScreen() {
           </Pressable>
         </>
       )}
-    </ScrollView>
+    </ScrollScreen>
   );
 }
 
@@ -277,15 +291,6 @@ function formatDuration(seconds: number): string {
 }
 
 const styles = StyleSheet.create((theme) => ({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  content: {
-    padding: theme.layout.screenPaddingH,
-    paddingTop: theme.spacing.xxl,
-    gap: theme.spacing.lg,
-  },
   loading: {
     flex: 1,
     alignItems: "center",
@@ -293,10 +298,10 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.background,
     gap: theme.spacing.md,
   },
-
   badgeRow: {
     flexDirection: "row",
     gap: theme.spacing.sm,
+    flexWrap: "wrap",
   },
   typeBadge: {
     flexDirection: "row",
@@ -308,7 +313,6 @@ const styles = StyleSheet.create((theme) => ({
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.primary,
   },
-
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -320,16 +324,13 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.radii.full,
     borderWidth: theme.borderWidth.thin,
   },
-
   statsRow: {
     flexDirection: "row",
     gap: theme.spacing.xxl,
     paddingVertical: theme.spacing.md,
+    flexWrap: "wrap",
   },
-  stat: {
-    gap: 2,
-  },
-
+  stat: { gap: 2 },
   sessionCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -343,14 +344,12 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: theme.spacing.sm,
   },
-
   notesCard: {
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
     gap: theme.spacing.xs,
   },
-
   startButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -363,11 +362,13 @@ const styles = StyleSheet.create((theme) => ({
   notYet: {
     alignItems: "center",
     paddingVertical: theme.spacing.sm,
+    minHeight: 44,
   },
   completedRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
+    minHeight: 44,
   },
 }));

@@ -1,3 +1,4 @@
+import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
 import { HISTORY_WINDOW_DAYS } from "@/constants/dailyforge";
 import type { DayProgress } from "@/utils/history";
@@ -5,16 +6,54 @@ import { computeHistory } from "@/utils/history";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
-const CELL_SIZE = 72;
+/** Content max width mirrored from Screen. */
+const MAX_CONTENT_WIDTH = 640;
+/** Horizontal screen padding mirrored from theme.layout.screenPaddingH. */
+const H_PADDING = 15;
+/** Gap between grid cells. */
+const CELL_GAP = 12;
+/** Minimum cell size in points. */
+const MIN_CELL = 64;
+/** Maximum cell size in points — bigger looks silly on wide screens. */
+const MAX_CELL = 84;
 
 export default function HistoryScreen() {
   const { theme } = useUnistyles();
   const db = useSQLiteContext();
+  const { width } = useWindowDimensions();
+
   const [days, setDays] = useState<DayProgress[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // ── Compute responsive cell size ─────────────────────────
+  const available = Math.min(width, MAX_CONTENT_WIDTH) - H_PADDING * 2;
+
+  // Try a range of columns from widest-fits down to smallest-allowed,
+  // and pick the largest cell size that still fits.
+  const columns = (() => {
+    let best = 3;
+    for (let cols = 8; cols >= 3; cols--) {
+      const cell = Math.floor((available - (cols - 1) * CELL_GAP) / cols);
+      if (cell >= MIN_CELL) {
+        best = cols;
+        break;
+      }
+    }
+    return best;
+  })();
+
+  const cellSize = Math.min(
+    MAX_CELL,
+    Math.floor((available - (columns - 1) * CELL_GAP) / columns),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -49,7 +88,7 @@ export default function HistoryScreen() {
   const attemptedDays = days.filter((d) => d.total > 0).length;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollScreen>
       <View style={styles.header}>
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="h1" color="onBackground">
@@ -70,11 +109,12 @@ export default function HistoryScreen() {
         </View>
       </View>
 
-      <View style={styles.grid}>
+      <View style={[styles.grid, { gap: CELL_GAP }]}>
         {days.map((day) => (
           <DayCircle
             key={day.dayKey}
             day={day}
+            size={cellSize}
             onPress={() => {
               if (day.total > 0) {
                 router.push({
@@ -86,15 +126,17 @@ export default function HistoryScreen() {
           />
         ))}
       </View>
-    </ScrollView>
+    </ScrollScreen>
   );
 }
 
 function DayCircle({
   day,
+  size,
   onPress,
 }: {
   day: DayProgress;
+  size: number;
   onPress: () => void;
 }) {
   const { theme } = useUnistyles();
@@ -103,32 +145,43 @@ function DayCircle({
   const dayNumber = String(day.date.getDate());
   const percent = Math.round(progress * 100);
 
-  const ringColor = (() => {
-    if (day.total === 0) return theme.colors.panelBorder;
-    if (progress >= 1) return theme.colors.primary;
-    if (progress >= 0.6) return theme.colors.primary;
-    if (progress > 0) return theme.colors.primary;
-    return theme.colors.panelBorder;
-  })();
+  const ringColor =
+    day.total === 0 ? theme.colors.panelBorder : theme.colors.primary;
+
+  const isComplete = day.total > 0 && progress >= 1;
+  const fontSize = Math.round(size * 0.34);
 
   return (
-    <Pressable onPress={onPress} style={styles.cell} disabled={day.total === 0}>
+    <Pressable
+      onPress={onPress}
+      disabled={day.total === 0}
+      style={[styles.cell, { width: size }]}
+    >
       <View
         style={[
           styles.ring,
           {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
             borderColor: ringColor,
-            backgroundColor:
-              progress >= 1 ? theme.colors.primary : theme.colors.surface,
+            borderWidth: isComplete ? 3 : 2,
+            backgroundColor: isComplete
+              ? theme.colors.primary
+              : theme.colors.surface,
           },
         ]}
       >
-        <Text variant="title" color={progress >= 1 ? "onPrimary" : "onSurface"}>
+        <Text
+          variant="title"
+          color={isComplete ? "onPrimary" : "onSurface"}
+          style={{ fontSize, lineHeight: fontSize * 1.15 }}
+        >
           {dayNumber}
         </Text>
       </View>
 
-      <Text variant="caption" color="mutedText">
+      <Text variant="caption" color="mutedText" numberOfLines={1}>
         {day.total === 0
           ? "rest"
           : `${percent}% · ${day.completed}/${day.total}`}
@@ -137,17 +190,7 @@ function DayCircle({
   );
 }
 
-const styles = StyleSheet.create((theme, rt) => ({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  content: {
-    paddingTop: rt.insets.top + theme.spacing.lg,
-    paddingHorizontal: theme.layout.screenPaddingH,
-    paddingBottom: theme.spacing.giant,
-    gap: theme.spacing.lg,
-  },
+const styles = StyleSheet.create((theme) => ({
   loading: {
     flex: 1,
     alignItems: "center",
@@ -169,11 +212,11 @@ const styles = StyleSheet.create((theme, rt) => ({
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.panelBorder,
+    minWidth: 72,
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: theme.spacing.md,
     justifyContent: "flex-start",
   },
   cell: {
@@ -181,10 +224,6 @@ const styles = StyleSheet.create((theme, rt) => ({
     gap: 4,
   },
   ring: {
-    width: CELL_SIZE,
-    height: CELL_SIZE,
-    borderRadius: CELL_SIZE / 2,
-    borderWidth: 3,
     alignItems: "center",
     justifyContent: "center",
   },

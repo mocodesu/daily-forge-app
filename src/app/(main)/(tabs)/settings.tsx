@@ -1,3 +1,4 @@
+import { ScrollScreen } from "@/components/screen";
 import { SwearPhraseEditor } from "@/components/swear-phrase-editor";
 import Text from "@/components/text";
 import { UnitSystemPicker } from "@/components/unit-system-picker";
@@ -11,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Application from "expo-application";
 import { router } from "expo-router";
 import React from "react";
-import { Linking, Pressable, ScrollView, View } from "react-native";
+import { Linking, Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 const THEME_MODES: {
@@ -33,12 +34,12 @@ export default function SettingsScreen() {
   const buildVersion = Application.nativeBuildVersion ?? "—";
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollScreen>
       <Text variant="h2" color="onBackground">
         Settings
       </Text>
 
-      {/* ── APPEARANCE ───────────────────────────────────── */}
+      {/* ── Appearance ────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Appearance
@@ -65,6 +66,7 @@ export default function SettingsScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={scheme.label}
                   accessibilityState={{ selected }}
+                  hitSlop={6}
                 >
                   <View
                     style={[
@@ -131,7 +133,7 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* ── UNITS ────────────────────────────────────────── */}
+      {/* ── Units ─────────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Units
@@ -139,7 +141,7 @@ export default function SettingsScreen() {
         <UnitSystemPicker />
       </View>
 
-      {/* ── SWEAR PHRASE ─────────────────────────────────── */}
+      {/* ── Swear ─────────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Swear
@@ -147,14 +149,14 @@ export default function SettingsScreen() {
         <SwearPhraseEditor />
       </View>
 
-      {/* ── DATA ─────────────────────────────────────────── */}
+      {/* ── Data ──────────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Data
         </Text>
 
         <Pressable
-          onPress={() => router.push("/data-management")}
+          onPress={() => router.push("/(main)/data-management")}
           style={({ pressed }) => [styles.dataRow, pressed && styles.pressed]}
         >
           <View
@@ -185,7 +187,7 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
-      {/* ── ABOUT ────────────────────────────────────────── */}
+      {/* ── About ─────────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           About
@@ -248,23 +250,11 @@ export default function SettingsScreen() {
           />
         </Pressable>
       </View>
-    </ScrollView>
+    </ScrollScreen>
   );
 }
 
-const styles = StyleSheet.create((theme, rt) => ({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    paddingTop: rt.insets.top,
-  },
-  content: {
-    paddingHorizontal: theme.layout.screenPaddingH,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.giant,
-    gap: theme.spacing.lg,
-  },
-
+const styles = StyleSheet.create((theme) => ({
   card: {
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
@@ -275,16 +265,9 @@ const styles = StyleSheet.create((theme, rt) => ({
   },
   pressed: { opacity: theme.opacity.pressed },
 
-  sectionBlock: {
-    gap: theme.spacing.sm,
-  },
-  sectionHeader: {
-    gap: theme.spacing.xxs,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: theme.colors.panelBorder,
-  },
+  sectionBlock: { gap: theme.spacing.sm },
+  sectionHeader: { gap: theme.spacing.xxs },
+  divider: { height: 1, backgroundColor: theme.colors.panelBorder },
 
   themeRow: {
     flexDirection: "row",
@@ -299,6 +282,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     alignItems: "center",
     gap: 6,
     backgroundColor: "transparent",
+    minHeight: 68,
   },
   themeOptionSelected: {
     borderColor: theme.colors.primary,
@@ -311,17 +295,14 @@ const styles = StyleSheet.create((theme, rt) => ({
     backgroundColor: theme.colors.panelBorder,
     marginTop: 2,
   },
-  themeRadioDotSelected: {
-    backgroundColor: theme.colors.primary,
-  },
+  themeRadioDotSelected: { backgroundColor: theme.colors.primary },
 
   accentSwatchRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: theme.spacing.md,
   },
-  accentSwatchWrapper: {
-    alignItems: "center",
-  },
+  accentSwatchWrapper: { alignItems: "center" },
   accentSwatch: {
     width: 40,
     height: 40,
@@ -329,14 +310,13 @@ const styles = StyleSheet.create((theme, rt) => ({
     borderWidth: 2,
     borderColor: "transparent",
   },
-  accentSwatchSelected: {
-    borderColor: theme.colors.onSurface,
-  },
+  accentSwatchSelected: { borderColor: theme.colors.onSurface },
 
   dataRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.md,
+    minHeight: 44,
   },
   dataRowIcon: {
     width: 40,
@@ -350,11 +330,13 @@ const styles = StyleSheet.create((theme, rt) => ({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    minHeight: 28,
   },
   aboutLink: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: theme.spacing.xs,
+    paddingVertical: theme.spacing.sm,
+    minHeight: 44,
   },
 }));

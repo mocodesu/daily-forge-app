@@ -1,4 +1,5 @@
 import { HapticPressable } from "@/components/haptic-pressable";
+import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
 import { UnitSystemPicker } from "@/components/unit-system-picker";
 import { useUnitSystem } from "@/hooks/use-unit-system";
@@ -13,7 +14,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   TextInput,
   View,
 } from "react-native";
@@ -22,7 +22,7 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 const TOTAL_STEPS = 6;
 
 export default function OnboardingScreen() {
-  const { theme } = useUnistyles();
+  const { theme, rt } = useUnistyles();
   const db = useSQLiteContext();
   const { system, displayToKg } = useUnitSystem();
 
@@ -155,7 +155,12 @@ export default function OnboardingScreen() {
       style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.progressRow}>
+      <View
+        style={[
+          styles.progressRow,
+          { paddingTop: rt.insets.top + theme.spacing.md },
+        ]}
+      >
         {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
           <View
             key={i}
@@ -170,58 +175,65 @@ export default function OnboardingScreen() {
         ))}
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {step === 0 && <WelcomeStep />}
-        {step === 1 && <NameStep value={name} onChange={setName} />}
-        {step === 2 && <UnitsStep />}
-        {step === 3 && (
-          <HeightStep
-            system={system}
-            cm={heightCmText}
-            feet={heightFeetText}
-            inches={heightInchesText}
-            onCmChange={setHeightCmText}
-            onFeetChange={setHeightFeetText}
-            onInchesChange={setHeightInchesText}
-          />
-        )}
-        {step === 4 && (
-          <WeightStep
-            unit={weightUnit}
-            weight={weightText}
-            goal={goalText}
-            onWeightChange={setWeightText}
-            onGoalChange={setGoalText}
-          />
-        )}
-        {step === 5 && (
-          <NotificationsStep
-            status={notifStatus}
-            onRequest={handleRequestNotifications}
-          />
-        )}
-
-        {error && (
-          <View style={styles.errorBox}>
-            <Ionicons
-              name="alert-circle-outline"
-              size={16}
-              color={theme.colors.primary}
+      <ScrollScreen safeTop={false}>
+        <View style={styles.stepWrapper}>
+          {step === 0 && <WelcomeStep />}
+          {step === 1 && <NameStep value={name} onChange={setName} />}
+          {step === 2 && <UnitsStep />}
+          {step === 3 && (
+            <HeightStep
+              system={system}
+              cm={heightCmText}
+              feet={heightFeetText}
+              inches={heightInchesText}
+              onCmChange={setHeightCmText}
+              onFeetChange={setHeightFeetText}
+              onInchesChange={setHeightInchesText}
             />
-            <Text variant="caption" color="primary" style={{ flex: 1 }}>
-              {error}
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+          )}
+          {step === 4 && (
+            <WeightStep
+              unit={weightUnit}
+              weight={weightText}
+              goal={goalText}
+              onWeightChange={setWeightText}
+              onGoalChange={setGoalText}
+            />
+          )}
+          {step === 5 && (
+            <NotificationsStep
+              status={notifStatus}
+              onRequest={handleRequestNotifications}
+            />
+          )}
 
-      <View style={styles.footer}>
+          {error && (
+            <View style={styles.errorBox}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={16}
+                color={theme.colors.primary}
+              />
+              <Text variant="caption" color="primary" style={{ flex: 1 }}>
+                {error}
+              </Text>
+            </View>
+          )}
+        </View>
+      </ScrollScreen>
+
+      <View
+        style={[
+          styles.footer,
+          { paddingBottom: rt.insets.bottom + theme.spacing.lg },
+        ]}
+      >
         {step > 0 && (
-          <Pressable onPress={handleBack} hitSlop={12}>
+          <Pressable
+            onPress={handleBack}
+            hitSlop={12}
+            style={styles.backButton}
+          >
             <Text variant="subhead" color="mutedText">
               Back
             </Text>
@@ -266,10 +278,6 @@ export default function OnboardingScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-// ─────────────────────────────────────────────────────────────
-// STEPS
-// ─────────────────────────────────────────────────────────────
 
 function WelcomeStep() {
   const { theme } = useUnistyles();
@@ -491,7 +499,10 @@ function NotificationsStep({
 
   const cta =
     status === "granted"
-      ? { icon: "checkmark-circle" as const, text: "Notifications are on." }
+      ? {
+          icon: "checkmark-circle" as const,
+          text: "Notifications are on.",
+        }
       : status === "denied"
         ? {
             icon: "notifications-off-outline" as const,
@@ -548,11 +559,7 @@ function NotificationsStep({
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// STYLES
-// ─────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create((theme, rt) => ({
+const styles = StyleSheet.create((theme) => ({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -561,7 +568,6 @@ const styles = StyleSheet.create((theme, rt) => ({
     flexDirection: "row",
     gap: 6,
     paddingHorizontal: theme.layout.screenPaddingH,
-    paddingTop: rt.insets.top + theme.spacing.md,
     paddingBottom: theme.spacing.md,
   },
   progressDot: {
@@ -569,10 +575,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     height: 3,
     borderRadius: 2,
   },
-  content: {
-    paddingHorizontal: theme.layout.screenPaddingH,
-    paddingTop: theme.spacing.xl,
-    paddingBottom: theme.spacing.xxl,
+  stepWrapper: {
     gap: theme.spacing.lg,
     alignItems: "center",
   },
@@ -647,9 +650,13 @@ const styles = StyleSheet.create((theme, rt) => ({
     gap: theme.spacing.md,
     paddingHorizontal: theme.layout.screenPaddingH,
     paddingTop: theme.spacing.md,
-    paddingBottom: rt.insets.bottom + theme.spacing.lg,
     borderTopWidth: theme.borderWidth.hairline,
     borderTopColor: theme.colors.panelBorder,
+  },
+  backButton: {
+    paddingVertical: theme.spacing.sm,
+    minHeight: 44,
+    justifyContent: "center",
   },
   nextButton: {
     flexDirection: "row",

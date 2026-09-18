@@ -2,6 +2,7 @@ import { AllDoneBanner, MinimumNotMetBanner } from "@/components/day-banners";
 import { DayCompletePrompt } from "@/components/day-complete-prompt";
 import { HapticPressable } from "@/components/haptic-pressable";
 import { MilestoneModal } from "@/components/milestone-modal";
+import { ScrollScreen } from "@/components/screen";
 import { SwearModal } from "@/components/swear-modal";
 import Text from "@/components/text";
 import { MIN_EXERCISES_PER_DAY } from "@/constants/dailyforge";
@@ -17,23 +18,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { Redirect, router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  View,
-} from "react-native";
+import { ActivityIndicator, RefreshControl, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-
-// ─────────────────────────────────────────────────────────────
-// OUTER — decides whether we can run the inner screen
-// ─────────────────────────────────────────────────────────────
 
 export default function TodayScreen() {
   const { theme } = useUnistyles();
   const profile = useProfile();
 
-  // Wait for the profile check to resolve before doing anything else.
   if (profile.loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -42,21 +33,14 @@ export default function TodayScreen() {
     );
   }
 
-  // No profile → straight to onboarding. Inner screen never mounts,
-  // so no SQLite queries ever run against a released DB.
   if (profile.data === null) {
     return <Redirect href="/(main)/onboarding" />;
   }
 
-  // Profile exists → render the real Today screen with all its hooks.
   return (
     <TodayContent profile={profile.data} onProfileRefresh={profile.refresh} />
   );
 }
-
-// ─────────────────────────────────────────────────────────────
-// INNER — everything that queries the DB
-// ─────────────────────────────────────────────────────────────
 
 function TodayContent({
   profile,
@@ -151,9 +135,7 @@ function TodayContent({
 
   return (
     <>
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={styles.content}
+      <ScrollScreen
         refreshControl={
           <RefreshControl
             refreshing={day.loading}
@@ -162,6 +144,7 @@ function TodayContent({
           />
         }
       >
+        {/* ── Header ─────────────────────────────────── */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text variant="h1" color="onBackground">
@@ -195,6 +178,7 @@ function TodayContent({
           </View>
         </View>
 
+        {/* ── Banners ────────────────────────────────── */}
         {showMinimumBanner && (
           <MinimumNotMetBanner
             count={day.exercises.length}
@@ -205,6 +189,7 @@ function TodayContent({
 
         {showAllDoneBanner && <AllDoneBanner onLock={requestLock} />}
 
+        {/* ── Body ───────────────────────────────────── */}
         {day.exercises.length === 0 ? (
           <EmptyState />
         ) : day.isLocked ? (
@@ -227,6 +212,7 @@ function TodayContent({
           </View>
         )}
 
+        {/* ── Add Exercise ───────────────────────────── */}
         {!day.isLocked && (
           <HapticPressable
             haptic="medium"
@@ -239,7 +225,7 @@ function TodayContent({
             </Text>
           </HapticPressable>
         )}
-      </ScrollView>
+      </ScrollScreen>
 
       <DayCompletePrompt
         visible={promptVisible}
@@ -395,14 +381,7 @@ function formatDuration(seconds: number): string {
   return s === 0 ? `${m}m` : `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-const styles = StyleSheet.create((theme, rt) => ({
-  screen: { flex: 1, backgroundColor: theme.colors.background },
-  content: {
-    paddingTop: rt.insets.top + theme.spacing.lg,
-    paddingHorizontal: theme.layout.screenPaddingH,
-    paddingBottom: theme.spacing.giant,
-    gap: theme.spacing.lg,
-  },
+const styles = StyleSheet.create((theme) => ({
   loadingContainer: {
     flex: 1,
     alignItems: "center",
@@ -425,6 +404,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.panelBorder,
+    minWidth: 72,
   },
   list: { gap: theme.spacing.sm },
   card: {
@@ -436,6 +416,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.panelBorder,
+    minHeight: 68,
   },
   cardDone: { opacity: 0.6 },
   cardIcon: {
@@ -450,6 +431,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.xs,
+    flexWrap: "wrap",
   },
   cardMeta: {
     flexDirection: "row",
@@ -478,6 +460,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thick,
     borderStyle: "dashed",
+    minHeight: 52,
   },
   stateContainer: {
     alignItems: "center",

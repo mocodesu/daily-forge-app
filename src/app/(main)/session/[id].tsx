@@ -8,16 +8,14 @@ import { trackUserActivity } from "@/utils/retention-reminder";
 import { playSound } from "@/utils/sounds";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
-import { usePreventRemove } from "expo-router/build/react-navigation";
+import { router, useLocalSearchParams, usePreventRemove } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 export default function SessionScreen() {
-  const { theme } = useUnistyles();
+  const { theme, rt } = useUnistyles();
   const db = useSQLiteContext();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -32,6 +30,14 @@ export default function SessionScreen() {
   const lastTickRef = useRef(-1);
   const popFiredRef = useRef(false);
   const initRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   usePreventRemove(!finished && !loading, () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -43,6 +49,7 @@ export default function SessionScreen() {
 
     (async () => {
       const ex = await ExercisesRepo.getById(db, id);
+      if (!mountedRef.current) return;
       if (!ex) {
         setLoading(false);
         return;
@@ -132,7 +139,15 @@ export default function SessionScreen() {
   const progress = 1 - remaining / total;
 
   return (
-    <View style={styles.screen}>
+    <View
+      style={[
+        styles.screen,
+        {
+          paddingTop: rt.insets.top + theme.spacing.huge,
+          paddingBottom: rt.insets.bottom + theme.spacing.huge,
+        },
+      ]}
+    >
       <View style={styles.titleBlock}>
         <View style={styles.eyebrow}>
           <Ionicons
@@ -180,7 +195,9 @@ export default function SessionScreen() {
       <View style={styles.setsBlock}>
         <Text variant="callout" color="mutedText">
           {exercise.exerciseType === "timer"
-            ? `${exercise.sets} sets × ${formatDuration(exercise.durationSeconds)} hold`
+            ? `${exercise.sets} sets × ${formatDuration(
+                exercise.durationSeconds,
+              )} hold`
             : `${exercise.sets} sets × ${exercise.reps} reps`}
         </Text>
       </View>
@@ -249,7 +266,6 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1,
     backgroundColor: theme.colors.background,
     paddingHorizontal: theme.layout.screenPaddingH,
-    paddingVertical: theme.spacing.huge,
     alignItems: "center",
     justifyContent: "space-between",
   },
@@ -262,7 +278,6 @@ const styles = StyleSheet.create((theme) => ({
   titleBlock: {
     alignItems: "center",
     gap: theme.spacing.xs,
-    paddingTop: theme.spacing.huge,
   },
   eyebrow: {
     flexDirection: "row",
@@ -294,7 +309,6 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: theme.spacing.md,
     width: "100%",
-    paddingBottom: theme.spacing.huge,
   },
   markDone: {
     flexDirection: "row",

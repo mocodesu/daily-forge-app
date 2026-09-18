@@ -1,6 +1,7 @@
 import { BodyPartChip } from "@/components/body-part-chip";
 import { CatalogPickerSheet } from "@/components/catalog-picker-sheet";
 import { HapticPressable } from "@/components/haptic-pressable";
+import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
 import type { CatalogExercise } from "@/constants/workout-catalog";
 import { ExercisesRepo } from "@/repositories/exercises-repo";
@@ -18,7 +19,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   Switch,
   TextInput,
   View,
@@ -29,7 +29,6 @@ export default function CreateExerciseScreen() {
   const { theme } = useUnistyles();
   const db = useSQLiteContext();
 
-  // ── Form state ──────────────────────────────────────────
   const [name, setName] = useState("");
   const [exerciseType, setExerciseType] = useState<ExerciseType>("reps");
   const [selectedParts, setSelectedParts] = useState<Set<BodyPart>>(new Set());
@@ -45,7 +44,6 @@ export default function CreateExerciseScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Helpers ─────────────────────────────────────────────
   function togglePart(part: BodyPart) {
     setSelectedParts((prev) => {
       const next = new Set(prev);
@@ -109,7 +107,6 @@ export default function CreateExerciseScreen() {
       }
     }
 
-    // Preserve canonical body-part order rather than tap order
     const orderedParts = BODY_PARTS.filter((p) => selectedParts.has(p));
 
     setSaving(true);
@@ -143,7 +140,6 @@ export default function CreateExerciseScreen() {
       style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      {/* ── HEADER ──────────────────────────────────────── */}
       <View
         style={[styles.header, { borderBottomColor: theme.colors.panelBorder }]}
       >
@@ -158,11 +154,7 @@ export default function CreateExerciseScreen() {
         <View style={{ width: 52 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* ── QUICK START ──────────────────────────────── */}
+      <ScrollScreen safeTop={false}>
         <Pressable
           onPress={() => setPickerVisible(true)}
           style={[
@@ -200,7 +192,6 @@ export default function CreateExerciseScreen() {
           />
         </Pressable>
 
-        {/* ── NAME ─────────────────────────────────────── */}
         <Field label="Name">
           <TextInput
             value={name}
@@ -220,7 +211,6 @@ export default function CreateExerciseScreen() {
           />
         </Field>
 
-        {/* ── TYPE ─────────────────────────────────────── */}
         <Field label="Type">
           <View style={styles.segmented}>
             {(["reps", "timer"] as ExerciseType[]).map((type) => {
@@ -260,7 +250,6 @@ export default function CreateExerciseScreen() {
           </View>
         </Field>
 
-        {/* ── DAILY TOGGLE ─────────────────────────────── */}
         <View
           style={[
             styles.card,
@@ -293,7 +282,6 @@ export default function CreateExerciseScreen() {
           </View>
         </View>
 
-        {/* ── BODY PARTS ───────────────────────────────── */}
         <Field label="Body parts">
           <View style={styles.chipRow}>
             {BODY_PARTS.map((part) => (
@@ -307,12 +295,10 @@ export default function CreateExerciseScreen() {
           </View>
         </Field>
 
-        {/* ── SETS ─────────────────────────────────────── */}
         <Field label="Sets">
           <NumberInput value={sets} onChange={setSets} />
         </Field>
 
-        {/* ── REPS OR DURATION ─────────────────────────── */}
         {exerciseType === "reps" ? (
           <Field label="Reps per set">
             <NumberInput value={reps} onChange={setReps} />
@@ -332,7 +318,6 @@ export default function CreateExerciseScreen() {
           </Field>
         )}
 
-        {/* ── SESSION TIMER ────────────────────────────── */}
         <View
           style={[
             styles.card,
@@ -367,7 +352,7 @@ export default function CreateExerciseScreen() {
               ["10m", 600],
             ].map(([label, secs]) => (
               <QuickButton
-                key={label}
+                key={label as string}
                 label={label as string}
                 onPress={() => setSessionDuration(String(secs))}
               />
@@ -375,7 +360,6 @@ export default function CreateExerciseScreen() {
           </View>
         </View>
 
-        {/* ── NOTES ────────────────────────────────────── */}
         <Field label="Notes (optional)">
           <TextInput
             value={notes}
@@ -396,7 +380,6 @@ export default function CreateExerciseScreen() {
           />
         </Field>
 
-        {/* ── CONFIRMATION ─────────────────────────────── */}
         <Pressable
           onPress={() => setConfirmLock((v) => !v)}
           style={styles.confirmRow}
@@ -427,7 +410,6 @@ export default function CreateExerciseScreen() {
           </Text>
         </Pressable>
 
-        {/* ── ERROR ────────────────────────────────────── */}
         {error && (
           <View
             style={[styles.errorBox, { backgroundColor: theme.colors.panel }]}
@@ -443,7 +425,6 @@ export default function CreateExerciseScreen() {
           </View>
         )}
 
-        {/* ── SAVE ─────────────────────────────────────── */}
         <HapticPressable
           haptic="medium"
           onPress={handleSave}
@@ -461,9 +442,8 @@ export default function CreateExerciseScreen() {
             {saving ? "Saving…" : "Save Exercise"}
           </Text>
         </HapticPressable>
+      </ScrollScreen>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
       <CatalogPickerSheet
         visible={pickerVisible}
         onClose={() => setPickerVisible(false)}
@@ -472,10 +452,6 @@ export default function CreateExerciseScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-// ─────────────────────────────────────────────────────────────
-// SUB-COMPONENTS
-// ─────────────────────────────────────────────────────────────
 
 function Field({
   label,
@@ -550,11 +526,7 @@ function QuickButton({
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// STYLES
-// ─────────────────────────────────────────────────────────────
-
-const styles = StyleSheet.create((theme) => ({
+const styles = StyleSheet.create((theme, rt) => ({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -564,19 +536,11 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: theme.layout.screenPaddingH,
-    paddingTop: theme.spacing.lg,
+    paddingTop: rt.insets.top + theme.spacing.md,
     paddingBottom: theme.spacing.md,
     borderBottomWidth: theme.borderWidth.hairline,
   },
-  content: {
-    padding: theme.layout.screenPaddingH,
-    paddingTop: theme.spacing.lg,
-    gap: theme.spacing.lg,
-  },
-
-  field: {
-    gap: theme.spacing.xs,
-  },
+  field: { gap: theme.spacing.xs },
   input: {
     borderRadius: theme.radii.sm,
     borderWidth: theme.borderWidth.thin,
@@ -590,11 +554,7 @@ const styles = StyleSheet.create((theme) => ({
     paddingTop: theme.spacing.sm,
     textAlignVertical: "top",
   },
-
-  segmented: {
-    flexDirection: "row",
-    gap: theme.spacing.sm,
-  },
+  segmented: { flexDirection: "row", gap: theme.spacing.sm },
   segment: {
     flex: 1,
     flexDirection: "row",
@@ -604,8 +564,8 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.radii.sm,
     borderWidth: theme.borderWidth.thin,
+    minHeight: 44,
   },
-
   card: {
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
@@ -617,11 +577,7 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: theme.spacing.md,
   },
-  rowText: {
-    flex: 1,
-    gap: 2,
-  },
-
+  rowText: { flex: 1, gap: 2 },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -635,15 +591,17 @@ const styles = StyleSheet.create((theme) => ({
   },
   quickButton: {
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: theme.radii.sm,
     borderWidth: theme.borderWidth.thin,
+    minHeight: 36,
+    justifyContent: "center",
   },
-
   confirmRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.md,
+    minHeight: 44,
   },
   checkbox: {
     width: 22,
@@ -653,7 +611,6 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
-
   errorBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -661,7 +618,6 @@ const styles = StyleSheet.create((theme) => ({
     padding: theme.spacing.md,
     borderRadius: theme.radii.sm,
   },
-
   saveButton: {
     paddingVertical: theme.spacing.md,
     borderRadius: theme.radii.md,
@@ -676,6 +632,7 @@ const styles = StyleSheet.create((theme) => ({
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
+    minHeight: 68,
   },
   quickStartIcon: {
     width: 40,
@@ -684,8 +641,5 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
-  quickStartBody: {
-    flex: 1,
-    gap: 2,
-  },
+  quickStartBody: { flex: 1, gap: 2, minWidth: 0 },
 }));
