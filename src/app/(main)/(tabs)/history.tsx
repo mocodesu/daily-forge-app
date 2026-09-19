@@ -1,3 +1,4 @@
+import { DayCircle } from "@/components/day-circle";
 import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
 import { HISTORY_WINDOW_DAYS } from "@/constants/dailyforge";
@@ -8,12 +9,7 @@ import { calculateStreak } from "@/utils/streak";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { ActivityIndicator, useWindowDimensions, View } from "react-native";
 import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 const MAX_CONTENT_WIDTH = 640;
@@ -85,7 +81,6 @@ export default function HistoryScreen() {
     );
   }
 
-  // ── Context text — adapts to progress ────────────────────
   const remaining = Math.max(0, targetDays - streak);
   const statusText =
     streak === 0
@@ -130,71 +125,6 @@ export default function HistoryScreen() {
   );
 }
 
-function DayCircle({
-  day,
-  size,
-  onPress,
-}: {
-  day: DayProgress;
-  size: number;
-  onPress: () => void;
-}) {
-  const progress = day.total > 0 ? day.completed / day.total : 0;
-  const dayNumber = String(day.date.getDate());
-  const percent = Math.round(progress * 100);
-
-  const isInactive = day.total === 0;
-  const isComplete = !isInactive && progress >= 1;
-
-  const fontSize = Math.round(size * 0.34);
-
-  const textColor = isComplete
-    ? "onPrimary"
-    : isInactive
-      ? "mutedText"
-      : "onSurface";
-
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={isInactive}
-      style={[styles.cell, { width: size }]}
-    >
-      <View
-        style={[
-          styles.ring,
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: isComplete ? 3 : 2,
-          },
-          isComplete && styles.ringComplete,
-          !isComplete && !isInactive && styles.ringPartial,
-          isInactive && styles.ringInactive,
-        ]}
-      >
-        <Text
-          variant="title"
-          color={textColor}
-          style={{ fontSize, lineHeight: fontSize * 1.15 }}
-        >
-          {dayNumber}
-        </Text>
-      </View>
-
-      <Text
-        variant="caption"
-        color="mutedText"
-        style={isInactive ? styles.captionInactive : undefined}
-        numberOfLines={1}
-      >
-        {isInactive ? "rest" : `${percent}% · ${day.completed}/${day.total}`}
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create((theme) => ({
   loading: {
     flex: 1,
@@ -228,29 +158,5 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "flex-start",
-  },
-  cell: {
-    alignItems: "center",
-    gap: 4,
-  },
-  ring: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ringComplete: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  ringPartial: {
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.primary,
-  },
-  ringInactive: {
-    backgroundColor: "transparent",
-    borderColor: theme.colors.panelBorder,
-    opacity: 0.5,
-  },
-  captionInactive: {
-    opacity: 0.5,
   },
 }));

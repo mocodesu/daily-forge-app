@@ -4,7 +4,12 @@ import { SwearPhraseEditor } from "@/components/swear-phrase-editor";
 import Text from "@/components/text";
 import { MutedIcon, PrimaryIcon } from "@/components/themed";
 import { UnitSystemPicker } from "@/components/unit-system-picker";
-import { TARGET_DAYS_OPTIONS } from "@/constants/dailyforge";
+import {
+  MINIMUM_EXERCISES_OPTIONS,
+  MINIMUM_EXERCISES_RANGE,
+  TARGET_DAYS_OPTIONS,
+} from "@/constants/dailyforge";
+import { useMinimumExercises } from "@/hooks/use-minimum-exercises";
 import { useTargetDays } from "@/hooks/use-target-days";
 import { useThemePreference } from "@/hooks/use-theme-preference";
 import {
@@ -32,24 +37,42 @@ const THEME_MODES: {
 export default function SettingsScreen() {
   const { schemeId, mode, selectScheme, selectMode } = useThemePreference();
   const { targetDays, setTargetDays } = useTargetDays();
+  const { minimumExercises, setMinimumExercises } = useMinimumExercises();
 
-  const [customText, setCustomText] = useState("");
-  const [showCustom, setShowCustom] = useState(false);
+  const [customTargetText, setCustomTargetText] = useState("");
+  const [showCustomTarget, setShowCustomTarget] = useState(false);
+
+  const [customMinText, setCustomMinText] = useState("");
+  const [showCustomMin, setShowCustomMin] = useState(false);
 
   const appVersion = Application.nativeApplicationVersion ?? "—";
   const buildVersion = Application.nativeBuildVersion ?? "—";
 
-  const handleCustomSave = () => {
-    const parsed = parseInt(customText, 10);
+  const handleCustomTargetSave = () => {
+    const parsed = parseInt(customTargetText, 10);
     if (Number.isFinite(parsed) && parsed > 0) {
       setTargetDays(parsed);
-      setCustomText("");
-      setShowCustom(false);
+      setCustomTargetText("");
+      setShowCustomTarget(false);
+    }
+  };
+
+  const handleCustomMinSave = () => {
+    const parsed = parseInt(customMinText, 10);
+    if (
+      Number.isFinite(parsed) &&
+      parsed >= MINIMUM_EXERCISES_RANGE.min &&
+      parsed <= MINIMUM_EXERCISES_RANGE.max
+    ) {
+      setMinimumExercises(parsed);
+      setCustomMinText("");
+      setShowCustomMin(false);
     }
   };
 
   return (
     <ScrollScreen>
+      {/* ── Appearance ────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Appearance
@@ -141,6 +164,7 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* ── Streak Target ─────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Streak Target
@@ -158,12 +182,12 @@ export default function SettingsScreen() {
 
           <View style={styles.pillRow}>
             {TARGET_DAYS_OPTIONS.map((n) => {
-              const selected = targetDays === n && !showCustom;
+              const selected = targetDays === n && !showCustomTarget;
               return (
                 <Pressable
                   key={n}
                   onPress={() => {
-                    setShowCustom(false);
+                    setShowCustomTarget(false);
                     setTargetDays(n);
                   }}
                   style={[
@@ -182,26 +206,28 @@ export default function SettingsScreen() {
             })}
 
             <Pressable
-              onPress={() => setShowCustom((v) => !v)}
+              onPress={() => setShowCustomTarget((v) => !v)}
               style={[
                 styles.pill,
-                showCustom ? styles.pillSelected : styles.pillIdle,
+                showCustomTarget ? styles.pillSelected : styles.pillIdle,
               ]}
             >
               <Text
                 variant="subheadBold"
-                color={showCustom ? "onPrimary" : "onSurface"}
+                color={showCustomTarget ? "onPrimary" : "onSurface"}
               >
                 Custom
               </Text>
             </Pressable>
           </View>
 
-          {showCustom && (
+          {showCustomTarget && (
             <View style={styles.customRow}>
               <TextInput
-                value={customText}
-                onChangeText={(v) => setCustomText(v.replace(/[^0-9]/g, ""))}
+                value={customTargetText}
+                onChangeText={(v) =>
+                  setCustomTargetText(v.replace(/[^0-9]/g, ""))
+                }
                 placeholder={String(targetDays)}
                 placeholderTextColor={
                   UnistylesRuntime.getTheme().colors.mutedText
@@ -210,21 +236,21 @@ export default function SettingsScreen() {
                 style={styles.customInput}
                 autoFocus
                 returnKeyType="done"
-                onSubmitEditing={handleCustomSave}
+                onSubmitEditing={handleCustomTargetSave}
               />
               <Pressable
-                onPress={handleCustomSave}
-                disabled={!customText}
+                onPress={handleCustomTargetSave}
+                disabled={!customTargetText}
                 style={[
                   styles.customSave,
-                  customText
+                  customTargetText
                     ? styles.customSaveEnabled
                     : styles.customSaveDisabled,
                 ]}
               >
                 <Text
                   variant="subheadBold"
-                  color={customText ? "onPrimary" : "mutedText"}
+                  color={customTargetText ? "onPrimary" : "mutedText"}
                 >
                   Save
                 </Text>
@@ -238,6 +264,106 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* ── Daily Minimum ─────────────────────────────── */}
+      <View style={styles.card}>
+        <Text variant="title" color="onSurface">
+          Daily Minimum
+        </Text>
+
+        <View style={styles.sectionBlock}>
+          <View style={styles.sectionHeader}>
+            <Text variant="subheadBold" color="onSurface">
+              Exercises per day
+            </Text>
+            <Text variant="caption" color="mutedText">
+              The minimum number of exercises required for a day to count.
+            </Text>
+          </View>
+
+          <View style={styles.pillRow}>
+            {MINIMUM_EXERCISES_OPTIONS.map((n) => {
+              const selected = minimumExercises === n && !showCustomMin;
+              return (
+                <Pressable
+                  key={n}
+                  onPress={() => {
+                    setShowCustomMin(false);
+                    setMinimumExercises(n);
+                  }}
+                  style={[
+                    styles.pill,
+                    selected ? styles.pillSelected : styles.pillIdle,
+                  ]}
+                >
+                  <Text
+                    variant="subheadBold"
+                    color={selected ? "onPrimary" : "onSurface"}
+                  >
+                    {n}
+                  </Text>
+                </Pressable>
+              );
+            })}
+
+            <Pressable
+              onPress={() => setShowCustomMin((v) => !v)}
+              style={[
+                styles.pill,
+                showCustomMin ? styles.pillSelected : styles.pillIdle,
+              ]}
+            >
+              <Text
+                variant="subheadBold"
+                color={showCustomMin ? "onPrimary" : "onSurface"}
+              >
+                Custom
+              </Text>
+            </Pressable>
+          </View>
+
+          {showCustomMin && (
+            <View style={styles.customRow}>
+              <TextInput
+                value={customMinText}
+                onChangeText={(v) => setCustomMinText(v.replace(/[^0-9]/g, ""))}
+                placeholder={String(minimumExercises)}
+                placeholderTextColor={
+                  UnistylesRuntime.getTheme().colors.mutedText
+                }
+                keyboardType="number-pad"
+                style={styles.customInput}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleCustomMinSave}
+              />
+              <Pressable
+                onPress={handleCustomMinSave}
+                disabled={!customMinText}
+                style={[
+                  styles.customSave,
+                  customMinText
+                    ? styles.customSaveEnabled
+                    : styles.customSaveDisabled,
+                ]}
+              >
+                <Text
+                  variant="subheadBold"
+                  color={customMinText ? "onPrimary" : "mutedText"}
+                >
+                  Save
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          <Text variant="caption" color="mutedText">
+            Current minimum: {minimumExercises} exercise
+            {minimumExercises === 1 ? "" : "s"} per day
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Units ─────────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Units
@@ -245,6 +371,7 @@ export default function SettingsScreen() {
         <UnitSystemPicker />
       </View>
 
+      {/* ── Swear ─────────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Swear
@@ -252,6 +379,7 @@ export default function SettingsScreen() {
         <SwearPhraseEditor />
       </View>
 
+      {/* ── Data ──────────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Data
@@ -276,6 +404,7 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
+      {/* ── About ─────────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           About

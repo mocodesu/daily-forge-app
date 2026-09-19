@@ -14,7 +14,29 @@ import { usePreventRemove } from "expo-router/build/react-navigation";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
+import Animated, {
+  Easing as ReanimatedEasing,
+  interpolateColor,
+  useAnimatedProps,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+import Svg, { Circle } from "react-native-svg";
 import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+
+// ─────────────────────────────────────────────────────────────
+// Ring geometry (module constants, captured by worklets)
+// ─────────────────────────────────────────────────────────────
+
+const RING_SIZE = 280;
+const RING_STROKE = 16;
+const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+const RING_CENTER = RING_SIZE / 2;
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export default function SessionScreen() {
   const db = useSQLiteContext();
@@ -32,7 +54,19 @@ export default function SessionScreen() {
   const popFiredRef = useRef(false);
   const initRef = useRef(false);
   const mountedRef = useRef(true);
+  const ringAnimationStartedRef = useRef(false);
 
+  // ── Reanimated shared values ──────────────────────────────
+  const progress = useSharedValue(0);
+  const completion = useSharedValue(0);
+
+  // Colors read once, captured by the worklet below.
+  const theme = UnistylesRuntime.getTheme();
+  const primaryColor = theme.colors.primary;
+  const trackColor = theme.colors.panel;
+  const successColor = theme.colors.active;
+
+  // ── Lifecycle guards ──────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -44,6 +78,7 @@ export default function SessionScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   });
 
+  // ── Load exercise metadata (does NOT start the ring) ──────
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
@@ -65,6 +100,27 @@ export default function SessionScreen() {
     })();
   }, [db, id]);
 
+  // ── Start the ring animation AFTER the SVG has mounted ────
+  //
+  // This effect runs the first time `loading` flips to false and
+  // `exercise` is set — which is exactly when the <AnimatedCircle>
+  // enters the tree. Starting the animation here guarantees the
+  // shared value has a subscriber from frame one.
+  useEffect(() => {
+    if (loading || !exercise) return;
+    if (ringAnimationStartedRef.current) return;
+    ringAnimationStartedRef.current = true;
+
+    const duration = Math.max(exercise.sessionDurationSeconds * 1000, 500);
+
+    progress.value = withTiming(1, {
+      duration,
+      easing: ReanimatedEasing.linear,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, exercise]);
+
+  // ── Countdown ticker ──────────────────────────────────────
   useEffect(() => {
     if (loading || !exercise) return;
 
@@ -93,15 +149,18 @@ export default function SessionScreen() {
     return () => clearInterval(interval);
   }, [loading, exercise]);
 
+  // ── Completion ────────────────────────────────────────────
   useEffect(() => {
     if (loading || !exercise) return;
     if (remaining === 0 && !finished) {
       setFinished(true);
       playSound("glass");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      completion.value = withSpring(1, { damping: 12, stiffness: 160 });
     }
-  }, [loading, exercise, remaining, finished]);
+  }, [loading, exercise, remaining, finished, completion]);
 
+  // ── Handlers ──────────────────────────────────────────────
   const handleMarkDone = async () => {
     if (!exercise || saving) return;
     setSaving(true);
@@ -126,8 +185,43 @@ export default function SessionScreen() {
     if (!__DEV__) return;
     endDateRef.current = Date.now();
     setRemaining(0);
+    progress.value = withTiming(1, { duration: 200 });
   };
 
+  // ── Animated props ────────────────────────────────────────
+  const ringAnimatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: RING_CIRCUMFERENCE * (1 - progress.value),
+    stroke: interpolateColor(
+      completion.value,
+      [0, 1],
+      [primaryColor, successColor],
+    ),
+  }));
+
+  const countdownStyle = useAnimatedStyle(() => ({
+    opacity: 1 - completion.value,
+    transform: [{ scale: 1 - completion.value * 0.2 }],
+  }));
+
+  const checkStyle = useAnimatedStyle(() => ({
+    opacity: completion.value,
+    transform: [{ scale: completion.value }],
+  }));
+
+  const remainingLabelStyle = useAnimatedStyle(() => ({
+    opacity: 1 - completion.value,
+  }));
+
+  const completeLabelStyle = useAnimatedStyle(() => ({
+    opacity: completion.value,
+  }));
+
+  const buttonStyle = useAnimatedStyle(() => ({
+    opacity: completion.value,
+    transform: [{ translateY: (1 - completion.value) * 24 }],
+  }));
+
+  // ── Render ────────────────────────────────────────────────
   if (loading || !exercise) {
     return (
       <View style={styles.loading}>
@@ -139,8 +233,6 @@ export default function SessionScreen() {
     );
   }
 
-  const total = Math.max(exercise.sessionDurationSeconds, 1);
-  const progress = 1 - remaining / total;
   const isTimer = exercise.exerciseType === "timer";
 
   return (
@@ -160,22 +252,62 @@ export default function SessionScreen() {
         </Text>
       </View>
 
-      <View style={styles.countdownBlock}>
-        <Text
-          variant="display"
-          color={finished ? "primary" : "onBackground"}
-          style={styles.countdown}
+      <View style={styles.ringContainer}>
+        <Svg
+          width={RING_SIZE}
+          height={RING_SIZE}
+          viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
         >
-          {formatMMSS(remaining)}
-        </Text>
-        <Text variant="subhead" color="mutedText">
-          {finished ? "Complete!" : "remaining"}
-        </Text>
-        <View style={styles.track}>
-          <View
-            style={[styles.fill, { width: `${Math.round(progress * 100)}%` }]}
+          <Circle
+            cx={RING_CENTER}
+            cy={RING_CENTER}
+            r={RING_RADIUS}
+            stroke={trackColor}
+            strokeWidth={RING_STROKE}
+            fill="none"
           />
+          <AnimatedCircle
+            cx={RING_CENTER}
+            cy={RING_CENTER}
+            r={RING_RADIUS}
+            strokeWidth={RING_STROKE}
+            strokeLinecap="round"
+            fill="none"
+            strokeDasharray={RING_CIRCUMFERENCE}
+            strokeDashoffset={RING_CIRCUMFERENCE}
+            animatedProps={ringAnimatedProps}
+            transform={`rotate(-90 ${RING_CENTER} ${RING_CENTER})`}
+          />
+        </Svg>
+
+        <View style={styles.ringCenter} pointerEvents="none">
+          <Animated.View style={[styles.countdownWrap, countdownStyle]}>
+            <Text
+              variant="display"
+              color="onBackground"
+              style={styles.countdownText}
+            >
+              {formatMMSS(remaining)}
+            </Text>
+          </Animated.View>
+
+          <Animated.View style={[styles.checkWrap, checkStyle]}>
+            <Ionicons name="checkmark" size={96} color={successColor} />
+          </Animated.View>
         </View>
+      </View>
+
+      <View style={styles.labelRow}>
+        <Animated.View style={[styles.labelWrap, remainingLabelStyle]}>
+          <Text variant="subhead" color="mutedText">
+            remaining
+          </Text>
+        </Animated.View>
+        <Animated.View style={[styles.labelWrap, completeLabelStyle]}>
+          <Text variant="subheadBold" color="active">
+            Complete!
+          </Text>
+        </Animated.View>
       </View>
 
       <View style={styles.setsBlock}>
@@ -190,21 +322,23 @@ export default function SessionScreen() {
 
       <View style={styles.actions}>
         {finished ? (
-          <HapticPressable
-            haptic="medium"
-            onPress={handleMarkDone}
-            disabled={saving}
-            style={styles.markDone}
-          >
-            <Ionicons
-              name="checkmark-circle"
-              size={20}
-              color={UnistylesRuntime.getTheme().colors.onPrimary}
-            />
-            <Text variant="subheadBold" color="onPrimary">
-              {saving ? "Saving…" : "Mark Done"}
-            </Text>
-          </HapticPressable>
+          <Animated.View style={[styles.buttonWrap, buttonStyle]}>
+            <HapticPressable
+              haptic="medium"
+              onPress={handleMarkDone}
+              disabled={saving}
+              style={styles.markDone}
+            >
+              <Ionicons
+                name="checkmark-circle"
+                size={20}
+                color={UnistylesRuntime.getTheme().colors.onPrimary}
+              />
+              <Text variant="subheadBold" color="onPrimary">
+                {saving ? "Saving…" : "Mark Done"}
+              </Text>
+            </HapticPressable>
+          </Animated.View>
         ) : (
           <View style={styles.lockedNotice}>
             <Ionicons name="lock-closed" size={14} style={styles.iconMuted} />
@@ -230,6 +364,10 @@ export default function SessionScreen() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// Formatters
+// ─────────────────────────────────────────────────────────────
+
 function formatMMSS(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -242,6 +380,10 @@ function formatDuration(seconds: number): string {
   const s = seconds % 60;
   return s === 0 ? `${m}m` : `${m}:${s.toString().padStart(2, "0")}`;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create((theme, rt) => ({
   screen: {
@@ -259,39 +401,61 @@ const styles = StyleSheet.create((theme, rt) => ({
     justifyContent: "center",
     backgroundColor: theme.colors.background,
   },
+
   titleBlock: { alignItems: "center", gap: theme.spacing.xs },
   eyebrow: { flexDirection: "row", alignItems: "center", gap: 6 },
   name: { textAlign: "center" },
-  countdownBlock: {
+
+  ringContainer: {
     alignItems: "center",
-    gap: theme.spacing.md,
-    width: "100%",
+    justifyContent: "center",
+    width: RING_SIZE,
+    height: RING_SIZE,
   },
-  countdown: {
-    fontSize: 84,
-    lineHeight: 92,
+  ringCenter: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countdownWrap: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countdownText: {
+    fontSize: 64,
+    lineHeight: 72,
     letterSpacing: -2,
     fontVariant: ["tabular-nums"],
   },
-  track: {
-    width: "80%",
-    height: 8,
-    borderRadius: 4,
-    overflow: "hidden",
-    marginTop: theme.spacing.md,
-    backgroundColor: theme.colors.panel,
+  checkWrap: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  fill: {
-    height: "100%",
-    borderRadius: 4,
-    backgroundColor: theme.colors.primary,
+
+  labelRow: {
+    alignItems: "center",
+    justifyContent: "center",
+    height: 24,
+    width: "100%",
   },
+  labelWrap: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   setsBlock: { alignItems: "center" },
+
   actions: {
     alignItems: "center",
     gap: theme.spacing.md,
     width: "100%",
+    minHeight: 80,
+    justifyContent: "flex-end",
   },
+  buttonWrap: { width: "100%", alignItems: "center" },
   iconMuted: { color: theme.colors.mutedText },
   markDone: {
     flexDirection: "row",

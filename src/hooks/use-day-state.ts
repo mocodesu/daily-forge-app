@@ -13,7 +13,10 @@ export interface DayState {
   exercises: Exercise[];
   records: CompletionRecord[];
   completedIds: Set<string>;
+  /** Every exercise completed AND minimum met. */
   allDone: boolean;
+  /** Every exercise completed, regardless of the minimum. */
+  allExercisesCompleted: boolean;
   isLocked: boolean;
   sworeToday: boolean;
   meetsMinimum: boolean;
@@ -28,6 +31,7 @@ const EMPTY: DayState = {
   records: [],
   completedIds: new Set(),
   allDone: false,
+  allExercisesCompleted: false,
   isLocked: false,
   sworeToday: false,
   meetsMinimum: false,
@@ -37,11 +41,12 @@ const EMPTY: DayState = {
 };
 
 /**
- * @param enabled When false, no queries run at all. Pass `false` while the
- *   profile is still loading, so we don't query the DB before we know
- *   whether the app is going to redirect to onboarding.
+ * @param minimumExercises  The user-configured minimum number of daily
+ *                          exercises required for a day to count as
+ *                          "complete". Comes from `useMinimumExercises`.
+ * @param enabled           When false, no queries run.
  */
-export function useDayState(enabled: boolean = true) {
+export function useDayState(minimumExercises: number, enabled: boolean = true) {
   const db = useSQLiteContext();
   const [state, setState] = useState<DayState>(EMPTY);
 
@@ -73,8 +78,14 @@ export function useDayState(enabled: boolean = true) {
       if (!mountedRef.current) return;
 
       const completedIds = new Set(records.map((r) => r.exerciseId));
-      const allDone =
+
+      const allExercisesCompleted =
         exercises.length > 0 && exercises.every((e) => completedIds.has(e.id));
+
+      // The day is only "done" when the user has completed every exercise
+      // AND they have at least `minimumExercises` configured.
+      const allDone =
+        exercises.length >= minimumExercises && allExercisesCompleted;
 
       setState({
         loading: false,
@@ -82,9 +93,10 @@ export function useDayState(enabled: boolean = true) {
         records,
         completedIds,
         allDone,
+        allExercisesCompleted,
         isLocked,
         sworeToday,
-        meetsMinimum: exercises.length >= 5,
+        meetsMinimum: exercises.length >= minimumExercises,
         progress: {
           done: exercises.filter((e) => completedIds.has(e.id)).length,
           total: exercises.length,
@@ -97,12 +109,10 @@ export function useDayState(enabled: boolean = true) {
       console.warn("[useDayState] refresh failed:", err);
       setState((s) => ({ ...s, loading: false }));
     }
-  }, [db, enabled]);
+  }, [db, enabled, minimumExercises]);
 
   useEffect(() => {
     if (!enabled) {
-      // Reset to loading so the UI doesn't show stale data while we wait
-      // to know if we should even be running.
       setState((s) => ({ ...s, loading: true }));
       return;
     }
