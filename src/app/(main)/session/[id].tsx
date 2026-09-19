@@ -25,23 +25,39 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { Circle } from "react-native-svg";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import {
+  StyleSheet,
+  UnistylesRuntime,
+  useUnistyles,
+} from "react-native-unistyles";
 
 // ─────────────────────────────────────────────────────────────
-// Ring geometry (module constants, captured by worklets)
+// Ring geometry
+//
+// Sizes are chosen per breakpoint in the component body and captured
+// by the animated worklet below. Numbers must be serializable.
 // ─────────────────────────────────────────────────────────────
 
-const RING_SIZE = 280;
-const RING_STROKE = 16;
-const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-const RING_CENTER = RING_SIZE / 2;
+const RING_SIZE_PHONE = 280;
+const RING_SIZE_TABLET = 380;
+const RING_STROKE_PHONE = 16;
+const RING_STROKE_TABLET = 22;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export default function SessionScreen() {
   const db = useSQLiteContext();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { rt } = useUnistyles();
+
+  // Per-breakpoint ring geometry. Captured by the worklet below.
+  const isTablet =
+    rt.breakpoint === "tablet" || rt.breakpoint === "largeTablet";
+  const ringSize = isTablet ? RING_SIZE_TABLET : RING_SIZE_PHONE;
+  const ringStroke = isTablet ? RING_STROKE_TABLET : RING_STROKE_PHONE;
+  const ringRadius = (ringSize - ringStroke) / 2;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringCenter = ringSize / 2;
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [loading, setLoading] = useState(true);
@@ -199,7 +215,7 @@ export default function SessionScreen() {
 
   // ── Animated props ────────────────────────────────────────
   const ringAnimatedProps = useAnimatedProps(() => ({
-    strokeDashoffset: RING_CIRCUMFERENCE * (1 - progress.value),
+    strokeDashoffset: ringCircumference * (1 - progress.value),
     stroke: interpolateColor(
       completion.value,
       [0, 1],
@@ -261,31 +277,33 @@ export default function SessionScreen() {
         </Text>
       </View>
 
-      <View style={styles.ringContainer}>
+      <View
+        style={[styles.ringContainer, { width: ringSize, height: ringSize }]}
+      >
         <Svg
-          width={RING_SIZE}
-          height={RING_SIZE}
-          viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+          width={ringSize}
+          height={ringSize}
+          viewBox={`0 0 ${ringSize} ${ringSize}`}
         >
           <Circle
-            cx={RING_CENTER}
-            cy={RING_CENTER}
-            r={RING_RADIUS}
+            cx={ringCenter}
+            cy={ringCenter}
+            r={ringRadius}
             stroke={trackColor}
-            strokeWidth={RING_STROKE}
+            strokeWidth={ringStroke}
             fill="none"
           />
           <AnimatedCircle
-            cx={RING_CENTER}
-            cy={RING_CENTER}
-            r={RING_RADIUS}
-            strokeWidth={RING_STROKE}
+            cx={ringCenter}
+            cy={ringCenter}
+            r={ringRadius}
+            strokeWidth={ringStroke}
             strokeLinecap="round"
             fill="none"
-            strokeDasharray={RING_CIRCUMFERENCE}
-            strokeDashoffset={RING_CIRCUMFERENCE}
+            strokeDasharray={ringCircumference}
+            strokeDashoffset={ringCircumference}
             animatedProps={ringAnimatedProps}
-            transform={`rotate(-90 ${RING_CENTER} ${RING_CENTER})`}
+            transform={`rotate(-90 ${ringCenter} ${ringCenter})`}
           />
         </Svg>
 
@@ -374,10 +392,6 @@ export default function SessionScreen() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Formatters
-// ─────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────
 // Styles
 // ─────────────────────────────────────────────────────────────
 
@@ -405,8 +419,7 @@ const styles = StyleSheet.create((theme, rt) => ({
   ringContainer: {
     alignItems: "center",
     justifyContent: "center",
-    width: RING_SIZE,
-    height: RING_SIZE,
+    // width/height are set inline per breakpoint.
   },
   ringCenter: {
     ...StyleSheet.absoluteFillObject,
@@ -419,8 +432,14 @@ const styles = StyleSheet.create((theme, rt) => ({
     justifyContent: "center",
   },
   countdownText: {
-    fontSize: 64,
-    lineHeight: 72,
+    fontSize: {
+      phone: 64,
+      tablet: 84,
+    },
+    lineHeight: {
+      phone: 72,
+      tablet: 92,
+    },
     letterSpacing: -2,
     fontVariant: ["tabular-nums"],
   },

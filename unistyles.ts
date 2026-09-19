@@ -1,13 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-// theme/index.ts
+// unistyles.ts
 // ─────────────────────────────────────────────────────────────
-import { getStoredValues, saveSecurely } from "@/store/storage";
 import {
   APP_COLOR_SCHEMES,
   AppColorSchemeId,
   DEFAULT_SCHEME_ID,
 } from "@/theme/color-schemes";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 
 // ═══════════════════════════════════════════════════════════
 //  BASE UNIT
@@ -17,12 +16,9 @@ export const BASE_GAP = 4;
 // ═══════════════════════════════════════════════════════════
 //  COLOR SCHEME RESOLUTION
 // ═══════════════════════════════════════════════════════════
-// ─────────────────────────────────────────────────────────────
-// MMKV keys for theme persistence
-//
-// These are the single source of truth. The ThemePreferenceProvider
-// reads and writes these exact keys — do NOT duplicate them there.
-// ─────────────────────────────────────────────────────────────
+
+// MMKV keys. Single source of truth for theme persistence —
+// ThemePreferenceProvider reads and writes these exact keys.
 export const COLOR_SCHEME_STORAGE_KEY = "app-color-scheme";
 export const COLOR_MODE_STORAGE_KEY = "app-color-mode";
 
@@ -38,66 +34,18 @@ export const createDarkColors = (
   schemeId: AppColorSchemeId = DEFAULT_SCHEME_ID,
 ) => resolveColorScheme(schemeId).tokens.dark;
 
-export const getStoredAppColorScheme = (): AppColorSchemeId => {
-  try {
-    const storedValues = getStoredValues([COLOR_SCHEME_STORAGE_KEY]);
-    const schemeId = storedValues[COLOR_SCHEME_STORAGE_KEY];
-    if (schemeId && APP_COLOR_SCHEMES.some((s) => s.id === schemeId)) {
-      return schemeId as AppColorSchemeId;
-    }
-  } catch {}
-  return DEFAULT_SCHEME_ID;
-};
-
-const initialScheme = getStoredAppColorScheme();
-
-export const Colors = createLightColors(initialScheme);
-export const DarkColors = createDarkColors(initialScheme);
-
-export const applyAppColorScheme = (
-  schemeId: AppColorSchemeId = DEFAULT_SCHEME_ID,
-) => {
-  const lightColors = createLightColors(schemeId);
-  const darkColors = createDarkColors(schemeId);
-
-  UnistylesRuntime.updateTheme("light", (theme) => ({
-    ...theme,
-    colors: lightColors,
-    isDark: false,
-  }));
-  UnistylesRuntime.updateTheme("dark", (theme) => ({
-    ...theme,
-    colors: darkColors,
-    isDark: true,
-  }));
-
-  UnistylesRuntime.setRootViewBackgroundColor(
-    UnistylesRuntime.themeName === "light"
-      ? lightColors.background
-      : darkColors.background,
-  );
-};
-
-export const saveAppColorScheme = (schemeId: AppColorSchemeId) => {
-  try {
-    saveSecurely([{ key: COLOR_SCHEME_STORAGE_KEY, value: schemeId }]);
-  } catch {}
-};
+// Initial seed for StyleSheet.configure. The ThemePreferenceProvider
+// overrides these synchronously on mount via useLayoutEffect, so this
+// is only ever visible for the very first frame before the provider's
+// useState initializer reads MMKV.
+export const Colors = createLightColors(DEFAULT_SCHEME_ID);
+export const DarkColors = createDarkColors(DEFAULT_SCHEME_ID);
 
 // ═══════════════════════════════════════════════════════════
 //  PRIMITIVE TOKENS
 // ═══════════════════════════════════════════════════════════
 
 // ── SPACING ────────────────────────────────────────────────
-// 5-anchored rhythm. Prefer the named scale over raw numbers.
-//   xxs 2.5   — hairline gaps inside chips / segmented controls
-//   xs  5     — tight stack (icon + label)
-//   sm  7.5   — list item internal padding
-//   md  10    — default gap between related items
-//   lg  15    — section internal padding, screen H padding
-//   xl  20    — gap between sections
-//   xxl 25    — large section gap
-//   ...
 export const SPACE = {
   none: 0,
   xxs: BASE_GAP * 0.5, //  2.5
@@ -163,12 +111,6 @@ export const ICON = {
 } as const;
 
 // ── TYPOGRAPHY ─────────────────────────────────────────────
-// Body text follows iOS HIG (17/22 @ -0.2). Display levels
-// step up in weight, size, and negative tracking.
-//
-// If you later want an editorial feel (NYT Cooking / Pestle),
-// swap only the `fontFamily` on display…h3 with a serif
-// (Fraunces, Lora, Playfair Display). Body stays system sans.
 const SYSTEM = undefined as string | undefined; // SF Pro (iOS) / Roboto (Android)
 
 export const TYPE = {
@@ -263,7 +205,6 @@ export const TYPE = {
     letterSpacing: 0.6,
     fontWeight: "600",
   },
-  // ── Cooking-mode specific ────────────────────────────────
   cookingStep: {
     fontFamily: SYSTEM,
     fontSize: 24,
@@ -281,9 +222,6 @@ export const TYPE = {
 } as const;
 
 // ── ELEVATION ──────────────────────────────────────────────
-// Cross-platform: iOS reads shadow*, Android reads elevation
-// (RN 0.71+ maps shadow* → elevation on Android automatically).
-// In dark mode, lean on `surface` lightness; shadows are soft.
 export const ELEVATION = {
   none: {
     shadowColor: "#000",
@@ -336,7 +274,12 @@ export const LAYOUT = {
   cardPadding: SPACE.md, // 10
   sectionGap: SPACE.xl, // 20
   listGap: SPACE.md, // 10
-  contentMaxWidth: 640, // matches the width screens have shipped with
+  /** Single-column content max width on a phone. */
+  contentMaxWidth: 640,
+  /** Single-column content max width on a tablet. */
+  contentMaxWidthTablet: 760,
+  /** Wide content max width on a tablet, for two-column layouts. */
+  contentMaxWidthWide: 1200,
   hitSlop: SPACE.sm, // 7.5
   minTouchTarget: 44, // iOS HIG
 } as const;
@@ -379,6 +322,7 @@ const breakpoints = {
   phone: 0,
   largePhone: 400,
   tablet: 768,
+  largeTablet: 1024,
 } as const;
 
 type AppThemes = typeof appThemes;

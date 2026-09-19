@@ -33,6 +33,11 @@ interface ScreenProps extends ViewProps {
   children: React.ReactNode;
   padded?: boolean;
   safeTop?: boolean;
+  /**
+   * Use the wide tablet content column instead of the default one.
+   * Intended for screens that lay content out in two columns on tablet.
+   */
+  wide?: boolean;
 }
 
 export function Screen({
@@ -40,6 +45,7 @@ export function Screen({
   style,
   padded = true,
   safeTop = true,
+  wide = false,
   ...rest
 }: ScreenProps) {
   return (
@@ -47,6 +53,7 @@ export function Screen({
       <View
         style={[
           styles.content,
+          wide && styles.contentWide,
           safeTop && styles.contentWithSafeTop,
           styles.contentWithSafeBottom,
         ]}
@@ -67,6 +74,11 @@ interface ScrollScreenProps extends ScrollViewProps {
    * including inside Android modals.
    */
   header?: React.ReactNode;
+  /**
+   * Use the wide tablet content column instead of the default one.
+   * Intended for screens that lay content out in two columns on tablet.
+   */
+  wide?: boolean;
 }
 
 export function ScrollScreen({
@@ -77,6 +89,7 @@ export function ScrollScreen({
   safeTop = true,
   header,
   keyboardShouldPersistTaps = "handled",
+  wide = false,
   ...rest
 }: ScrollScreenProps) {
   const hasHeader = header !== undefined && header !== null;
@@ -85,7 +98,9 @@ export function ScrollScreen({
     <View style={styles.root}>
       {hasHeader && (
         <View style={styles.headerOuter}>
-          <View style={styles.headerInner}>{header}</View>
+          <View style={[styles.headerInner, wide && styles.headerInnerWide]}>
+            {header}
+          </View>
         </View>
       )}
 
@@ -103,7 +118,9 @@ export function ScrollScreen({
         keyboardShouldPersistTaps={keyboardShouldPersistTaps}
         {...rest}
       >
-        <View style={styles.content}>{children}</View>
+        <View style={[styles.content, wide && styles.contentWide]}>
+          {children}
+        </View>
       </ScrollView>
     </View>
   );
@@ -130,8 +147,17 @@ const styles = StyleSheet.create((theme, rt) => {
     },
     headerInner: {
       width: "100%",
-      maxWidth: theme.layout.contentMaxWidth,
+      maxWidth: {
+        phone: theme.layout.contentMaxWidth,
+        tablet: theme.layout.contentMaxWidthTablet,
+      },
       alignSelf: "center",
+    },
+    headerInnerWide: {
+      maxWidth: {
+        phone: theme.layout.contentMaxWidth,
+        tablet: theme.layout.contentMaxWidthWide,
+      },
     },
 
     // ScrollView content container
@@ -148,12 +174,21 @@ const styles = StyleSheet.create((theme, rt) => {
       paddingBottom: bottomInset + theme.spacing.giant,
     },
 
-    // Inner content wrapper — centers on wide screens
+    // Inner content wrapper — centers and caps width per breakpoint
     content: {
       width: "100%",
-      maxWidth: theme.layout.contentMaxWidth,
+      maxWidth: {
+        phone: theme.layout.contentMaxWidth,
+        tablet: theme.layout.contentMaxWidthTablet,
+      },
       alignSelf: "center",
       gap: theme.spacing.lg,
+    },
+    contentWide: {
+      maxWidth: {
+        phone: theme.layout.contentMaxWidth,
+        tablet: theme.layout.contentMaxWidthWide,
+      },
     },
     contentWithSafeTop: {
       paddingTop: topInset + theme.spacing.lg,

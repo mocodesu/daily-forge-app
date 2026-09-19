@@ -11,26 +11,36 @@ import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, useWindowDimensions, View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import {
+  StyleSheet,
+  UnistylesRuntime,
+  useUnistyles,
+} from "react-native-unistyles";
 
 // History-grid geometry. The horizontal padding and max content width
 // come from the theme (see `theme.layout`) so this screen can't drift
-// out of sync with the rest of the app.
+// out of sync with the rest of the app. MIN/MAX are overridden per
+// breakpoint inside the component.
 const CELL_GAP = 12;
-const MIN_CELL = 64;
-const MAX_CELL = 84;
+const MIN_CELL_PHONE = 64;
+const MAX_CELL_PHONE = 84;
+const MIN_CELL_TABLET = 72;
+const MAX_CELL_TABLET = 104;
 
 export default function HistoryScreen() {
   const db = useSQLiteContext();
   const { width } = useWindowDimensions();
   const { targetDays } = useTargetDays();
+  const { rt } = useUnistyles();
+  const theme = UnistylesRuntime.getTheme();
+
+  const isTablet =
+    rt.breakpoint === "tablet" || rt.breakpoint === "largeTablet";
 
   const [days, setDays] = useState<DayProgress[]>([]);
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const theme = UnistylesRuntime.getTheme();
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -39,27 +49,6 @@ export default function HistoryScreen() {
       mountedRef.current = false;
     };
   }, []);
-
-  const available =
-    Math.min(width, theme.layout.contentMaxWidth) -
-    theme.layout.screenPaddingH * 2;
-
-  const columns = (() => {
-    let best = 3;
-    for (let cols = 8; cols >= 3; cols--) {
-      const cell = Math.floor((available - (cols - 1) * CELL_GAP) / cols);
-      if (cell >= MIN_CELL) {
-        best = cols;
-        break;
-      }
-    }
-    return best;
-  })();
-
-  const cellSize = Math.min(
-    MAX_CELL,
-    Math.floor((available - (columns - 1) * CELL_GAP) / columns),
-  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,6 +101,35 @@ export default function HistoryScreen() {
       </ScrollScreen>
     );
   }
+
+  const contentMax = isTablet
+    ? theme.layout.contentMaxWidthTablet
+    : theme.layout.contentMaxWidth;
+  const minCell = isTablet ? MIN_CELL_TABLET : MIN_CELL_PHONE;
+  const maxCell = isTablet ? MAX_CELL_TABLET : MAX_CELL_PHONE;
+
+  const available =
+    Math.min(width, contentMax) - theme.layout.screenPaddingH * 2;
+
+  const columns = (() => {
+    // Try up to 10 columns on tablet — allow bigger grids before
+    // dropping to the next size down.
+    const maxCols = isTablet ? 10 : 8;
+    let best = 3;
+    for (let cols = maxCols; cols >= 3; cols--) {
+      const cell = Math.floor((available - (cols - 1) * CELL_GAP) / cols);
+      if (cell >= minCell) {
+        best = cols;
+        break;
+      }
+    }
+    return best;
+  })();
+
+  const cellSize = Math.min(
+    maxCell,
+    Math.floor((available - (columns - 1) * CELL_GAP) / columns),
+  );
 
   const remaining = Math.max(0, targetDays - streak);
   const statusText =

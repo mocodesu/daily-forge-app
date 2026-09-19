@@ -129,7 +129,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     owner: OWNER,
     scheme: environment.scheme,
 
-    orientation: "portrait",
+    orientation: "default",
 
     description: "A starter application",
 
@@ -144,7 +144,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ios: {
       ...config.ios,
 
-      supportsTablet: false,
+      supportsTablet: true,
       bundleIdentifier: environment.bundleIdentifier,
 
       icon: "./assets/forgeApp.icon",
