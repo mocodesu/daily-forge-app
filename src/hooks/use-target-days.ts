@@ -1,9 +1,32 @@
 import { DEFAULT_TARGET_DAYS } from "@/constants/dailyforge";
 import { PreferencesRepo } from "@/repositories/preferences-repo";
+import { useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const KEY = "streak.targetDays";
+
+/**
+ * Reads the current target days preference from the DB. Exposed so
+ * non-hook call sites (like `handleSworn`) can read the live value
+ * without relying on the hook's state, which may be stale.
+ */
+export async function readTargetDays(
+  db: ReturnType<typeof useSQLiteContext>,
+): Promise<number> {
+  try {
+    const stored = await PreferencesRepo.get(db, KEY);
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return Math.max(1, Math.min(365, parsed));
+      }
+    }
+  } catch (err) {
+    console.warn("[readTargetDays] failed:", err);
+  }
+  return DEFAULT_TARGET_DAYS;
+}
 
 export function useTargetDays() {
   const db = useSQLiteContext();
@@ -21,14 +44,9 @@ export function useTargetDays() {
 
   const refresh = useCallback(async () => {
     try {
-      const stored = await PreferencesRepo.get(db, KEY);
+      const live = await readTargetDays(db);
       if (!mountedRef.current) return;
-      if (stored) {
-        const parsed = parseInt(stored, 10);
-        if (Number.isFinite(parsed) && parsed > 0) {
-          setTargetDaysState(parsed);
-        }
-      }
+      setTargetDaysState(live);
     } catch (err) {
       if (!mountedRef.current) return;
       console.warn("[useTargetDays] load failed:", err);
@@ -37,9 +55,19 @@ export function useTargetDays() {
     }
   }, [db]);
 
+  // Initial read on mount
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Re-read every time the hosting screen regains focus. This catches
+  // the case where the user changed the target in Settings and then
+  // navigated back to this screen.
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
 
   const setTargetDays = useCallback(
     async (next: number) => {

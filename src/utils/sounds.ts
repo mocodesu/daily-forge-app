@@ -4,19 +4,20 @@ import {
   type AudioPlayer,
 } from "expo-audio";
 
-type SoundName = "pop" | "tick" | "glass";
+type SoundName = "pop" | "tick" | "glass" | "dayComplete" | "targetReached";
 
 /**
- * Loads sounds via require() so Metro bundles them as real assets.
- * This avoids the runtime WAV-generation + File.write path, which was
- * unreliable and hit the Android "under 1 second" bug.
- *
- * Adjust the relative path if your sounds.ts lives elsewhere.
+ * Sounds are bundled via require() so Metro ships them with the app.
+ * Every file is at least 1000ms long — expo-audio has a known Android
+ * issue where sub-1s sounds silently fail on cold start. The generator
+ * script pads short tones to exactly 1000ms to dodge it.
  */
 const SOUND_SOURCES: Record<SoundName, number> = {
   pop: require("../../assets/sounds/pop.wav"),
   tick: require("../../assets/sounds/tick.wav"),
   glass: require("../../assets/sounds/glass.wav"),
+  dayComplete: require("../../assets/sounds/day-complete.wav"),
+  targetReached: require("../../assets/sounds/target-reached.wav"),
 };
 
 let ready = false;
@@ -32,13 +33,12 @@ export async function initSounds(): Promise<void> {
       shouldPlayInBackground: false,
     });
 
-    // Create players
     for (const name of Object.keys(SOUND_SOURCES) as SoundName[]) {
       players[name] = createAudioPlayer(SOUND_SOURCES[name]);
     }
 
-    // Prime the audio pipeline. On Android the very first play() of a
-    // freshly-created player can be silent. This "warmup" fixes it.
+    // Warm the audio pipeline. On Android the first play() of a
+    // freshly-created player can be silent without this.
     for (const player of Object.values(players)) {
       if (!player) continue;
       try {
@@ -60,7 +60,9 @@ export async function initSounds(): Promise<void> {
 }
 
 /**
- * Plays a sound. Rewinds first so repeated playback works.
+ * Plays a sound. expo-audio doesn't auto-rewind on completion, so we
+ * seek to 0 first. The seek call is safe even when the player is at
+ * position 0 already.
  */
 export async function playSound(name: SoundName): Promise<void> {
   if (!ready) {
@@ -80,7 +82,7 @@ export async function playSound(name: SoundName): Promise<void> {
   }
 }
 
-/** Optional cleanup. */
+/** Optional cleanup on app unmount. */
 export async function unloadSounds(): Promise<void> {
   for (const player of Object.values(players)) {
     try {

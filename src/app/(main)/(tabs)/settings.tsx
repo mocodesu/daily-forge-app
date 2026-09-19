@@ -1,3 +1,4 @@
+import { DevTools } from "@/components/dev-tools";
 import { ScrollScreen } from "@/components/screen";
 import { SwearPhraseEditor } from "@/components/swear-phrase-editor";
 import Text from "@/components/text";
@@ -329,6 +330,9 @@ export default function SettingsScreen() {
           <PrimaryIcon name="chevron-forward" size={16} />
         </Pressable>
       </View>
+
+      {/* ── Dev Tools (only rendered when __DEV__) ────── */}
+      <DevTools />
     </ScrollScreen>
   );
 }

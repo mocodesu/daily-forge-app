@@ -1,5 +1,7 @@
+import { CelebrationBurst } from "@/components/celebration-burst";
 import { AllDoneBanner, MinimumNotMetBanner } from "@/components/day-banners";
 import { DayCompletePrompt } from "@/components/day-complete-prompt";
+import { GrandCelebration } from "@/components/grand-celebration";
 import { HapticPressable } from "@/components/haptic-pressable";
 import { MilestoneModal } from "@/components/milestone-modal";
 import { ScrollScreen } from "@/components/screen";
@@ -10,17 +12,28 @@ import { MIN_EXERCISES_PER_DAY } from "@/constants/dailyforge";
 import { useDayState } from "@/hooks/use-day-state";
 import { useMilestone } from "@/hooks/use-milestone";
 import { useProfile } from "@/hooks/use-profile";
+import { useTargetDays } from "@/hooks/use-target-days";
 import { DayLocksRepo } from "@/repositories/day-locks-repo";
 import { SwearsRepo } from "@/repositories/swears-repo";
 import type { Exercise, UserProfile } from "@/types/dailyforge";
+import {
+  hasCelebratedTarget,
+  markTargetCelebrated,
+} from "@/utils/celebrations";
 import { dayKey, randomUUID } from "@/utils/day-key";
 import { trackUserActivity } from "@/utils/retention-reminder";
+import { calculateStreak } from "@/utils/streak";
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+
+/** Gap between swear modal dismissal and the burst appearing. */
+const SWEAR_TO_BURST_DELAY = 400;
+/** Gap between burst dismissal and the grand appearing. */
+const BURST_TO_GRAND_DELAY = 400;
 
 export default function TodayScreen() {
   const profile = useProfile();
@@ -55,10 +68,33 @@ function TodayContent({
   const db = useSQLiteContext();
   const day = useDayState(true);
   const milestone = useMilestone(day.streak, !day.loading);
+  const { targetDays } = useTargetDays();
 
   const [promptVisible, setPromptVisible] = useState(false);
   const [swearVisible, setSwearVisible] = useState(false);
+
+  const [burstVisible, setBurstVisible] = useState(false);
+  const [burstStreak, setBurstStreak] = useState(0);
+
+  const [grandVisible, setGrandVisible] = useState(false);
+  const [grandStreak, setGrandStreak] = useState(0);
+  const [grandTarget, setGrandTarget] = useState(0);
+
   const prevAllDoneRef = useRef(false);
+
+  /**
+   * Holds the grand celebration's payload until the burst is dismissed.
+   * If null when the burst dismisses, no grand fires this cycle.
+   */
+  const pendingGrandRef = useRef<{ streak: number; target: number } | null>(
+    null,
+  );
+
+  /**
+   * Mutex held across the entire celebration sequence (burst + grand).
+   * Nothing else can start a celebration while this is true.
+   */
+  const celebratingRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,13 +104,15 @@ function TodayContent({
     }, [day.refresh, onProfileRefresh]),
   );
 
+  // Fire the day-complete prompt when all exercises just transitioned
+  // to complete. Never fires when a celebration is running.
   useEffect(() => {
     const justCompleted =
       day.allDone &&
       !prevAllDoneRef.current &&
       !day.isLocked &&
       !day.sworeToday;
-    if (justCompleted) setPromptVisible(true);
+    if (justCompleted && !celebratingRef.current) setPromptVisible(true);
     prevAllDoneRef.current = day.allDone;
   }, [day.allDone, day.isLocked, day.sworeToday]);
 
@@ -83,6 +121,7 @@ function TodayContent({
     setSwearVisible(true);
   };
 
+  // ── Swear flow: the entry point for the entire celebration chain ──
   const handleSworn = async (data: {
     transcript: string;
     matchedPhrase: string;
@@ -107,13 +146,66 @@ function TodayContent({
       });
 
       await trackUserActivity();
+
+      const newStreak = await calculateStreak(db);
       await day.refresh();
+
+      // Decide whether a grand celebration is due AFTER the burst.
+      const reachedTarget = newStreak >= targetDays;
+      const grandDue = reachedTarget
+        ? !(await hasCelebratedTarget(db, targetDays))
+        : false;
+
+      if (grandDue) {
+        pendingGrandRef.current = { streak: newStreak, target: targetDays };
+      } else {
+        pendingGrandRef.current = null;
+      }
+
+      // Lock the mutex for the entire sequence — burst then optionally grand.
+      celebratingRef.current = true;
+
+      setTimeout(() => {
+        setBurstStreak(newStreak);
+        setBurstVisible(true);
+      }, SWEAR_TO_BURST_DELAY);
     } catch (err) {
       console.error("[today] lock+swear failed:", err);
+      celebratingRef.current = false;
     }
   };
 
   const handleAddMore = () => setPromptVisible(false);
+
+  // ── Burst dismissed: hand off to the grand if one is pending ──
+  const handleDismissBurst = () => {
+    setBurstVisible(false);
+
+    const pending = pendingGrandRef.current;
+    if (pending) {
+      pendingGrandRef.current = null;
+      setTimeout(() => {
+        setGrandStreak(pending.streak);
+        setGrandTarget(pending.target);
+        setGrandVisible(true);
+      }, BURST_TO_GRAND_DELAY);
+    } else {
+      // Sequence is finished — release the mutex.
+      celebratingRef.current = false;
+    }
+  };
+
+  // ── Grand dismissed: record it, end the sequence ──
+  const handleDismissGrand = async () => {
+    try {
+      await markTargetCelebrated(db, grandTarget);
+    } catch (err) {
+      console.warn("[today] mark target celebrated failed:", err);
+    } finally {
+      setGrandVisible(false);
+      celebratingRef.current = false;
+    }
+  };
 
   const today = new Date();
   const dateLabel = today.toLocaleDateString(undefined, {
@@ -237,6 +329,19 @@ function TodayContent({
           milestone.dismiss();
           await day.refresh();
         }}
+      />
+
+      <CelebrationBurst
+        visible={burstVisible}
+        streak={burstStreak}
+        onDismiss={handleDismissBurst}
+      />
+
+      <GrandCelebration
+        visible={grandVisible}
+        streak={grandStreak}
+        target={grandTarget}
+        onDismiss={handleDismissGrand}
       />
     </>
   );
