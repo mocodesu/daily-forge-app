@@ -494,7 +494,10 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    rowGap: theme.spacing.md,
+    rowGap: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     width: "100%",
   },
   card: {
@@ -502,7 +505,11 @@ const styles = StyleSheet.create((theme) => ({
       phone: "100%",
       tablet: "48%",
     },
-    padding: theme.spacing.md,
+    // Cards get a bit more internal breathing room on tablet.
+    padding: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     borderRadius: theme.radii.md,
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,

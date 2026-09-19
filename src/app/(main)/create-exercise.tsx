@@ -579,7 +579,11 @@ const styles = StyleSheet.create((theme, rt) => ({
   iconPrimary: { color: theme.colors.primary },
 
   card: {
-    padding: theme.spacing.md,
+    // Tablets get more internal breathing room.
+    padding: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
     backgroundColor: theme.colors.surface,
@@ -668,7 +672,11 @@ const styles = StyleSheet.create((theme, rt) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.md,
-    padding: theme.spacing.md,
+    // Tablets get more internal breathing room.
+    padding: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
     minHeight: 68,

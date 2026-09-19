@@ -90,7 +90,6 @@ const RootLayout = () => {
             }}
           >
             <Stack.Screen name="(main)/(tabs)" />
-
             <Stack.Screen
               name="(main)/onboarding"
               options={{
@@ -99,7 +98,6 @@ const RootLayout = () => {
                 gestureEnabled: false,
               }}
             />
-
             <Stack.Screen
               name="(main)/create-exercise"
               options={{
@@ -107,7 +105,6 @@ const RootLayout = () => {
                 animation: "slide_from_bottom",
               }}
             />
-
             <Stack.Screen
               name="(main)/exercise/[id]"
               options={{
@@ -116,7 +113,6 @@ const RootLayout = () => {
                 sheetAllowedDetents: [0.75, 1.0],
               }}
             />
-
             <Stack.Screen
               name="(main)/session/[id]"
               options={{
@@ -125,7 +121,6 @@ const RootLayout = () => {
                 gestureEnabled: false,
               }}
             />
-
             <Stack.Screen
               name="(main)/day/[dayKey]"
               options={{
@@ -133,7 +128,6 @@ const RootLayout = () => {
                 animation: "slide_from_bottom",
               }}
             />
-
             <Stack.Screen
               name="(main)/data-management"
               options={{
@@ -141,9 +135,15 @@ const RootLayout = () => {
                 animation: "slide_from_bottom",
               }}
             />
-
             <Stack.Screen
               name="(main)/dev/confetti-lab"
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+              }}
+            />
+            <Stack.Screen
+              name="(main)/weekly-recap"
               options={{
                 presentation: "modal",
                 animation: "slide_from_bottom",

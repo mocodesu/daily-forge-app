@@ -230,7 +230,7 @@ export default function DataManagementScreen() {
 
       {/* ── Backup + Danger, side by side on tablet ──── */}
       <View style={styles.sectionGrid}>
-        <View style={styles.section}>
+        <View style={styles.sectionHalf}>
           <Text variant="subheadBold" color="onSurface">
             Backup
           </Text>
@@ -254,7 +254,7 @@ export default function DataManagementScreen() {
           />
         </View>
 
-        <View style={styles.section}>
+        <View style={styles.sectionHalf}>
           <Text variant="subheadBold" color="onSurface">
             Danger zone
           </Text>
@@ -339,17 +339,33 @@ function ActionRow({
 }
 
 const styles = StyleSheet.create((theme) => ({
-  section: { gap: theme.spacing.sm },
+  section: {
+    gap: theme.spacing.sm,
+    width: "100%",
+  },
 
-  // Grid wrapper for the two tablet-column sections. `space-between`
-  // handles the horizontal gutter. rowGap keeps them apart if they
-  // ever wrap onto two rows.
+  // Grid wrapper for the two tablet-column sections.
+  // `justifyContent: "space-between"` handles the horizontal gutter
+  // between the two halves — no columnGap needed.
   sectionGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
     rowGap: theme.spacing.lg,
     width: "100%",
+  },
+
+  // The two sections inside `sectionGrid`. Full width on phone
+  // (so they stack), 48% on tablet (so they sit side by side with
+  // a 4% gutter). Without this width, the sections size to their
+  // content, forcing them to full width and stacking vertically
+  // even on tablet.
+  sectionHalf: {
+    width: {
+      phone: "100%",
+      tablet: "48%",
+    },
+    gap: theme.spacing.sm,
   },
 
   grid: {
@@ -366,7 +382,11 @@ const styles = StyleSheet.create((theme) => ({
       tablet: "22%",
     },
     minWidth: 100,
-    padding: theme.spacing.md,
+    // Tablets get more internal breathing room.
+    padding: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     borderRadius: theme.radii.md,
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,
@@ -377,7 +397,11 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.md,
-    padding: theme.spacing.md,
+    // Tablets get more internal breathing room.
+    padding: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     borderRadius: theme.radii.md,
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,

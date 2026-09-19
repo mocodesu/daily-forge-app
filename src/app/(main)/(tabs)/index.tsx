@@ -33,7 +33,11 @@ import { Redirect, router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import {
+  StyleSheet,
+  UnistylesRuntime,
+  useUnistyles,
+} from "react-native-unistyles";
 
 const SWEAR_TO_BURST_DELAY = 400;
 const BURST_TO_GRAND_DELAY = 400;
@@ -79,6 +83,11 @@ function TodayContent({
   const day = useDayState(minimumExercises, true);
   const milestone = useMilestone(day.streak, !day.loading);
   const { targetDays } = useTargetDays();
+  const { rt } = useUnistyles();
+
+  // Two-column layout on wide tablet screens. Everything else keeps
+  // the phone layout — see the JSX below for both branches.
+  const twoColumn = rt.breakpoint === "largeTablet";
 
   const [promptVisible, setPromptVisible] = useState(false);
   const [swearVisible, setSwearVisible] = useState(false);
@@ -277,74 +286,144 @@ function TodayContent({
     !day.isLocked && day.exercises.length > 0 && !day.meetsMinimum;
   const showAllDoneBanner = !day.isLocked && day.allDone && !day.sworeToday;
 
+  // ── Shared content blocks ─────────────────────────────────
+  //
+  // Extracted as plain variables so both the single-column and
+  // two-column branches can render them without duplicating JSX.
+  // No hooks live inside these — they're just JSX values.
+
+  const bannersContent = (
+    <>
+      {showMinimumBanner && (
+        <MinimumNotMetBanner
+          count={day.exercises.length}
+          minimum={minimumExercises}
+          onAdd={() => router.push("/(main)/create-exercise")}
+        />
+      )}
+      {showAllDoneBanner && <AllDoneBanner onLock={requestLock} />}
+    </>
+  );
+
+  const listContent =
+    day.exercises.length === 0 ? (
+      <EmptyState minimumExercises={minimumExercises} />
+    ) : day.isLocked ? (
+      <LockedState streak={day.streak} swore={day.sworeToday} />
+    ) : (
+      <View style={styles.list}>
+        {day.exercises.map((exercise, index) => (
+          <SwipeableExerciseCard
+            key={exercise.id}
+            exercise={exercise}
+            isDone={day.completedIds.has(exercise.id)}
+            index={index}
+            onPress={() =>
+              router.push({
+                pathname: "/(main)/exercise/[id]",
+                params: { id: exercise.id },
+              })
+            }
+            onDelete={() => handleDeleteExercise(exercise)}
+          />
+        ))}
+      </View>
+    );
+
+  const addButtonContent = !day.isLocked ? (
+    <HapticPressable
+      haptic="medium"
+      onPress={() => router.push("/(main)/create-exercise")}
+      style={styles.addButton}
+    >
+      <PrimaryIcon name="add" size={20} />
+      <Text variant="subheadBold" color="primary">
+        Add Exercise
+      </Text>
+    </HapticPressable>
+  ) : null;
+
   return (
     <>
-      <ScrollScreen>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text variant="h2" color="onBackground">
-              {dateLabel}
-            </Text>
-            <Text variant="subhead" color="mutedText">
-              {`Hi ${profile.displayName} — `}
-              {day.progress.total === 0
-                ? "No exercises yet"
-                : `${day.progress.done} of ${day.progress.total} done today`}
-            </Text>
+      <ScrollScreen wide={twoColumn}>
+        {twoColumn ? (
+          // ── Tablet wide: two columns ─────────────────────
+          <View style={styles.columns}>
+            <View style={styles.primaryColumn}>
+              {bannersContent}
+              {listContent}
+              {addButtonContent}
+            </View>
+
+            <View style={styles.sidebarColumn}>
+              <View style={styles.sidebarCard}>
+                <Text variant="caption" color="mutedText">
+                  Today
+                </Text>
+                <Text variant="h2" color="onBackground">
+                  {dateLabel}
+                </Text>
+                <Text variant="subhead" color="mutedText">
+                  {`Hi ${profile.displayName}`}
+                </Text>
+
+                <View style={styles.sidebarDivider} />
+
+                <View style={styles.sidebarBadgeWrap}>
+                  <StreakBadge
+                    streak={day.streak}
+                    freezeBalance={day.freezeBalance}
+                    pulseKey={streakPulseKey}
+                  />
+                </View>
+
+                <View style={styles.sidebarDivider} />
+
+                <View style={styles.sidebarProgressBlock}>
+                  <Text variant="caption" color="mutedText">
+                    Progress
+                  </Text>
+                  <Text variant="title" color="onSurface">
+                    {day.progress.done} of {day.progress.total}
+                  </Text>
+                  <Text variant="caption" color="mutedText">
+                    {day.progress.total === 0
+                      ? "No exercises yet"
+                      : day.progress.done === day.progress.total
+                        ? "All done — seal the day when ready"
+                        : `${day.progress.total - day.progress.done} remaining`}
+                  </Text>
+                </View>
+              </View>
+            </View>
           </View>
-
-          <StreakBadge
-            streak={day.streak}
-            freezeBalance={day.freezeBalance}
-            pulseKey={streakPulseKey}
-          />
-        </View>
-
-        {showMinimumBanner && (
-          <MinimumNotMetBanner
-            count={day.exercises.length}
-            minimum={minimumExercises}
-            onAdd={() => router.push("/(main)/create-exercise")}
-          />
-        )}
-
-        {showAllDoneBanner && <AllDoneBanner onLock={requestLock} />}
-
-        {day.exercises.length === 0 ? (
-          <EmptyState minimumExercises={minimumExercises} />
-        ) : day.isLocked ? (
-          <LockedState streak={day.streak} swore={day.sworeToday} />
         ) : (
-          <View style={styles.list}>
-            {day.exercises.map((exercise, index) => (
-              <SwipeableExerciseCard
-                key={exercise.id}
-                exercise={exercise}
-                isDone={day.completedIds.has(exercise.id)}
-                index={index}
-                onPress={() =>
-                  router.push({
-                    pathname: "/(main)/exercise/[id]",
-                    params: { id: exercise.id },
-                  })
-                }
-                onDelete={() => handleDeleteExercise(exercise)}
-              />
-            ))}
-          </View>
-        )}
+          // ── Phone / tablet portrait: single column ───────
+          <>
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <Text variant="h2" color="onBackground">
+                  {dateLabel}
+                </Text>
+                <Text variant="subhead" color="mutedText">
+                  {`Hi ${profile.displayName} — `}
+                  {day.progress.total === 0
+                    ? "No exercises yet"
+                    : `${day.progress.done} of ${day.progress.total} done today`}
+                </Text>
+              </View>
 
-        {!day.isLocked && (
-          <HapticPressable
-            haptic="medium"
-            onPress={() => router.push("/(main)/create-exercise")}
-            style={styles.addButton}
-          >
-            <PrimaryIcon name="add" size={20} />
-            <Text variant="subheadBold" color="primary">
-              Add Exercise
-            </Text>
-          </HapticPressable>
+              <StreakBadge
+                streak={day.streak}
+                freezeBalance={day.freezeBalance}
+                pulseKey={streakPulseKey}
+              />
+            </View>
+
+            {bannersContent}
+            {listContent}
+            {addButtonContent}
+          </>
         )}
       </ScrollScreen>
 
@@ -458,4 +537,41 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing.sm,
   },
   stateText: { textAlign: "center", maxWidth: 320 },
+
+  // ── Two-column layout (tablet wide only) ─────────────────
+  columns: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: theme.spacing.lg,
+    width: "100%",
+  },
+  primaryColumn: {
+    flex: 2,
+    minWidth: 0,
+    gap: theme.spacing.lg,
+  },
+  sidebarColumn: {
+    flex: 1,
+    minWidth: 260,
+    maxWidth: 380,
+  },
+  sidebarCard: {
+    gap: theme.spacing.xs,
+    padding: theme.spacing.lg,
+    borderRadius: theme.radii.md,
+    backgroundColor: theme.colors.surface,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.panelBorder,
+  },
+  sidebarDivider: {
+    height: theme.borderWidth.hairline,
+    backgroundColor: theme.colors.panelBorder,
+    marginVertical: theme.spacing.sm,
+  },
+  sidebarBadgeWrap: {
+    flexDirection: "row",
+  },
+  sidebarProgressBlock: {
+    gap: 2,
+  },
 }));

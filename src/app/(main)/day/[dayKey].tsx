@@ -2,6 +2,7 @@ import { ScrollScreen } from "@/components/screen";
 import { ScreenHeader } from "@/components/screen-header";
 import Text from "@/components/text";
 import { MutedIcon } from "@/components/themed";
+import { formatLongDuration } from "@/utils/format";
 import { useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useEffect, useState } from "react";
@@ -121,17 +122,21 @@ export default function DayDetailScreen() {
         <View style={[styles.summaryRow, stackCards && styles.summaryRowStack]}>
           <SummaryCard
             title="Total time"
-            value={totalWallClock !== null ? formatLong(totalWallClock) : "—"}
+            value={
+              totalWallClock !== null ? formatLongDuration(totalWallClock) : "—"
+            }
             subtitle={hasStartTimes ? "start → finish" : "no start times"}
           />
           <SummaryCard
             title="Work time"
-            value={formatLong(totalWorkTime)}
+            value={formatLongDuration(totalWorkTime)}
             subtitle="sum of sessions"
           />
           <SummaryCard
             title="Break time"
-            value={totalBreakTime !== null ? formatLong(totalBreakTime) : "—"}
+            value={
+              totalBreakTime !== null ? formatLongDuration(totalBreakTime) : "—"
+            }
             subtitle="between exercises"
           />
         </View>
@@ -244,7 +249,7 @@ function RecordRow({ record, index }: { record: RecordRow; index: number }) {
         variant="subheadBold"
         color={duration !== null ? "primary" : "mutedText"}
       >
-        {duration !== null ? formatLong(duration) : "—"}
+        {duration !== null ? formatLongDuration(duration) : "—"}
       </Text>
     </View>
   );
@@ -256,19 +261,6 @@ function formatTime(ms: number): string {
     hour: "numeric",
     minute: "2-digit",
   });
-}
-
-function formatLong(ms: number): string {
-  const total = Math.round(ms / 1000);
-  if (total < 60) return `${total}s`;
-  if (total < 3600) {
-    const m = Math.floor(total / 60);
-    const s = total % 60;
-    return s === 0 ? `${m}m` : `${m}m ${s}s`;
-  }
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 const styles = StyleSheet.create((theme) => ({
@@ -284,7 +276,11 @@ const styles = StyleSheet.create((theme) => ({
   summaryCard: {
     flex: 1,
     gap: 2,
-    padding: theme.spacing.md,
+    // Tablets get more internal breathing room.
+    padding: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     borderRadius: theme.radii.md,
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,
@@ -310,7 +306,11 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.md,
-    padding: theme.spacing.md,
+    // Tablets get more internal breathing room.
+    padding: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     borderRadius: theme.radii.md,
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,

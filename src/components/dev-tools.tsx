@@ -688,7 +688,11 @@ function DevButton({
 const styles = StyleSheet.create((theme) => ({
   flex: { flex: 1 },
   card: {
-    padding: theme.spacing.md,
+    // Tablets get more internal breathing room.
+    padding: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     borderRadius: theme.radii.md,
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,
@@ -733,7 +737,11 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.md,
-    padding: theme.spacing.md,
+    // Tablets get more internal breathing room.
+    padding: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     borderRadius: theme.radii.md,
     backgroundColor: theme.colors.panel,
     borderWidth: theme.borderWidth.thin,

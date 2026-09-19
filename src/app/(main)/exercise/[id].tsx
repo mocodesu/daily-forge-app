@@ -273,7 +273,11 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.md,
-    padding: theme.spacing.md,
+    // Tablets get more internal breathing room.
+    padding: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
     backgroundColor: theme.colors.surface,
@@ -287,7 +291,11 @@ const styles = StyleSheet.create((theme) => ({
   sessionText: { gap: 2 },
   sessionNote: { flex: 1, textAlign: "right" },
   notesCard: {
-    padding: theme.spacing.md,
+    // Tablets get more internal breathing room.
+    padding: {
+      phone: theme.spacing.md,
+      tablet: theme.spacing.lg,
+    },
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
     backgroundColor: theme.colors.surface,

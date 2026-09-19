@@ -1,12 +1,15 @@
 import { DayCircle } from "@/components/day-circle";
 import { ErrorState } from "@/components/error-state";
+import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
+import { PrimaryIcon } from "@/components/themed";
 import { HISTORY_WINDOW_DAYS } from "@/constants/dailyforge";
 import { useTargetDays } from "@/hooks/use-target-days";
 import type { DayProgress } from "@/utils/history";
 import { computeHistory } from "@/utils/history";
 import { calculateStreak } from "@/utils/streak";
+import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -154,6 +157,30 @@ export default function HistoryScreen() {
         </View>
       </View>
 
+      {/* ── Weekly recap entry point ──────────────────── */}
+      <HapticPressable
+        haptic="light"
+        onPress={() => router.push("/(main)/weekly-recap")}
+        style={styles.recapButton}
+      >
+        <View style={styles.recapIcon}>
+          <PrimaryIcon name="calendar-outline" size={20} />
+        </View>
+        <View style={styles.recapBody}>
+          <Text variant="subheadBold" color="onSurface">
+            This week
+          </Text>
+          <Text variant="caption" color="mutedText">
+            A snapshot of the last 7 days
+          </Text>
+        </View>
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={theme.colors.mutedText}
+        />
+      </HapticPressable>
+
       <View style={[styles.grid, { gap: CELL_GAP }]}>
         {days.map((day) => (
           <DayCircle
@@ -209,4 +236,25 @@ const styles = StyleSheet.create((theme) => ({
     flexWrap: "wrap",
     justifyContent: "flex-start",
   },
+
+  recapButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.radii.md,
+    backgroundColor: theme.colors.surface,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.panelBorder,
+    minHeight: 64,
+  },
+  recapIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.panel,
+  },
+  recapBody: { flex: 1, gap: 2, minWidth: 0 },
 }));

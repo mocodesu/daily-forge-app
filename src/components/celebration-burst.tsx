@@ -1,5 +1,7 @@
 import Text from "@/components/text";
 import { PrimaryIcon } from "@/components/themed";
+import { useThemePreference } from "@/hooks/use-theme-preference";
+import { getConfettiPalette } from "@/theme/confetti-palettes";
 import { playSound } from "@/utils/sounds";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -18,7 +20,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 
 // ── Timing ────────────────────────────────────────────────────
@@ -49,6 +51,12 @@ export function CelebrationBurst({
 }) {
   const [dismissable, setDismissable] = useState(false);
   const [confettiKey, setConfettiKey] = useState(0);
+
+  // Reactive theme + active scheme. Both must be called
+  // unconditionally, before the early return below.
+  const { theme } = useUnistyles();
+  const { schemeId } = useThemePreference();
+  const palette = getConfettiPalette(schemeId);
 
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
@@ -98,6 +106,7 @@ export function CelebrationBurst({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, handleDismiss, sound]);
 
+  /** DEV ONLY: refire the confetti and replay the sound. */
   const handleDevRefire = useCallback(() => {
     setConfettiKey((k) => k + 1);
     if (sound !== "none") playSound(sound);
@@ -116,7 +125,6 @@ export function CelebrationBurst({
 
   if (!visible) return null;
 
-  const theme = UnistylesRuntime.getTheme();
   const showConfetti = Platform.OS !== "web";
   const resolvedTitle = title ?? `Day ${streak} done`;
   const resolvedSubtitle = subtitle ?? "Rest up. Come back tomorrow.";
@@ -133,38 +141,47 @@ export function CelebrationBurst({
         {showConfetti && (
           <View style={RNStyleSheet.absoluteFill} pointerEvents="none">
             <CannonConfetti
+              key={confettiKey}
               autoplay
               fadeOutOnEnd
-              gravity={1}
-              drag={4.5}
-              sprayDuration={700}
-              colors={[
-                theme.colors.primary,
-                "#FF0A54", // hot pink
-                "#FF9E00", // vivid orange
-                "#FFEA00", // electric yellow
-                "#00F5A0", // neon mint
-                "#00D9FF", // electric cyan
-                "#B24BF3", // electric violet
-              ]}
+              // ── Slow pass ─────────────────────────────
+              // gravity halved, initialSpeed lowered, spray stretched.
+              // Iterate here with the lab open.
+              gravity={0.1}
+              drag={0.98}
+              sprayDuration={1400}
+              colors={palette}
               containerStyle={RNStyleSheet.absoluteFill}
             >
               <CannonConfetti.Origin
                 position="bottom-left"
-                count={400}
-                initialSpeed={4.5}
-                spread={Math.PI / 3.5}
+                count={110}
+                initialSpeed={2}
+                spread={Math.PI / 4}
+                speedVariation={{ min: 0.7, max: 1.4 }}
               >
-                <CannonConfetti.Flake width={10} height={19} radius={3} />
+                <CannonConfetti.Flake width={9} height={17} radius={3} />
               </CannonConfetti.Origin>
 
               <CannonConfetti.Origin
                 position="bottom-right"
-                count={400}
-                initialSpeed={4.5}
-                spread={Math.PI / 3.5}
+                count={110}
+                initialSpeed={2}
+                spread={Math.PI / 4}
+                speedVariation={{ min: 0.7, max: 1.4 }}
               >
-                <CannonConfetti.Flake width={10} height={19} radius={3} />
+                <CannonConfetti.Flake width={9} height={17} radius={3} />
+              </CannonConfetti.Origin>
+
+              {/* Top-center origin: slow drizzle from above */}
+              <CannonConfetti.Origin
+                position="top-center"
+                count={60}
+                initialSpeed={1.2}
+                spread={Math.PI / 2.5}
+                speedVariation={{ min: 0.6, max: 1.2 }}
+              >
+                <CannonConfetti.Flake width={8} height={14} radius={3} />
               </CannonConfetti.Origin>
             </CannonConfetti>
           </View>
