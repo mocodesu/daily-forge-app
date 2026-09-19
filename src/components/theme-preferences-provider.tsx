@@ -3,22 +3,61 @@ import {
   DEFAULT_SCHEME_ID,
   type AppColorSchemeId,
 } from "@/theme/color-schemes";
-import { useSQLiteContext } from "expo-sqlite";
-import React, { useCallback, useEffect, useState, type ReactNode } from "react";
-import { View } from "react-native";
-import { UnistylesRuntime, useUnistyles } from "react-native-unistyles";
+import {
+  COLOR_MODE_STORAGE_KEY,
+  COLOR_SCHEME_STORAGE_KEY,
+  createDarkColors,
+  createLightColors,
+} from "../../unistyles";
 
 import { ThemePrefContext } from "@/hooks/use-theme-preference";
-import { PreferencesRepo } from "@/repositories/preferences-repo";
+import { getStoredValues, saveSecurely } from "@/store/storage";
 import { ThemeMode } from "@/types";
-import { createDarkColors, createLightColors } from "../../unistyles";
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import { UnistylesRuntime } from "react-native-unistyles";
 
-const KEY_SCHEME = "theme.scheme";
-const KEY_MODE = "theme.mode";
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+
+function isThemeMode(value: unknown): value is ThemeMode {
+  return value === "system" || value === "light" || value === "dark";
+}
+
+function readStoredScheme(): AppColorSchemeId {
+  try {
+    const { [COLOR_SCHEME_STORAGE_KEY]: raw } = getStoredValues([
+      COLOR_SCHEME_STORAGE_KEY,
+    ]);
+    if (raw && APP_COLOR_SCHEMES.some((s) => s.id === raw)) {
+      return raw as AppColorSchemeId;
+    }
+  } catch {
+    // Non-fatal — fall through to default.
+  }
+  return DEFAULT_SCHEME_ID;
+}
+
+function readStoredMode(): ThemeMode {
+  try {
+    const { [COLOR_MODE_STORAGE_KEY]: raw } = getStoredValues([
+      COLOR_MODE_STORAGE_KEY,
+    ]);
+    if (isThemeMode(raw)) return raw;
+  } catch {
+    // Non-fatal — fall through to default.
+  }
+  return "system";
+}
 
 /**
- * Applies the scheme colors + mode to Unistyles globally.
- * Pure side-effect — no React state involved.
+ * Applies the scheme colors + mode to Unistyles globally. Pure
+ * side-effect — no React state involved.
  */
 function applyTheme(schemeId: AppColorSchemeId, mode: ThemeMode) {
   const light = createLightColors(schemeId);
@@ -47,62 +86,36 @@ function applyTheme(schemeId: AppColorSchemeId, mode: ThemeMode) {
   );
 }
 
-/** Minimal splash using the currently-configured theme (Saffron default). */
-function ThemeSplash() {
-  const { theme } = useUnistyles();
-  return <View style={{ flex: 1, backgroundColor: theme.colors.background }} />;
-}
+// ─────────────────────────────────────────────────────────────
+// Provider
+// ─────────────────────────────────────────────────────────────
 
 export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
-  const db = useSQLiteContext();
-  const [schemeId, setSchemeId] = useState<AppColorSchemeId>(DEFAULT_SCHEME_ID);
-  const [mode, setMode] = useState<ThemeMode>("system");
-  const [hydrated, setHydrated] = useState(false);
+  // MMKV is synchronous — read state directly in the initializer.
+  // This is what removes the cold-start flash: the very first render
+  // already knows the correct scheme and mode.
+  const [schemeId, setSchemeId] = useState<AppColorSchemeId>(readStoredScheme);
+  const [mode, setMode] = useState<ThemeMode>(readStoredMode);
 
-  // ── Hydrate from SQLite on mount ────────────────────────
-  useEffect(() => {
-    (async () => {
-      try {
-        const [storedScheme, storedMode] = await Promise.all([
-          PreferencesRepo.get(db, KEY_SCHEME),
-          PreferencesRepo.get(db, KEY_MODE),
-        ]);
-
-        const sid: AppColorSchemeId =
-          (storedScheme &&
-            APP_COLOR_SCHEMES.some((s) => s.id === storedScheme) &&
-            (storedScheme as AppColorSchemeId)) ||
-          DEFAULT_SCHEME_ID;
-
-        const m: ThemeMode =
-          storedMode === "light" ||
-          storedMode === "dark" ||
-          storedMode === "system"
-            ? storedMode
-            : "system";
-
-        setSchemeId(sid);
-        setMode(m);
-        applyTheme(sid, m);
-      } catch (err) {
-        console.warn("[theme] hydration failed:", err);
-      } finally {
-        setHydrated(true);
-      }
-    })();
-  }, [db]);
+  // Apply on first render, before children paint.
+  // useLayoutEffect fires synchronously after commit but before paint,
+  // so no frame is ever shown with the wrong theme.
+  useLayoutEffect(() => {
+    applyTheme(schemeId, mode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const selectScheme = useCallback(
     async (sid: AppColorSchemeId) => {
       setSchemeId(sid);
       applyTheme(sid, mode);
       try {
-        await PreferencesRepo.set(db, KEY_SCHEME, sid);
+        saveSecurely([{ key: COLOR_SCHEME_STORAGE_KEY, value: sid }]);
       } catch (err) {
         console.warn("[theme] persist scheme failed:", err);
       }
     },
-    [db, mode],
+    [mode],
   );
 
   const selectMode = useCallback(
@@ -110,22 +123,17 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
       setMode(m);
       applyTheme(schemeId, m);
       try {
-        await PreferencesRepo.set(db, KEY_MODE, m);
+        saveSecurely([{ key: COLOR_MODE_STORAGE_KEY, value: m }]);
       } catch (err) {
         console.warn("[theme] persist mode failed:", err);
       }
     },
-    [db, schemeId],
+    [schemeId],
   );
-
-  // ── Gate rendering until hydrated ───────────────────────
-  if (!hydrated) {
-    return <ThemeSplash />;
-  }
 
   return (
     <ThemePrefContext.Provider
-      value={{ schemeId, mode, hydrated, selectScheme, selectMode }}
+      value={{ schemeId, mode, hydrated: true, selectScheme, selectMode }}
     >
       {children}
     </ThemePrefContext.Provider>

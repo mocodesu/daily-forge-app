@@ -10,6 +10,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface DayState {
   loading: boolean;
+  /**
+   * Non-null when the last refresh failed. Consumers should render an
+   * error state instead of the normal content when this is set.
+   */
+  error: string | null;
   exercises: Exercise[];
   records: CompletionRecord[];
   completedIds: Set<string>;
@@ -31,6 +36,7 @@ export interface DayState {
 
 const EMPTY: DayState = {
   loading: true,
+  error: null,
   exercises: [],
   records: [],
   completedIds: new Set(),
@@ -87,6 +93,7 @@ export function useDayState(minimumExercises: number, enabled: boolean = true) {
 
       setState({
         loading: false,
+        error: null,
         exercises,
         records,
         completedIds,
@@ -109,7 +116,12 @@ export function useDayState(minimumExercises: number, enabled: boolean = true) {
     } catch (err) {
       if (!mountedRef.current) return;
       console.warn("[useDayState] refresh failed:", err);
-      setState((s) => ({ ...s, loading: false }));
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error:
+          err instanceof Error ? err.message : "Could not load today's data.",
+      }));
     }
   }, [db, enabled, minimumExercises]);
 

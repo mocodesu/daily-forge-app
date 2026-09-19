@@ -7,6 +7,7 @@ import { CompletionsRepo } from "@/repositories/completions-repo";
 import { ExercisesRepo } from "@/repositories/exercises-repo";
 import type { Exercise } from "@/types/dailyforge";
 import { dayKey } from "@/utils/day-key";
+import { formatDuration } from "@/utils/format";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
@@ -222,13 +223,6 @@ function Stat({ label, value }: { label: string; value: string }) {
       </Text>
     </View>
   );
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s === 0 ? `${m}m` : `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 const styles = StyleSheet.create((theme) => ({

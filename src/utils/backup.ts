@@ -17,6 +17,7 @@ export interface BackupPayload {
   dayLocks: unknown[];
   swears: unknown[];
   milestones: unknown[];
+  frozenDays: unknown[];
 }
 
 export interface BackupSummary {
@@ -25,29 +26,36 @@ export interface BackupSummary {
   dayLocks: number;
   swears: number;
   milestones: number;
+  frozenDays: number;
   hasProfile: boolean;
   preferenceCount: number;
 }
 
-/**
- * Reads every table and returns a JSON string suitable for export.
- */
 export async function buildBackupJson(
   db: SQLiteDatabase,
   appVersion: string,
 ): Promise<string> {
-  const [prefs, profile, exercises, completions, locks, swears, milestones] =
-    await Promise.all([
-      db.getAllAsync<{ key: string; value: string }>(
-        `SELECT key, value FROM preferences`,
-      ),
-      db.getAllAsync<unknown>(`SELECT * FROM user_profile`),
-      db.getAllAsync<unknown>(`SELECT * FROM exercises`),
-      db.getAllAsync<unknown>(`SELECT * FROM completion_records`),
-      db.getAllAsync<unknown>(`SELECT * FROM day_locks`),
-      db.getAllAsync<unknown>(`SELECT * FROM daily_swears`),
-      db.getAllAsync<unknown>(`SELECT * FROM milestones`),
-    ]);
+  const [
+    prefs,
+    profile,
+    exercises,
+    completions,
+    locks,
+    swears,
+    milestones,
+    frozen,
+  ] = await Promise.all([
+    db.getAllAsync<{ key: string; value: string }>(
+      `SELECT key, value FROM preferences`,
+    ),
+    db.getAllAsync<unknown>(`SELECT * FROM user_profile`),
+    db.getAllAsync<unknown>(`SELECT * FROM exercises`),
+    db.getAllAsync<unknown>(`SELECT * FROM completion_records`),
+    db.getAllAsync<unknown>(`SELECT * FROM day_locks`),
+    db.getAllAsync<unknown>(`SELECT * FROM daily_swears`),
+    db.getAllAsync<unknown>(`SELECT * FROM milestones`),
+    db.getAllAsync<unknown>(`SELECT * FROM frozen_days`),
+  ]);
 
   const preferences: Record<string, string> = {};
   for (const row of prefs) {
@@ -65,15 +73,12 @@ export async function buildBackupJson(
     dayLocks: locks,
     swears,
     milestones,
+    frozenDays: frozen,
   };
 
   return JSON.stringify(payload, null, 2);
 }
 
-/**
- * Writes a backup to the app's document directory and returns its URI.
- * Caller is responsible for sharing it via expo-sharing.
- */
 export function writeBackupFile(json: string): {
   uri: string;
   filename: string;
@@ -91,9 +96,6 @@ export function writeBackupFile(json: string): {
   return { uri: file.uri, filename };
 }
 
-/**
- * Parses a JSON string into a BackupPayload, throwing on structural problems.
- */
 export function parseBackupJson(raw: string): BackupPayload {
   let parsed: unknown;
   try {
@@ -104,10 +106,6 @@ export function parseBackupJson(raw: string): BackupPayload {
   return validatePayload(parsed);
 }
 
-/**
- * Validates the shape of a parsed backup. Throws with a user-facing
- * message on the first problem found.
- */
 function validatePayload(raw: unknown): BackupPayload {
   if (!raw || typeof raw !== "object") {
     throw new Error("Backup file is empty or malformed.");
@@ -140,12 +138,12 @@ function validatePayload(raw: unknown): BackupPayload {
     dayLocks: p.dayLocks ?? [],
     swears: p.swears ?? [],
     milestones: p.milestones ?? [],
+    // Backups created before this field existed won't have it — default
+    // to an empty array so old backups still restore cleanly.
+    frozenDays: Array.isArray(p.frozenDays) ? p.frozenDays : [],
   };
 }
 
-/**
- * A quick summary of a backup's contents, for the confirmation dialog.
- */
 export function summarizeBackup(payload: BackupPayload): BackupSummary {
   return {
     exercises: payload.exercises.length,
@@ -153,6 +151,7 @@ export function summarizeBackup(payload: BackupPayload): BackupSummary {
     dayLocks: payload.dayLocks.length,
     swears: payload.swears.length,
     milestones: payload.milestones.length,
+    frozenDays: payload.frozenDays.length,
     hasProfile:
       Array.isArray(payload.userProfile) && payload.userProfile.length > 0,
     preferenceCount: Object.keys(payload.preferences).length,

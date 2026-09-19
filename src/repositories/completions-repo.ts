@@ -19,8 +19,11 @@ const toRecord = (row: CompletionRow): CompletionRecord => ({
 
 export const CompletionsRepo = {
   async insert(db: SQLiteDatabase, record: CompletionRecord): Promise<void> {
+    // The (exercise_id, day_key) unique index means a second insert for
+    // the same pair is a no-op instead of a throw. Matches the behavior
+    // of DayLocksRepo.insert and SwearsRepo.insert.
     await db.runAsync(
-      `INSERT INTO completion_records
+      `INSERT OR IGNORE INTO completion_records
         (id, exercise_id, day_key, started_at, completed_at)
        VALUES (?, ?, ?, ?, ?)`,
       record.id,

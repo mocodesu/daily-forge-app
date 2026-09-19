@@ -24,6 +24,7 @@ import {
   type ScheduledNotificationInfo,
 } from "@/utils/dev-tools";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";
@@ -298,9 +299,6 @@ function DevToolsInner() {
       "Retention reminders cancelled.",
     );
 
-  // ── Render ─────────────────────────────────────────────────
-  const theme = UnistylesRuntime.getTheme();
-
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -549,6 +547,18 @@ function DevToolsInner() {
         destructive
       />
 
+      {/* ── Confetti Lab ────────────────────────────────── */}
+      <SectionHeader icon="sparkles-outline" title="Celebrations" />
+
+      <DevButton
+        icon="sparkles-outline"
+        label="Open Confetti Lab"
+        subtitle="Fire CelebrationBurst and GrandCelebration on demand"
+        onPress={() => router.push("/(main)/dev/confetti-lab")}
+        busy={false}
+        disabled={busy !== null}
+      />
+
       {/* ── Data ────────────────────────────────────────── */}
       <SectionHeader icon="server-outline" title="Data" />
 
@@ -581,11 +591,6 @@ function DevToolsInner() {
           </Text>
         </View>
       )}
-
-      {/* Unused variable, kept for future use */}
-      <View style={{ height: 0 }}>
-        <Text>{theme.colors.background}</Text>
-      </View>
     </View>
   );
 }
@@ -651,7 +656,10 @@ function DevButton({
     >
       <View style={styles.rowIcon}>
         {busy ? (
-          <ActivityIndicator size="small" color="unstyled" />
+          <ActivityIndicator
+            size="small"
+            color={UnistylesRuntime.getTheme().colors.primary}
+          />
         ) : (
           <Ionicons
             name={icon}

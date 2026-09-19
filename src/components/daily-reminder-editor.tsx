@@ -31,6 +31,7 @@ export function DailyReminderEditor() {
     settings,
     permissionGranted,
     loading,
+    lastError,
     setEnabled,
     setTime,
     requestPermission,
@@ -144,6 +145,16 @@ export function DailyReminderEditor() {
         </View>
       )}
 
+      {/* ── Error row ──────────────────────────────────── */}
+      {lastError && (
+        <View style={styles.errorRow}>
+          <PrimaryIcon name="alert-circle-outline" size={14} />
+          <Text variant="caption" color="primary" style={styles.helpText}>
+            {lastError}
+          </Text>
+        </View>
+      )}
+
       {/* ── Helper text ────────────────────────────────── */}
       <View style={styles.helpRow}>
         <Ionicons
@@ -226,11 +237,17 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
   },
 
+  helpText: { flex: 1 },
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.xs,
+  },
   helpRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.xs,
     paddingTop: theme.spacing.xxs,
   },
-  helpText: { flex: 1 },
 }));

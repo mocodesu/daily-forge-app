@@ -21,8 +21,12 @@ import Animated, {
 import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 
-const SETTLE_DELAY = 2500;
-const AUTO_DISMISS_DELAY = 16000;
+// ── Timing ────────────────────────────────────────────────────
+// SLOW PASS: bumped SETTLE and AUTO_DISMISS so the button appears
+// after the confetti has mostly landed, and the user has plenty of
+// time to watch the tail. Tune both with the lab open.
+const SETTLE_DELAY = 2400;
+const AUTO_DISMISS_DELAY = 11000;
 
 type BurstSound = "dayComplete" | "targetReached" | "none";
 
@@ -44,7 +48,6 @@ export function CelebrationBurst({
   sound?: BurstSound;
 }) {
   const [dismissable, setDismissable] = useState(false);
-  /** Incrementing this re-mounts the confetti, forcing a fresh burst. */
   const [confettiKey, setConfettiKey] = useState(0);
 
   const scale = useSharedValue(0);
@@ -95,7 +98,6 @@ export function CelebrationBurst({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, handleDismiss, sound]);
 
-  /** DEV ONLY: refire the confetti and replay the sound. */
   const handleDevRefire = useCallback(() => {
     setConfettiKey((k) => k + 1);
     if (sound !== "none") playSound(sound);
@@ -131,42 +133,43 @@ export function CelebrationBurst({
         {showConfetti && (
           <View style={RNStyleSheet.absoluteFill} pointerEvents="none">
             <CannonConfetti
-              key={confettiKey}
               autoplay
               fadeOutOnEnd
-              gravity={0.6}
+              gravity={1}
+              drag={4.5}
+              sprayDuration={700}
               colors={[
                 theme.colors.primary,
-                "#FF6B35",
-                "#FBBF24",
-                "#4ADE80",
-                "#F472B6",
-                "#60A5FA",
+                "#FF0A54", // hot pink
+                "#FF9E00", // vivid orange
+                "#FFEA00", // electric yellow
+                "#00F5A0", // neon mint
+                "#00D9FF", // electric cyan
+                "#B24BF3", // electric violet
               ]}
               containerStyle={RNStyleSheet.absoluteFill}
             >
               <CannonConfetti.Origin
                 position="bottom-left"
-                count={150}
-                initialSpeed={8}
-                spread={Math.PI / 10}
+                count={400}
+                initialSpeed={4.5}
+                spread={Math.PI / 3.5}
               >
-                <CannonConfetti.Flake width={9} height={17} radius={3} />
+                <CannonConfetti.Flake width={10} height={19} radius={3} />
               </CannonConfetti.Origin>
 
               <CannonConfetti.Origin
                 position="bottom-right"
-                count={150}
-                initialSpeed={8}
-                spread={Math.PI / 10}
+                count={400}
+                initialSpeed={4.5}
+                spread={Math.PI / 3.5}
               >
-                <CannonConfetti.Flake width={9} height={17} radius={3} />
+                <CannonConfetti.Flake width={10} height={19} radius={3} />
               </CannonConfetti.Origin>
             </CannonConfetti>
           </View>
         )}
 
-        {/* ── DEV ONLY: refire button ─────────────────────── */}
         {__DEV__ && (
           <Pressable
             onPress={handleDevRefire}

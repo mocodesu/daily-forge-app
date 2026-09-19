@@ -17,7 +17,14 @@ export const BASE_GAP = 4;
 // ═══════════════════════════════════════════════════════════
 //  COLOR SCHEME RESOLUTION
 // ═══════════════════════════════════════════════════════════
-const COLOR_SCHEME_STORAGE_KEY = "app-color-scheme";
+// ─────────────────────────────────────────────────────────────
+// MMKV keys for theme persistence
+//
+// These are the single source of truth. The ThemePreferenceProvider
+// reads and writes these exact keys — do NOT duplicate them there.
+// ─────────────────────────────────────────────────────────────
+export const COLOR_SCHEME_STORAGE_KEY = "app-color-scheme";
+export const COLOR_MODE_STORAGE_KEY = "app-color-mode";
 
 const resolveColorScheme = (schemeId: AppColorSchemeId = DEFAULT_SCHEME_ID) =>
   APP_COLOR_SCHEMES.find((scheme) => scheme.id === schemeId) ??
@@ -75,17 +82,6 @@ export const saveAppColorScheme = (schemeId: AppColorSchemeId) => {
   try {
     saveSecurely([{ key: COLOR_SCHEME_STORAGE_KEY, value: schemeId }]);
   } catch {}
-};
-
-export const initAppColorScheme = () => {
-  const schemeId = getStoredAppColorScheme();
-  applyAppColorScheme(schemeId);
-  return schemeId;
-};
-
-export const selectAppColorScheme = (schemeId: AppColorSchemeId) => {
-  applyAppColorScheme(schemeId);
-  saveAppColorScheme(schemeId);
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -340,7 +336,7 @@ export const LAYOUT = {
   cardPadding: SPACE.md, // 10
   sectionGap: SPACE.xl, // 20
   listGap: SPACE.md, // 10
-  contentMaxWidth: 680,
+  contentMaxWidth: 640, // matches the width screens have shipped with
   hitSlop: SPACE.sm, // 7.5
   minTouchTarget: 44, // iOS HIG
 } as const;

@@ -9,6 +9,7 @@ export interface TableCounts {
   dayLocks: number;
   swears: number;
   milestones: number;
+  frozenDays: number;
   preferences: number;
   hasProfile: boolean;
 }
@@ -21,6 +22,7 @@ export const DataManagementRepo = {
       dayLocks,
       swears,
       milestones,
+      frozenDays,
       preferences,
       profile,
     ] = await Promise.all([
@@ -29,6 +31,7 @@ export const DataManagementRepo = {
       count(db, "day_locks"),
       count(db, "daily_swears"),
       count(db, "milestones"),
+      count(db, "frozen_days"),
       count(db, "preferences"),
       count(db, "user_profile"),
     ]);
@@ -38,31 +41,25 @@ export const DataManagementRepo = {
       dayLocks,
       swears,
       milestones,
+      frozenDays,
       preferences,
       hasProfile: profile > 0,
     };
   },
 
-  /**
-   * Deletes every row from every table. Runs inside a single transaction
-   * so a mid-wipe failure leaves the DB untouched.
-   */
   async wipeAll(db: SQLiteDatabase): Promise<void> {
     await db.withTransactionAsync(async () => {
       await db.execAsync(`DELETE FROM completion_records`);
       await db.execAsync(`DELETE FROM day_locks`);
       await db.execAsync(`DELETE FROM daily_swears`);
       await db.execAsync(`DELETE FROM milestones`);
+      await db.execAsync(`DELETE FROM frozen_days`);
       await db.execAsync(`DELETE FROM exercises`);
       await db.execAsync(`DELETE FROM user_profile`);
       await db.execAsync(`DELETE FROM preferences`);
     });
   },
 
-  /**
-   * Restores a full database from a parsed backup payload.
-   * Wipes first, then inserts everything in one transaction.
-   */
   async restoreFrom(
     db: SQLiteDatabase,
     payload: {
@@ -73,6 +70,7 @@ export const DataManagementRepo = {
       dayLocks: unknown[];
       swears: unknown[];
       milestones: unknown[];
+      frozenDays: unknown[];
     },
   ): Promise<void> {
     await db.withTransactionAsync(async () => {
@@ -81,6 +79,7 @@ export const DataManagementRepo = {
       await db.execAsync(`DELETE FROM day_locks`);
       await db.execAsync(`DELETE FROM daily_swears`);
       await db.execAsync(`DELETE FROM milestones`);
+      await db.execAsync(`DELETE FROM frozen_days`);
       await db.execAsync(`DELETE FROM exercises`);
       await db.execAsync(`DELETE FROM user_profile`);
       await db.execAsync(`DELETE FROM preferences`);
@@ -197,6 +196,19 @@ export const DataManagementRepo = {
           (r.current_weight_kg as number | null) ?? null,
           (r.user_notes as string) ?? "",
           (r.ai_summary as string | null) ?? null,
+        );
+      }
+
+      // 9. Frozen days
+      // Columns: day_key (PK), frozen_at, reason. No id column.
+      for (const row of payload.frozenDays) {
+        const r = row as Record<string, unknown>;
+        await db.runAsync(
+          `INSERT INTO frozen_days (day_key, frozen_at, reason)
+           VALUES (?, ?, ?)`,
+          r.day_key as string,
+          r.frozen_at as number,
+          (r.reason as string) ?? "auto-missed",
         );
       }
     });

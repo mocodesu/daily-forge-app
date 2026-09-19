@@ -1,9 +1,54 @@
 import * as SQLite from "expo-sqlite";
 
-export async function initializeDatabase(db: SQLite.SQLiteDatabase) {
-  await db.execAsync("PRAGMA journal_mode = WAL;");
-  await db.execAsync("PRAGMA foreign_keys = ON;");
+// ─────────────────────────────────────────────────────────────
+// Schema version
+//
+// Bump this whenever a migration is added to the MIGRATIONS array
+// below. Never bump without a matching migration — the migration
+// runner relies on them being in lockstep.
+// ─────────────────────────────────────────────────────────────
+const SCHEMA_VERSION = 1;
 
+// ─────────────────────────────────────────────────────────────
+// Meta table
+//
+// Single-row table holding the current schema version. Lives outside
+// the user-facing tables so "Wipe All Data" doesn't lose it — wiping
+// data does not un-apply migrations.
+// ─────────────────────────────────────────────────────────────
+const META_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS schema_meta (
+    id      INTEGER PRIMARY KEY CHECK (id = 1),
+    version INTEGER NOT NULL
+  );
+`;
+
+async function getSchemaVersion(db: SQLite.SQLiteDatabase): Promise<number> {
+  const row = await db.getFirstAsync<{ version: number }>(
+    `SELECT version FROM schema_meta WHERE id = 1`,
+  );
+  return row?.version ?? 0;
+}
+
+async function setSchemaVersion(
+  db: SQLite.SQLiteDatabase,
+  version: number,
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO schema_meta (id, version) VALUES (1, ?)
+     ON CONFLICT(id) DO UPDATE SET version = excluded.version`,
+    version,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Base schema
+//
+// The full schema at version 1. Runs only on fresh installs (no
+// schema_meta row yet). Every statement is IF NOT EXISTS, so it's
+// also safe to re-run defensively.
+// ─────────────────────────────────────────────────────────────
+async function runBaseSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS preferences (
       key        TEXT PRIMARY KEY NOT NULL,
@@ -55,6 +100,19 @@ export async function initializeDatabase(db: SQLite.SQLiteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_completions_exercise
       ON completion_records (exercise_id);
 
+    -- Clean up duplicates before the unique index is applied. Harmless
+    -- on fresh installs (table is empty); rescues upgraded installs
+    -- that raced an insert at some point.
+    DELETE FROM completion_records
+     WHERE rowid NOT IN (
+       SELECT MIN(rowid)
+         FROM completion_records
+        GROUP BY exercise_id, day_key
+     );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_completions_exercise_day
+      ON completion_records (exercise_id, day_key);
+
     CREATE TABLE IF NOT EXISTS day_locks (
       id        TEXT PRIMARY KEY NOT NULL,
       day_key   TEXT NOT NULL UNIQUE,
@@ -79,7 +137,6 @@ export async function initializeDatabase(db: SQLite.SQLiteDatabase) {
       ai_summary        TEXT
     );
 
-    -- Streak freezes: days the user missed but that don't break the streak.
     CREATE TABLE IF NOT EXISTS frozen_days (
       day_key   TEXT PRIMARY KEY NOT NULL,
       frozen_at INTEGER NOT NULL,
@@ -89,4 +146,71 @@ export async function initializeDatabase(db: SQLite.SQLiteDatabase) {
     CREATE INDEX IF NOT EXISTS idx_frozen_days_month
       ON frozen_days (day_key);
   `);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Migrations
+//
+// Each entry transforms the schema from `to - 1` to `to`. Add new
+// entries at the END of the array; never reorder or delete existing
+// entries — an install somewhere in the wild may be sitting at any
+// version. Bump SCHEMA_VERSION to match the highest `to`.
+//
+// Example for a future v2 that adds a nullable column:
+//
+//   {
+//     to: 2,
+//     run: async (db) => {
+//       await db.execAsync(
+//         `ALTER TABLE user_profile ADD COLUMN notes TEXT`
+//       );
+//     },
+//   }
+// ─────────────────────────────────────────────────────────────
+interface Migration {
+  to: number;
+  run: (db: SQLite.SQLiteDatabase) => Promise<void>;
+}
+
+const MIGRATIONS: Migration[] = [
+  // No migrations yet. v1 is the base schema.
+];
+
+// ─────────────────────────────────────────────────────────────
+// Public entry point
+// ─────────────────────────────────────────────────────────────
+export async function initializeDatabase(
+  db: SQLite.SQLiteDatabase,
+): Promise<void> {
+  await db.execAsync("PRAGMA journal_mode = WAL;");
+  await db.execAsync("PRAGMA foreign_keys = ON;");
+
+  // Ensure the meta table exists before reading it. This has to run
+  // before anything else so a fresh install can't fail on a missing
+  // schema_meta.
+  await db.execAsync(META_TABLE_SQL);
+
+  const currentVersion = await getSchemaVersion(db);
+
+  // ── Fresh install ────────────────────────────────────────
+  if (currentVersion === 0) {
+    await runBaseSchema(db);
+    await setSchemaVersion(db, SCHEMA_VERSION);
+    return;
+  }
+
+  // ── Upgrades ─────────────────────────────────────────────
+  if (currentVersion < SCHEMA_VERSION) {
+    for (const migration of MIGRATIONS) {
+      if (migration.to > currentVersion) {
+        await migration.run(db);
+        await setSchemaVersion(db, migration.to);
+      }
+    }
+  }
+
+  // currentVersion === SCHEMA_VERSION → nothing to do.
+  // currentVersion > SCHEMA_VERSION → app downgrade; leave it alone.
+  // (A real production app would want to surface this, but for a
+  // local-first single-user app it's not worth crashing over.)
 }

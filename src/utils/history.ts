@@ -1,5 +1,6 @@
 import { FrozenDaysRepo } from "@/repositories/frozen-days-repo";
 import type { SQLiteDatabase } from "expo-sqlite";
+import { dayKey } from "./day-key";
 
 export interface DayProgress {
   dayKey: string;
@@ -9,6 +10,11 @@ export interface DayProgress {
   isToday: boolean;
   /** True if this day was a missed day that was frozen retroactively. */
   isFrozen: boolean;
+  /**
+   * True if the user sealed the day — completed all exercises AND
+   * said the voice oath. Only sealed days contribute to the streak.
+   */
+  isSealed: boolean;
 }
 
 export async function computeHistory(
@@ -29,8 +35,12 @@ export async function computeHistory(
     exercise_id: string;
   }>(`SELECT day_key, exercise_id FROM completion_records`);
 
-  const frozen = await FrozenDaysRepo.getAll(db);
+  const [frozen, lockRows] = await Promise.all([
+    FrozenDaysRepo.getAll(db),
+    db.getAllAsync<{ day_key: string }>(`SELECT day_key FROM day_locks`),
+  ]);
   const frozenKeys = new Set(frozen.map((f) => f.dayKey));
+  const sealedKeys = new Set(lockRows.map((r) => r.day_key));
 
   const byDay = new Map<string, Set<string>>();
   for (const row of completions) {
@@ -43,7 +53,7 @@ export async function computeHistory(
   for (let offset = 0; offset < days; offset++) {
     const d = new Date(today);
     d.setDate(d.getDate() - offset);
-    const key = formatDayKey(d);
+    const key = dayKey(d);
     const dayStart = d.getTime();
     const dayEnd = dayStart + 24 * 60 * 60 * 1000 - 1;
 
@@ -64,15 +74,9 @@ export async function computeHistory(
       total: due.length,
       isToday: offset === 0,
       isFrozen: frozenKeys.has(key),
+      isSealed: sealedKeys.has(key),
     });
   }
 
   return out;
-}
-
-function formatDayKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
 }

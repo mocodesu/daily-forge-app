@@ -10,13 +10,6 @@ import {
 import { StyleSheet } from "react-native-unistyles";
 
 /**
- * Maximum content width. On phones this has no effect. On tablets, desktop
- * web, and landscape phones it keeps lines of text readable and prevents
- * cards from stretching to absurd widths.
- */
-const MAX_CONTENT_WIDTH = 640;
-
-/**
  * Returns the actual top inset for the current screen.
  *
  * Why the fallback: when React Navigation presents a screen with
@@ -137,7 +130,7 @@ const styles = StyleSheet.create((theme, rt) => {
     },
     headerInner: {
       width: "100%",
-      maxWidth: MAX_CONTENT_WIDTH,
+      maxWidth: theme.layout.contentMaxWidth,
       alignSelf: "center",
     },
 
@@ -158,7 +151,7 @@ const styles = StyleSheet.create((theme, rt) => {
     // Inner content wrapper — centers on wide screens
     content: {
       width: "100%",
-      maxWidth: MAX_CONTENT_WIDTH,
+      maxWidth: theme.layout.contentMaxWidth,
       alignSelf: "center",
       gap: theme.spacing.lg,
     },

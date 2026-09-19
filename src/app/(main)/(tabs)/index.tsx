@@ -1,6 +1,7 @@
 import { CelebrationBurst } from "@/components/celebration-burst";
 import { AllDoneBanner, MinimumNotMetBanner } from "@/components/day-banners";
 import { DayCompletePrompt } from "@/components/day-complete-prompt";
+import { ErrorState } from "@/components/error-state";
 import { GrandCelebration } from "@/components/grand-celebration";
 import { HapticPressable } from "@/components/haptic-pressable";
 import { MilestoneModal } from "@/components/milestone-modal";
@@ -11,12 +12,12 @@ import { SwipeableExerciseCard } from "@/components/swipeable-exercise-card";
 import Text from "@/components/text";
 import { MutedIcon, PrimaryIcon } from "@/components/themed";
 import { useAppBadge } from "@/hooks/use-app-badge";
+import { cancelDailyReminderForToday } from "@/hooks/use-daily-reminder";
 import { useDayState } from "@/hooks/use-day-state";
 import { useMilestone } from "@/hooks/use-milestone";
 import { useMinimumExercises } from "@/hooks/use-minimum-exercises";
 import { useProfile } from "@/hooks/use-profile";
 import { useTargetDays } from "@/hooks/use-target-days";
-import { CompletionsRepo } from "@/repositories/completions-repo";
 import { DayLocksRepo } from "@/repositories/day-locks-repo";
 import { ExercisesRepo } from "@/repositories/exercises-repo";
 import { SwearsRepo } from "@/repositories/swears-repo";
@@ -129,8 +130,14 @@ function TodayContent({
   const handleDeleteExercise = useCallback(
     async (exercise: Exercise) => {
       try {
-        await CompletionsRepo.deleteForExercise(db, exercise.id);
-        await ExercisesRepo.delete(db, exercise.id);
+        // Single transaction so a failure can't leave us with the
+        // exercise gone but completions orphaned (or vice versa).
+        // Foreign keys are ON and completion_records has
+        // ON DELETE CASCADE, so removing the exercise removes its
+        // completion rows too.
+        await db.withTransactionAsync(async () => {
+          await ExercisesRepo.delete(db, exercise.id);
+        });
         await day.refresh();
       } catch (err) {
         console.error("[today] delete exercise failed:", err);
@@ -166,6 +173,12 @@ function TodayContent({
         id: randomUUID(),
         dayKey: today,
         lockedAt: now,
+      });
+
+      // The user finished. They don't need today's reminder anymore.
+      // Fire-and-forget: a notification hiccup must never block the seal.
+      cancelDailyReminderForToday().catch((err) => {
+        console.warn("[today] cancel today's reminder failed:", err);
       });
 
       await trackUserActivity();
@@ -245,6 +258,18 @@ function TodayContent({
           color={UnistylesRuntime.getTheme().colors.primary}
         />
       </View>
+    );
+  }
+
+  if (day.error) {
+    return (
+      <ScrollScreen>
+        <ErrorState
+          title="Couldn't load today"
+          message={day.error}
+          onRetry={day.refresh}
+        />
+      </ScrollScreen>
     );
   }
 
@@ -365,6 +390,7 @@ function TodayContent({
 }
 
 function EmptyState({ minimumExercises }: { minimumExercises: number }) {
+  const noun = minimumExercises === 1 ? "exercise" : "exercises";
   return (
     <View style={styles.stateContainer}>
       <MutedIcon name="barbell-outline" size={56} />
@@ -372,8 +398,8 @@ function EmptyState({ minimumExercises }: { minimumExercises: number }) {
         No exercises today
       </Text>
       <Text variant="subhead" color="mutedText" style={styles.stateText}>
-        Set up at least {minimumExercises} exercise
-        {minimumExercises === 1 ? "" : "s"} to begin your daily routine.
+        Set up at least {minimumExercises} {noun} to begin your daily routine.
+        You'll seal each day with a voice oath once they're done.
       </Text>
     </View>
   );

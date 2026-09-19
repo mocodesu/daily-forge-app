@@ -1,21 +1,3 @@
-// Dev-only: silence the Expo Router deep-link warning.
-if (__DEV__) {
-  const SUPPRESSED = [
-    "Can't perform a React state update on a component that hasn't mounted yet",
-  ];
-  const originalWarn = console.warn;
-  console.warn = (...args: unknown[]) => {
-    const first = args[0];
-    if (
-      typeof first === "string" &&
-      SUPPRESSED.some((s) => first.includes(s))
-    ) {
-      return;
-    }
-    originalWarn(...args);
-  };
-}
-
 import { DailyReminderBootstrapper } from "@/components/daily-reminder-bootstrapper";
 import { ThemePreferenceProvider } from "@/components/theme-preferences-provider";
 import ThemedSystemBars from "@/components/themed-system-bars";
@@ -26,20 +8,17 @@ import { handleExpoUpdateMetadata } from "@/utils/expo-update-metadata";
 import { initializeUpdateChannel } from "@/utils/retention-reminder";
 import { initSounds } from "@/utils/sounds";
 import * as Sentry from "@sentry/react-native";
-import { isRunningInExpoGo } from "expo";
 import * as Notifications from "expo-notifications";
 import { Stack, useNavigationContainerRef } from "expo-router";
 import { SQLiteProvider } from "expo-sqlite";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StyleSheet } from "react-native-unistyles";
-import { sentryConfig } from "../../sentry.config";
+import { navigationIntegration, sentryConfig } from "../../sentry.config";
 
-const navigationIntegration = Sentry.reactNavigationIntegration({
-  enableTimeToInitialDisplay: !isRunningInExpoGo(),
-});
 Sentry.init(sentryConfig);
 handleExpoUpdateMetadata();
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
@@ -84,7 +63,6 @@ const RootLayout = () => {
 
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(main)/(tabs)" />
-
             <Stack.Screen
               name="(main)/onboarding"
               options={{
@@ -93,7 +71,6 @@ const RootLayout = () => {
                 gestureEnabled: false,
               }}
             />
-
             <Stack.Screen
               name="(main)/create-exercise"
               options={{
@@ -101,7 +78,6 @@ const RootLayout = () => {
                 animation: "slide_from_bottom",
               }}
             />
-
             <Stack.Screen
               name="(main)/exercise/[id]"
               options={{
@@ -110,7 +86,6 @@ const RootLayout = () => {
                 sheetAllowedDetents: [0.75, 1.0],
               }}
             />
-
             <Stack.Screen
               name="(main)/session/[id]"
               options={{
@@ -119,7 +94,6 @@ const RootLayout = () => {
                 gestureEnabled: false,
               }}
             />
-
             <Stack.Screen
               name="(main)/day/[dayKey]"
               options={{
@@ -127,9 +101,15 @@ const RootLayout = () => {
                 animation: "slide_from_bottom",
               }}
             />
-
             <Stack.Screen
               name="(main)/data-management"
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+              }}
+            />
+            <Stack.Screen
+              name="(main)/dev/confetti-lab"
               options={{
                 presentation: "modal",
                 animation: "slide_from_bottom",

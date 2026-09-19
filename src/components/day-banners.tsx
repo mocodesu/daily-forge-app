@@ -15,23 +15,25 @@ export function MinimumNotMetBanner({
   onAdd: () => void;
 }) {
   const remaining = Math.max(0, minimum - count);
+  const noun = remaining === 1 ? "exercise" : "exercises";
 
   return (
     <View style={styles.banner}>
-      <PrimaryIcon name="warning-outline" size={22} />
+      <PrimaryIcon name="lock-closed-outline" size={22} />
 
       <View style={styles.body}>
         <Text variant="subheadBold" color="onSurface">
-          Add {remaining} more exercise{remaining === 1 ? "" : "s"}
+          {count} of {minimum} exercises set up
         </Text>
         <Text variant="caption" color="mutedText">
-          You need at least {minimum} exercises per day.
+          Add {remaining} more {noun} to be able to seal the day. Sealing
+          requires at least {minimum} exercises.
         </Text>
       </View>
 
       <HapticPressable haptic="medium" onPress={onAdd} style={styles.action}>
         <Text variant="caption" color="onPrimary">
-          Add
+          Add {remaining}
         </Text>
       </HapticPressable>
     </View>
@@ -45,16 +47,16 @@ export function AllDoneBanner({ onLock }: { onLock: () => void }) {
 
       <View style={styles.body}>
         <Text variant="subheadBold" color="onSurface">
-          All exercises done!
+          All exercises done
         </Text>
         <Text variant="caption" color="mutedText">
-          Lock the day when you're ready.
+          Seal the day with your oath when you're ready.
         </Text>
       </View>
 
       <HapticPressable haptic="medium" onPress={onLock} style={styles.action}>
         <Text variant="caption" color="onPrimary">
-          I'm done
+          Seal the day
         </Text>
       </HapticPressable>
     </View>

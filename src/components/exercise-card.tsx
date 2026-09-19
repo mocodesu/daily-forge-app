@@ -2,6 +2,7 @@ import { HapticPressable } from "@/components/haptic-pressable";
 import Text from "@/components/text";
 import { MutedIcon, PrimaryIcon } from "@/components/themed";
 import type { Exercise } from "@/types/dailyforge";
+import { formatDuration } from "@/utils/format";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect } from "react";
 import { View } from "react-native";
@@ -151,13 +152,6 @@ export function ExerciseCard({
       </HapticPressable>
     </Animated.View>
   );
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s === 0 ? `${m}m` : `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 const styles = StyleSheet.create((theme) => ({

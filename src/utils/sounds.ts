@@ -81,13 +81,3 @@ export async function playSound(name: SoundName): Promise<void> {
     console.warn(`[sounds] play "${name}" failed:`, err);
   }
 }
-
-/** Optional cleanup on app unmount. */
-export async function unloadSounds(): Promise<void> {
-  for (const player of Object.values(players)) {
-    try {
-      player?.release();
-    } catch {}
-  }
-  ready = false;
-}

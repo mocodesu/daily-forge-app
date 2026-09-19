@@ -87,20 +87,23 @@ export function GrandCelebration({
             <CannonConfetti
               autoplay
               fadeOutOnEnd
-              gravity={0.3}
+              gravity={1}
+              drag={4.5}
+              sprayDuration={4000}
               colors={[
                 theme.colors.primary,
-                "#FF6B35",
-                "#FBBF24",
-                "#4ADE80",
-                "#F472B6",
-                "#60A5FA",
+                "#FF0A54", // hot pink
+                "#FF9E00", // vivid orange
+                "#FFEA00", // electric yellow
+                "#00F5A0", // neon mint
+                "#00D9FF", // electric cyan
+                "#B24BF3", // electric violet
               ]}
               containerStyle={RNStyleSheet.absoluteFill}
             >
               <CannonConfetti.Origin
                 position="bottom-left"
-                count={250}
+                count={900}
                 initialSpeed={4.5}
                 spread={Math.PI / 3.5}
               >
@@ -109,7 +112,7 @@ export function GrandCelebration({
 
               <CannonConfetti.Origin
                 position="bottom-right"
-                count={250}
+                count={900}
                 initialSpeed={4.5}
                 spread={Math.PI / 3.5}
               >

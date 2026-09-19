@@ -3,8 +3,8 @@ import {
   MAX_FREEZE_LOOKBACK_DAYS,
 } from "@/constants/dailyforge";
 import { FrozenDaysRepo } from "@/repositories/frozen-days-repo";
+import { dayKey } from "@/utils/day-key";
 import type { SQLiteDatabase } from "expo-sqlite";
-import { dayKey } from "./day-key";
 
 /**
  * Result of a streak calculation. Includes freeze metadata so the UI
@@ -16,8 +16,14 @@ export interface StreakResult {
   freezeAllowance: number;
   freezeUsed: number;
   freezeBalance: number;
-  /** Number of freezes applied during this call, for logs/debug. */
-  freezeApplied: number;
+  /**
+   * Freezes applied *during this specific call* to `calculateStreak()`.
+   * Almost always 0 — the auto-freeze pass only fires when the user
+   * has an in-flight run of missed days to retroactively preserve.
+   * This is NOT the same as `freezeUsed` (which is this calendar
+   * month's total) and NOT a lifetime count.
+   */
+  freezesAppliedThisCall: number;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -25,12 +31,19 @@ export interface StreakResult {
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Counts consecutive days ending at today (or yesterday if today isn't
- * complete yet). Frozen days are "skipped" — they don't add to the
- * streak but they don't break it either.
+ * Counts consecutive *sealed* days ending at today (or yesterday if
+ * today isn't sealed yet).
+ *
+ * A day counts toward the streak ONLY if the user sealed it — i.e.
+ * completed all exercises AND said the voice oath. Completing
+ * exercises without sealing does not advance the streak; the seal is
+ * the commitment.
+ *
+ * Frozen days are "skipped" — they don't add to the streak but they
+ * don't break it either.
  */
 export function computeStreak(
-  completedDayKeys: Set<string>,
+  sealedDayKeys: Set<string>,
   frozenKeys: Set<string>,
   today: Date = new Date(),
 ): number {
@@ -38,7 +51,7 @@ export function computeStreak(
   cursor.setHours(0, 0, 0, 0);
 
   const todayKey = dayKey(cursor);
-  if (!completedDayKeys.has(todayKey) && !frozenKeys.has(todayKey)) {
+  if (!sealedDayKeys.has(todayKey) && !frozenKeys.has(todayKey)) {
     cursor.setDate(cursor.getDate() - 1);
   }
 
@@ -46,7 +59,7 @@ export function computeStreak(
   // Hard cap to protect against a runaway loop if something is wrong.
   for (let i = 0; i < 3650; i++) {
     const key = dayKey(cursor);
-    if (completedDayKeys.has(key)) {
+    if (sealedDayKeys.has(key)) {
       streak++;
     } else if (frozenKeys.has(key)) {
       // Frozen — skip without breaking or incrementing
@@ -67,11 +80,18 @@ interface ApplyResult {
 }
 
 /**
- * Scans backwards from yesterday looking for consecutive missed days.
- * If the run of missed days fits within the remaining freeze balance,
- * the run is frozen retroactively. Otherwise nothing is frozen —
- * freezing a partial run wouldn't preserve the streak anyway, so we
- * don't waste the balance.
+ * Scans backwards from yesterday looking for consecutive unsealed
+ * days.
+ *
+ * "Unsealed" means: no `day_locks` row for that day. A day where the
+ * user completed all exercises but didn't seal still counts as
+ * unsealed — the streak cares about the commitment, not just the
+ * work.
+ *
+ * If the run of unsealed days fits within the remaining freeze
+ * balance, the run is frozen retroactively. Otherwise nothing is
+ * frozen — freezing a partial run wouldn't preserve the streak
+ * anyway, so we don't waste the balance.
  *
  * Idempotent: calling it twice in a row does nothing the second time.
  */
@@ -79,13 +99,12 @@ async function applyPendingFreezes(
   db: SQLiteDatabase,
   today: Date,
 ): Promise<ApplyResult> {
-  // Load daily exercises — freezes only apply to days where the user
-  // had work scheduled.
+  // Freezes only apply to days where the user had work scheduled.
+  // We use the earliest daily exercise as the "user started here"
+  // boundary so we don't freeze empty days before the account existed.
   const exerciseRows = await db.getAllAsync<{
-    id: string;
-    is_daily: number;
     created_at: number;
-  }>(`SELECT id, is_daily, created_at FROM exercises WHERE is_daily = 1`);
+  }>(`SELECT created_at FROM exercises WHERE is_daily = 1`);
 
   if (exerciseRows.length === 0) return { applied: 0 };
 
@@ -93,26 +112,11 @@ async function applyPendingFreezes(
     (min, r) => Math.min(min, r.created_at),
     Number.POSITIVE_INFINITY,
   );
-  const dailyIds = new Set(exerciseRows.map((r) => r.id));
 
-  // Build the set of completed day keys (all daily exercises done).
-  const completions = await db.getAllAsync<{
-    day_key: string;
-    exercise_id: string;
-  }>(`SELECT day_key, exercise_id FROM completion_records`);
-
-  const byDay = new Map<string, Set<string>>();
-  for (const c of completions) {
-    if (!dailyIds.has(c.exercise_id)) continue;
-    if (!byDay.has(c.day_key)) byDay.set(c.day_key, new Set());
-    byDay.get(c.day_key)!.add(c.exercise_id);
-  }
-  const completedKeys = new Set<string>();
-  for (const [key, ids] of byDay) {
-    if ([...dailyIds].every((id) => ids.has(id))) {
-      completedKeys.add(key);
-    }
-  }
+  const lockRows = await db.getAllAsync<{ day_key: string }>(
+    `SELECT day_key FROM day_locks`,
+  );
+  const sealedKeys = new Set(lockRows.map((r) => r.day_key));
 
   const frozen = await FrozenDaysRepo.getAll(db);
   const frozenKeys = new Set(frozen.map((f) => f.dayKey));
@@ -128,7 +132,7 @@ async function applyPendingFreezes(
 
   if (balance === 0) return { applied: 0 };
 
-  // Scan consecutive missed days ending at yesterday.
+  // Scan consecutive unsealed days ending at yesterday.
   const run: string[] = [];
   const cursor = new Date(today);
   cursor.setHours(0, 0, 0, 0);
@@ -137,7 +141,7 @@ async function applyPendingFreezes(
   for (let i = 0; i < MAX_FREEZE_LOOKBACK_DAYS; i++) {
     if (cursor.getTime() < earliestCreatedAt) break;
     const key = dayKey(cursor);
-    if (completedKeys.has(key)) break;
+    if (sealedKeys.has(key)) break;
     if (frozenKeys.has(key)) break;
     run.push(key);
     cursor.setDate(cursor.getDate() - 1);
@@ -169,7 +173,7 @@ async function applyPendingFreezes(
 
 /**
  * Applies pending freezes if any are due, then computes the current
- * streak with full freeze awareness.
+ * streak from sealed days only.
  */
 export async function calculateStreak(
   db: SQLiteDatabase,
@@ -179,51 +183,20 @@ export async function calculateStreak(
   // 1. Apply any pending freezes so the streak math below sees them.
   const { applied } = await applyPendingFreezes(db, today);
 
-  // 2. Load daily exercises
-  const exerciseRows = await db.getAllAsync<{ id: string }>(
-    `SELECT id FROM exercises WHERE is_daily = 1`,
+  // 2. Load sealed day keys from day_locks.
+  const lockRows = await db.getAllAsync<{ day_key: string }>(
+    `SELECT day_key FROM day_locks`,
   );
+  const sealedKeys = new Set(lockRows.map((r) => r.day_key));
 
-  if (exerciseRows.length === 0) {
-    return {
-      streak: 0,
-      frozenKeys: new Set(),
-      freezeAllowance: DEFAULT_MONTHLY_FREEZES,
-      freezeUsed: 0,
-      freezeBalance: DEFAULT_MONTHLY_FREEZES,
-      freezeApplied: applied,
-    };
-  }
-
-  const dailyIds = new Set(exerciseRows.map((r) => r.id));
-
-  // 3. Load completions and freezes
-  const completions = await db.getAllAsync<{
-    day_key: string;
-    exercise_id: string;
-  }>(`SELECT day_key, exercise_id FROM completion_records`);
-
+  // 3. Load frozen day keys.
   const frozen = await FrozenDaysRepo.getAll(db);
   const frozenKeys = new Set(frozen.map((f) => f.dayKey));
 
-  // 4. Build completed day keys
-  const byDay = new Map<string, Set<string>>();
-  for (const c of completions) {
-    if (!dailyIds.has(c.exercise_id)) continue;
-    if (!byDay.has(c.day_key)) byDay.set(c.day_key, new Set());
-    byDay.get(c.day_key)!.add(c.exercise_id);
-  }
-  const completedKeys = new Set<string>();
-  for (const [key, ids] of byDay) {
-    if ([...dailyIds].every((id) => ids.has(id))) {
-      completedKeys.add(key);
-    }
-  }
+  // 4. Compute streak.
+  const streak = computeStreak(sealedKeys, frozenKeys, today);
 
-  // 5. Compute streak
-  const streak = computeStreak(completedKeys, frozenKeys, today);
-
-  // 6. Balance for display
+  // 5. Balance for display.
   const allowance = DEFAULT_MONTHLY_FREEZES;
   const usedThisMonth = await FrozenDaysRepo.countForMonth(
     db,
@@ -238,6 +211,6 @@ export async function calculateStreak(
     freezeAllowance: allowance,
     freezeUsed: usedThisMonth,
     freezeBalance: balance,
-    freezeApplied: applied,
+    freezesAppliedThisCall: applied,
   };
 }

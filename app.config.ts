@@ -148,15 +148,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       bundleIdentifier: environment.bundleIdentifier,
 
       icon: "./assets/forgeApp.icon",
-
-      /**
-       * Google services are only included in preview/production.
-       */
-      ...(isDevelopment
-        ? {}
-        : {
-            googleServicesFile: "./GoogleService-Info.plist",
-          }),
     },
 
     /**
@@ -170,15 +161,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       adaptiveIcon: ADAPTIVE_ICON,
 
       softwareKeyboardLayoutMode: "pan",
-
-      /**
-       * Google services are only included in preview/production.
-       */
-      ...(isDevelopment
-        ? {}
-        : {
-            googleServicesFile: "./google-services.json",
-          }),
     },
 
     /**
@@ -194,10 +176,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
             enableBsdiffPatchSupport: true,
             assetPatternsToBeBundled: [
-              "assets/fonts/**/*",
               "assets/images/**/*",
-              "assets/icons/**/*",
-              "assets/lottie/**/*",
               "assets/sounds/**/*",
             ],
           },

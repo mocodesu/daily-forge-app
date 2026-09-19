@@ -102,6 +102,7 @@ export default function DataManagementScreen() {
           `• ${summary.dayLocks} locked days\n` +
           `• ${summary.swears} swears\n` +
           `• ${summary.milestones} milestones\n` +
+          `• ${summary.frozenDays} frozen days\n` +
           `• ${summary.hasProfile ? "1 profile" : "no profile"}\n` +
           `• ${summary.preferenceCount} preferences\n\n` +
           `Export from v${payload.appVersion}, dated ${new Date(
@@ -217,6 +218,7 @@ export default function DataManagementScreen() {
             <StatTile label="Locked days" value={counts.dayLocks} />
             <StatTile label="Swears" value={counts.swears} />
             <StatTile label="Milestones" value={counts.milestones} />
+            <StatTile label="Frozen days" value={counts.frozenDays} />
             <StatTile
               label="Profile"
               value={counts.hasProfile ? "yes" : "none"}

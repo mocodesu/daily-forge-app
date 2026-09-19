@@ -2,7 +2,7 @@ import Text from "@/components/text";
 import type { DayProgress } from "@/utils/history";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Pressable } from "react-native";
+import { Pressable, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -31,6 +31,7 @@ export function DayCircle({
   const isFrozen = day.isFrozen;
   const isInactive = !isFrozen && day.total === 0;
   const isComplete = !isFrozen && !isInactive && progress >= 1;
+  const isSealed = day.isSealed;
 
   const fontSize = Math.round(size * 0.34);
   const borderWidth = isComplete ? 3 : 2;
@@ -105,12 +106,15 @@ export function DayCircle({
       ? theme.colors.panel
       : theme.colors.surface;
 
-  // Caption
+  // Caption. Sealed days get a distinct label so the grid matches the
+  // streak's definition (sealed = counted).
   const caption = isFrozen
     ? "freeze"
     : isInactive
       ? "rest"
-      : `${percent}% · ${day.completed}/${day.total}`;
+      : isSealed
+        ? "sealed"
+        : `${percent}% · ${day.completed}/${day.total}`;
 
   return (
     <Pressable
@@ -121,43 +125,55 @@ export function DayCircle({
       style={[styles.cell, { width: size }]}
     >
       <Animated.View style={[styles.cellInner, containerStyle]}>
-        <Animated.View
-          style={[
-            styles.ring,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              borderColor: ringColor,
-              borderWidth,
-              backgroundColor: ringBackground,
-            },
-            isInactive && styles.ringInactive,
-            isFrozen && styles.ringFrozen,
-          ]}
-        >
-          {isFrozen ? (
-            <Ionicons
-              name="snow"
-              size={Math.round(size * 0.42)}
-              color={theme.colors.primary}
-            />
-          ) : (
-            <Text
-              variant="title"
-              color={
-                isComplete
-                  ? "onPrimary"
-                  : isInactive
-                    ? "mutedText"
-                    : "onSurface"
-              }
-              style={{ fontSize, lineHeight: fontSize * 1.15 }}
-            >
-              {dayNumber}
-            </Text>
+        <View style={styles.ringWrap}>
+          <Animated.View
+            style={[
+              styles.ring,
+              {
+                width: size,
+                height: size,
+                borderRadius: size / 2,
+                borderColor: ringColor,
+                borderWidth,
+                backgroundColor: ringBackground,
+              },
+              isInactive && styles.ringInactive,
+              isFrozen && styles.ringFrozen,
+            ]}
+          >
+            {isFrozen ? (
+              <Ionicons
+                name="snow"
+                size={Math.round(size * 0.42)}
+                color={theme.colors.primary}
+              />
+            ) : (
+              <Text
+                variant="title"
+                color={
+                  isComplete
+                    ? "onPrimary"
+                    : isInactive
+                      ? "mutedText"
+                      : "onSurface"
+                }
+                style={{ fontSize, lineHeight: fontSize * 1.15 }}
+              >
+                {dayNumber}
+              </Text>
+            )}
+          </Animated.View>
+
+          {isSealed && (
+            <View style={styles.sealedBadge}>
+              <Ionicons
+                name="checkmark"
+                size={12}
+                color={theme.colors.onPrimary}
+              />
+            </View>
           )}
-        </Animated.View>
+        </View>
 
         <Text
           variant="caption"
@@ -181,6 +197,11 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
+  ringWrap: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   ring: {
     alignItems: "center",
     justifyContent: "center",
@@ -192,6 +213,19 @@ const styles = StyleSheet.create((theme) => ({
   ringFrozen: {
     borderStyle: "dashed",
     borderWidth: 2,
+  },
+  sealedBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: theme.colors.primary,
+    borderWidth: 2,
+    borderColor: theme.colors.background,
   },
   caption: {
     textAlign: "center",

@@ -46,7 +46,6 @@ export function SwearModal({
   const [devTypedText, setDevTypedText] = useState("");
 
   const transcriptRef = useRef("");
-  const hasFinalRef = useRef(false);
 
   // ── Reset when the modal opens ────────────────────────────
   useEffect(() => {
@@ -57,7 +56,6 @@ export function SwearModal({
       setPreparing(false);
       setDevTypedText("");
       transcriptRef.current = "";
-      hasFinalRef.current = false;
     }
   }, [visible]);
 
@@ -101,7 +99,6 @@ export function SwearModal({
     setError(null);
     setTranscript("");
     transcriptRef.current = "";
-    hasFinalRef.current = false;
 
     try {
       const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();

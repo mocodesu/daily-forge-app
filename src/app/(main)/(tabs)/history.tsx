@@ -1,4 +1,5 @@
 import { DayCircle } from "@/components/day-circle";
+import { ErrorState } from "@/components/error-state";
 import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
 import { HISTORY_WINDOW_DAYS } from "@/constants/dailyforge";
@@ -8,12 +9,13 @@ import { computeHistory } from "@/utils/history";
 import { calculateStreak } from "@/utils/streak";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, useWindowDimensions, View } from "react-native";
 import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
-const MAX_CONTENT_WIDTH = 640;
-const H_PADDING = 15;
+// History-grid geometry. The horizontal padding and max content width
+// come from the theme (see `theme.layout`) so this screen can't drift
+// out of sync with the rest of the app.
 const CELL_GAP = 12;
 const MIN_CELL = 64;
 const MAX_CELL = 84;
@@ -26,8 +28,21 @@ export default function HistoryScreen() {
   const [days, setDays] = useState<DayProgress[]>([]);
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const available = Math.min(width, MAX_CONTENT_WIDTH) - H_PADDING * 2;
+  const theme = UnistylesRuntime.getTheme();
+
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const available =
+    Math.min(width, theme.layout.contentMaxWidth) -
+    theme.layout.screenPaddingH * 2;
 
   const columns = (() => {
     let best = 3;
@@ -46,31 +61,33 @@ export default function HistoryScreen() {
     Math.floor((available - (columns - 1) * CELL_GAP) / columns),
   );
 
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [result, streakResult] = await Promise.all([
+        computeHistory(db, HISTORY_WINDOW_DAYS),
+        calculateStreak(db),
+      ]);
+      if (!mountedRef.current) return;
+      setDays(result);
+      // calculateStreak returns a StreakResult object with
+      // `streak`, `frozenKeys`, `freezeBalance`, etc. Extract the
+      // number — otherwise <Text> tries to render the object.
+      setStreak(streakResult.streak);
+    } catch (err) {
+      if (!mountedRef.current) return;
+      console.warn("[history] load failed:", err);
+      setError(err instanceof Error ? err.message : "Could not load history.");
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, [db]);
+
   useFocusEffect(
     useCallback(() => {
-      let cancelled = false;
-      (async () => {
-        try {
-          const [result, streakResult] = await Promise.all([
-            computeHistory(db, HISTORY_WINDOW_DAYS),
-            calculateStreak(db),
-          ]);
-          if (cancelled) return;
-          setDays(result);
-          // calculateStreak now returns a StreakResult object with
-          // `streak`, `frozenKeys`, `freezeBalance`, etc. Extract the
-          // number — otherwise <Text> tries to render the object.
-          setStreak(streakResult.streak);
-        } catch (err) {
-          console.warn("[history] load failed:", err);
-        } finally {
-          if (!cancelled) setLoading(false);
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }, [db]),
+      load();
+    }, [load]),
   );
 
   if (loading) {
@@ -81,6 +98,18 @@ export default function HistoryScreen() {
           size="large"
         />
       </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <ScrollScreen>
+        <ErrorState
+          title="Couldn't load history"
+          message={error}
+          onRetry={load}
+        />
+      </ScrollScreen>
     );
   }
 

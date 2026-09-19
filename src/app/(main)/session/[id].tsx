@@ -5,6 +5,7 @@ import { CompletionsRepo } from "@/repositories/completions-repo";
 import { ExercisesRepo } from "@/repositories/exercises-repo";
 import type { Exercise } from "@/types/dailyforge";
 import { dayKey, randomUUID } from "@/utils/day-key";
+import { formatDuration, formatMMSS } from "@/utils/format";
 import { trackUserActivity } from "@/utils/retention-reminder";
 import { playSound } from "@/utils/sounds";
 import { Ionicons } from "@expo/vector-icons";
@@ -135,6 +136,14 @@ export default function SessionScreen() {
         0,
         Math.ceil((endDateRef.current - Date.now()) / 1000),
       );
+
+      // Timer hit zero. Self-clear so we stop waking the JS thread
+      // 5×/second for the rest of the session. The completion effect
+      // below handles the checkmark + sound + button reveal.
+      if (r === 0) {
+        clearInterval(interval);
+      }
+
       setRemaining(r);
 
       const prev = lastTickRef.current;
@@ -367,19 +376,6 @@ export default function SessionScreen() {
 // ─────────────────────────────────────────────────────────────
 // Formatters
 // ─────────────────────────────────────────────────────────────
-
-function formatMMSS(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s === 0 ? `${m}m` : `${m}:${s.toString().padStart(2, "0")}`;
-}
 
 // ─────────────────────────────────────────────────────────────
 // Styles

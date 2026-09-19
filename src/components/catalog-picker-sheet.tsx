@@ -6,6 +6,7 @@ import {
   type CatalogCategory,
   type CatalogExercise,
 } from "@/constants/workout-catalog";
+import { formatDuration } from "@/utils/format";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
@@ -115,13 +116,6 @@ function CatalogRow({
       <MutedIcon name="chevron-forward" size={16} />
     </Pressable>
   );
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s === 0 ? `${m}m` : `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 const styles = StyleSheet.create((theme, rt) => ({

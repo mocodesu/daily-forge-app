@@ -4,13 +4,19 @@ import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
 import { UnitSystemPicker } from "@/components/unit-system-picker";
 import { useUnitSystem } from "@/hooks/use-unit-system";
+import { PreferencesRepo } from "@/repositories/preferences-repo";
 import { UserProfileRepo } from "@/repositories/user-profile-repo";
 import type { UserProfile } from "@/types/dailyforge";
+import {
+  KEY_ENABLED,
+  readSettingsFromPrefs,
+  rescheduleDailyReminders,
+} from "@/utils/daily-reminder-scheduler";
 import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -39,6 +45,31 @@ export default function OnboardingScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
+
+  // ── Hydrate the notification step from the OS ─────────────
+  //
+  // If the user already answered the permission prompt in a prior
+  // session (or on a reinstall where the OS remembers), reflect that
+  // here instead of showing "Enable Notifications" as if they'd never
+  // been asked. We only promote to "denied" when the OS won't let us
+  // ask again — otherwise we leave the button enabled so re-prompting
+  // from within the flow still works.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status, canAskAgain } =
+          await Notifications.getPermissionsAsync();
+        if (status === "granted") {
+          setNotifStatus("granted");
+        } else if (status === "denied" && !canAskAgain) {
+          setNotifStatus("denied");
+        }
+        // Otherwise: leave "idle" so the user can tap Enable.
+      } catch (err) {
+        console.warn("[onboarding] notification status read failed", err);
+      }
+    })();
+  }, []);
 
   const weightUnit = system === "metric" ? "kg" : "lb";
 
@@ -121,6 +152,41 @@ export default function OnboardingScreen() {
 
       await UserProfileRepo.insert(db, profile);
 
+      // Persist the user's notification decision from step 6.
+      // Onboarding is the only place a fresh install answers this —
+      // the Settings editor reads whatever we write here.
+      //
+      //   granted → "1"  (they opted in)
+      //   denied  → "0"  (they said no)
+      //   idle    → "0"  (they skipped — treat as no)
+      //
+      // Writing "0" on skip prevents the Settings toggle from
+      // silently showing ON while no OS permission exists.
+      const optedIn = notifStatus === "granted";
+      try {
+        await PreferencesRepo.set(db, KEY_ENABLED, optedIn ? "1" : "0");
+      } catch (err) {
+        console.warn("[onboarding] persist reminder.enabled failed:", err);
+      }
+
+      // If they opted in, arm the schedule now — the bootstrapper
+      // already ran before this screen mounted, and won't re-arm
+      // until the next cold launch. Without this, today's window
+      // would be skipped entirely.
+      if (optedIn) {
+        try {
+          const settings = await readSettingsFromPrefs(db);
+          await rescheduleDailyReminders(db, { ...settings, enabled: true });
+        } catch (err) {
+          console.warn("[onboarding] arm reminders failed:", err);
+        }
+      }
+
+      // Profile is persisted. Release the button so the celebration
+      // modal (or a retry if the modal fails) is never blocked by a
+      // stuck "Saving…" state.
+      setSaving(false);
+
       // Show the welcome celebration. Navigation to Today happens after
       // the user dismisses it.
       setShowWelcome(true);
@@ -139,10 +205,12 @@ export default function OnboardingScreen() {
     name,
     displayToKg,
     db,
+    notifStatus,
   ]);
 
   const handleWelcomeDismiss = useCallback(() => {
     setShowWelcome(false);
+    setSaving(false);
     router.replace("/(main)/(tabs)");
   }, []);
 
