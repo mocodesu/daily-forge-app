@@ -1,3 +1,22 @@
+// Dev-only: silence the Expo Router deep-link warning.
+if (__DEV__) {
+  const SUPPRESSED = [
+    "Can't perform a React state update on a component that hasn't mounted yet",
+  ];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    const first = args[0];
+    if (
+      typeof first === "string" &&
+      SUPPRESSED.some((s) => first.includes(s))
+    ) {
+      return;
+    }
+    originalWarn(...args);
+  };
+}
+
+import { DailyReminderBootstrapper } from "@/components/daily-reminder-bootstrapper";
 import { ThemePreferenceProvider } from "@/components/theme-preferences-provider";
 import ThemedSystemBars from "@/components/themed-system-bars";
 import { APP_NAME } from "@/constants";
@@ -42,14 +61,15 @@ const RootLayout = () => {
     initializeUpdateChannel().catch((error) => {
       console.error("Failed to set up the update notification channel:", error);
     });
+
+    initSounds().catch((err) => {
+      console.warn("[app] sounds init failed:", err);
+    });
+
     if (navigationRef?.current) {
       navigationIntegration.registerNavigationContainer(navigationRef);
     }
   }, [navigationRef]);
-
-  useEffect(() => {
-    initSounds().catch((err) => console.warn("[app] sounds init failed:", err));
-  }, []);
 
   return (
     <GestureHandlerRootView style={styles.container}>
@@ -58,7 +78,11 @@ const RootLayout = () => {
         onInit={initializeDatabase}
       >
         <ThemePreferenceProvider>
-          <Stack ref={navigationRef} screenOptions={{ headerShown: false }}>
+          {/* Headless. Arms the daily reminder schedule on cold launch
+              and on return from a long background stretch. */}
+          <DailyReminderBootstrapper />
+
+          <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(main)/(tabs)" />
 
             <Stack.Screen

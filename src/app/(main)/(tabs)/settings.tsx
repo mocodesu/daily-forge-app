@@ -1,3 +1,4 @@
+import { DailyReminderEditor } from "@/components/daily-reminder-editor";
 import { DevTools } from "@/components/dev-tools";
 import { ScrollScreen } from "@/components/screen";
 import { SwearPhraseEditor } from "@/components/swear-phrase-editor";
@@ -361,6 +362,14 @@ export default function SettingsScreen() {
             {minimumExercises === 1 ? "" : "s"} per day
           </Text>
         </View>
+      </View>
+
+      {/* ── Daily Reminder ────────────────────────────── */}
+      <View style={styles.card}>
+        <Text variant="title" color="onSurface">
+          Reminders
+        </Text>
+        <DailyReminderEditor />
       </View>
 
       {/* ── Units ─────────────────────────────────────── */}

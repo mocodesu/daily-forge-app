@@ -8,6 +8,12 @@ import {
   listCelebratedTargets,
 } from "@/utils/celebrations";
 import { dayEndMs, dayKey, dayStartMs, randomUUID } from "@/utils/day-key";
+import {
+  inspectRetentionState,
+  resetRetentionState,
+  trackUserActivity,
+} from "@/utils/retention-reminder";
+import * as Notifications from "expo-notifications";
 import type { SQLiteDatabase } from "expo-sqlite";
 
 // ─────────────────────────────────────────────────────────────
@@ -34,7 +40,7 @@ const SEED_EXERCISES: SeedSpec[] = [
     sets: 3,
     durationSeconds: 0,
     sessionDurationSeconds: 60,
-    notes: "Elbows tucked at 45°. Full range.",
+    notes: "Elbows tucked at 45°.",
   },
   {
     name: "Plank",
@@ -64,7 +70,7 @@ const SEED_EXERCISES: SeedSpec[] = [
     sets: 3,
     durationSeconds: 0,
     sessionDurationSeconds: 60,
-    notes: "Lift chest and legs, squeeze glutes.",
+    notes: "Squeeze glutes at the top.",
   },
   {
     name: "Jumping Jacks",
@@ -74,7 +80,7 @@ const SEED_EXERCISES: SeedSpec[] = [
     sets: 3,
     durationSeconds: 0,
     sessionDurationSeconds: 90,
-    notes: "Full range, steady pace, soft landing.",
+    notes: "Full range, steady pace.",
   },
 ];
 
@@ -82,12 +88,10 @@ export async function seedFiveExercises(db: SQLiteDatabase): Promise<number> {
   const existing = await ExercisesRepo.getAll(db);
   const existingNames = new Set(existing.map((e) => e.name));
   const baseSort = existing.length;
-
   let inserted = 0;
   for (let i = 0; i < SEED_EXERCISES.length; i++) {
     const spec = SEED_EXERCISES[i];
     if (existingNames.has(spec.name)) continue;
-
     await ExercisesRepo.insert(db, {
       id: randomUUID(),
       name: spec.name,
@@ -108,7 +112,7 @@ export async function seedFiveExercises(db: SQLiteDatabase): Promise<number> {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 2. Complete all exercises for today
+// 2. Complete all / reset today / delete exercises
 // ─────────────────────────────────────────────────────────────
 
 export async function completeAllExercisesForToday(
@@ -128,10 +132,8 @@ export async function completeAllExercisesForToday(
   let created = 0;
   for (const exercise of due) {
     if (doneIds.has(exercise.id)) continue;
-
     const completedAt = Date.now();
     const startedAt = completedAt - exercise.sessionDurationSeconds * 1000;
-
     await CompletionsRepo.insert(db, {
       id: randomUUID(),
       exerciseId: exercise.id,
@@ -145,13 +147,8 @@ export async function completeAllExercisesForToday(
   return created;
 }
 
-// ─────────────────────────────────────────────────────────────
-// 3. Reset only today's completions
-// ─────────────────────────────────────────────────────────────
-
 export async function resetTodayCompletions(db: SQLiteDatabase): Promise<void> {
   const key = dayKey();
-
   await db.withTransactionAsync(async () => {
     await db.runAsync(`DELETE FROM completion_records WHERE day_key = ?`, key);
     await db.runAsync(`DELETE FROM day_locks WHERE day_key = ?`, key);
@@ -159,19 +156,22 @@ export async function resetTodayCompletions(db: SQLiteDatabase): Promise<void> {
   });
 }
 
+export async function deleteAllExercises(db: SQLiteDatabase): Promise<void> {
+  await db.runAsync(`DELETE FROM exercises`);
+}
+
+export async function clearAllHistory(db: SQLiteDatabase): Promise<void> {
+  await db.runAsync(`DELETE FROM completion_records`);
+}
+
 // ─────────────────────────────────────────────────────────────
-// 4. Celebration state helpers
+// 3. Celebration state
 // ─────────────────────────────────────────────────────────────
 
-/**
- * Wipes the list of celebrated target values so the grand celebration
- * fires again next time the user reaches their target.
- */
 export async function resetCelebrations(db: SQLiteDatabase): Promise<void> {
   await clearCelebratedTargets(db);
 }
 
-/** Returns the target values that have already been celebrated. */
 export async function getCelebratedTargets(
   db: SQLiteDatabase,
 ): Promise<number[]> {
@@ -179,7 +179,207 @@ export async function getCelebratedTargets(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Snapshot
+// 4. Notifications
+// ─────────────────────────────────────────────────────────────
+
+export async function getNotificationPermissionStatus(): Promise<string> {
+  try {
+    const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+    return canAskAgain ? status : `${status} (can't ask again)`;
+  } catch {
+    return "unknown";
+  }
+}
+
+export async function requestNotificationPermission(): Promise<boolean> {
+  try {
+    const { status } = await Notifications.requestPermissionsAsync();
+    return status === "granted";
+  } catch {
+    return false;
+  }
+}
+
+/** Fires a notification immediately (via `trigger: null`). */
+export async function fireTestNotificationNow(): Promise<void> {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: `dev-immediate-${Date.now()}`,
+      content: {
+        title: "Immediate test",
+        body: "If you can see this, notifications work.",
+        sound: true,
+        data: { type: "dev-test" },
+      },
+      trigger: null,
+    });
+  } catch (err) {
+    console.warn("[dev-tools] immediate notification failed:", err);
+  }
+}
+
+/** Schedules a test notification `seconds` from now. */
+export async function scheduleTestNotificationIn(
+  seconds: number,
+): Promise<void> {
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: `dev-timed-${Date.now()}`,
+      content: {
+        title: `Timed test (+${seconds}s)`,
+        body: `Scheduled ${seconds} seconds from now.`,
+        sound: true,
+        data: { type: "dev-test" },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds,
+        repeats: false,
+      },
+    });
+  } catch (err) {
+    console.warn("[dev-tools] timed notification failed:", err);
+  }
+}
+
+/**
+ * Simulates a daily-reminder firing in `minutes`. Uses a dev-only
+ * identifier so it doesn't collide with the real scheduled reminders.
+ */
+export async function scheduleDevDailyReminderIn(
+  minutes: number,
+): Promise<void> {
+  const id = "dev-test-daily-reminder";
+  await Notifications.cancelScheduledNotificationAsync(id).catch(
+    () => undefined,
+  );
+  await Notifications.scheduleNotificationAsync({
+    identifier: id,
+    content: {
+      title: "Time to work out",
+      body: `DEV: daily reminder. Scheduled ${minutes} min ago.`,
+      sound: true,
+      data: { type: "dev-test-daily-reminder" },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: new Date(Date.now() + minutes * 60 * 1000),
+    },
+  });
+}
+
+/**
+ * Simulates a retention reminder firing in `minutes`. Uses a dev-only
+ * identifier so it doesn't collide with the real ones.
+ */
+export async function scheduleDevRetentionReminderIn(
+  minutes: number,
+): Promise<void> {
+  const id = "dev-test-retention-reminder";
+  await Notifications.cancelScheduledNotificationAsync(id).catch(
+    () => undefined,
+  );
+  await Notifications.scheduleNotificationAsync({
+    identifier: id,
+    content: {
+      title: "DEV: retention nudge",
+      body: `Simulated retention reminder. Scheduled ${minutes} min ago.`,
+      sound: true,
+      data: { type: "dev-test-retention" },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: new Date(Date.now() + minutes * 60 * 1000),
+    },
+  });
+}
+
+export interface ScheduledNotificationInfo {
+  identifier: string;
+  title: string;
+  body: string;
+  triggerDate: Date | null;
+}
+
+export async function listScheduledNotifications(): Promise<
+  ScheduledNotificationInfo[]
+> {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    return scheduled.map((n) => {
+      // Trigger shape varies. Date and timeInterval triggers expose
+      // different fields. Try to extract a concrete Date where possible.
+      let triggerDate: Date | null = null;
+      const trigger = n.trigger as unknown as {
+        type?: string;
+        date?: Date | number;
+        seconds?: number;
+      } | null;
+
+      if (trigger?.date) {
+        triggerDate =
+          trigger.date instanceof Date ? trigger.date : new Date(trigger.date);
+      } else if (trigger?.seconds && typeof trigger.seconds === "number") {
+        triggerDate = new Date(Date.now() + trigger.seconds * 1000);
+      }
+
+      return {
+        identifier: n.identifier,
+        title: n.content?.title ?? "",
+        body: n.content?.body ?? "",
+        triggerDate,
+      };
+    });
+  } catch (err) {
+    console.warn("[dev-tools] list scheduled failed:", err);
+    return [];
+  }
+}
+
+export async function cancelAllScheduledNotifications(): Promise<void> {
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch (err) {
+    console.warn("[dev-tools] cancel all failed:", err);
+  }
+}
+
+/** Cancels only notifications whose ID starts with a given prefix. */
+export async function cancelScheduledByPrefix(prefix: string): Promise<number> {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const matching = scheduled.filter((n) => n.identifier.startsWith(prefix));
+    await Promise.all(
+      matching.map((n) =>
+        Notifications.cancelScheduledNotificationAsync(n.identifier).catch(
+          () => undefined,
+        ),
+      ),
+    );
+    return matching.length;
+  } catch {
+    return 0;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5. Retention reminder state
+// ─────────────────────────────────────────────────────────────
+
+export async function getRetentionState() {
+  return inspectRetentionState();
+}
+
+export async function resetRetention(): Promise<void> {
+  await resetRetentionState();
+}
+
+export async function recordActivityNow(): Promise<void> {
+  await trackUserActivity();
+}
+
+// ─────────────────────────────────────────────────────────────
+// 6. Snapshot
 // ─────────────────────────────────────────────────────────────
 
 export interface DevDaySnapshot {
@@ -188,6 +388,10 @@ export interface DevDaySnapshot {
   isLocked: boolean;
   sworeToday: boolean;
   celebratedTargets: number[];
+  retentionLastActivityAt: number;
+  retentionPendingIds: string[];
+  totalExercises: number;
+  totalCompletions: number;
 }
 
 export async function getDevDaySnapshot(
@@ -198,12 +402,24 @@ export async function getDevDaySnapshot(
   const startMs = dayStartMs(now);
   const endMs = dayEndMs(now);
 
-  const [due, completions, isLocked, swore, celebrated] = await Promise.all([
+  const [
+    due,
+    completions,
+    isLocked,
+    swore,
+    celebrated,
+    retention,
+    totalExercises,
+    totalCompletions,
+  ] = await Promise.all([
     ExercisesRepo.getActiveForDay(db, startMs, endMs),
     CompletionsRepo.getForDay(db, key),
     DayLocksRepo.isLocked(db, key),
     SwearsRepo.hasSwornToday(db, key),
     listCelebratedTargets(db),
+    inspectRetentionState(),
+    ExercisesRepo.count(db),
+    CompletionsRepo.count(db),
   ]);
 
   return {
@@ -212,5 +428,9 @@ export async function getDevDaySnapshot(
     isLocked,
     sworeToday: swore,
     celebratedTargets: celebrated,
+    retentionLastActivityAt: retention.lastActivityAt,
+    retentionPendingIds: retention.pendingReminderIds,
+    totalExercises,
+    totalCompletions,
   };
 }

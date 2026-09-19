@@ -10,6 +10,7 @@ import { SwearModal } from "@/components/swear-modal";
 import { SwipeableExerciseCard } from "@/components/swipeable-exercise-card";
 import Text from "@/components/text";
 import { MutedIcon, PrimaryIcon } from "@/components/themed";
+import { cancelDailyReminderForToday } from "@/hooks/use-daily-reminder";
 import { useDayState } from "@/hooks/use-day-state";
 import { useMilestone } from "@/hooks/use-milestone";
 import { useMinimumExercises } from "@/hooks/use-minimum-exercises";
@@ -115,6 +116,13 @@ function TodayContent({
     prevAllDoneRef.current = day.allDone;
   }, [day.allDone, day.isLocked, day.sworeToday]);
 
+  // Cancel today's reminder whenever the day is sealed.
+  useEffect(() => {
+    if (day.isLocked) {
+      cancelDailyReminderForToday();
+    }
+  }, [day.isLocked]);
+
   const requestLock = () => {
     setPromptVisible(false);
     setSwearVisible(true);
@@ -163,6 +171,9 @@ function TodayContent({
       });
 
       await trackUserActivity();
+
+      // Cancel today's reminder — the user is done.
+      await cancelDailyReminderForToday();
 
       const newStreak = await calculateStreak(db);
       await day.refresh();
@@ -241,15 +252,8 @@ function TodayContent({
     );
   }
 
-  // ── Banner visibility ─────────────────────────────────────
-  // The minimum banner shows when there are exercises but not enough
-  // configured yet.
   const showMinimumBanner =
     !day.isLocked && day.exercises.length > 0 && !day.meetsMinimum;
-
-  // The green "all done" banner only appears when the minimum has been
-  // met AND every exercise is complete. This is guaranteed by
-  // `day.allDone` which now requires both conditions.
   const showAllDoneBanner = !day.isLocked && day.allDone && !day.sworeToday;
 
   return (
