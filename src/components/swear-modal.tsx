@@ -53,6 +53,7 @@ export function SwearModal({
    * the event callback may run independently from React renders.
    */
   const transcriptRef = useRef("");
+  const finalTranscriptRef = useRef("");
 
   /**
    * Keep the latest phase available to event handlers without relying
@@ -74,6 +75,8 @@ export function SwearModal({
    * Prevent state updates after the component is unmounted.
    */
   const mountedRef = useRef(true);
+  const visibleRef = useRef(visible);
+  const ignoreNativeEventsRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -89,6 +92,10 @@ export function SwearModal({
     };
   }, []);
 
+  useEffect(() => {
+    visibleRef.current = visible;
+  }, [visible]);
+
   // ─────────────────────────────────────────────────────────────
   // Keep phase ref synchronized with React state
   // ─────────────────────────────────────────────────────────────
@@ -102,18 +109,23 @@ export function SwearModal({
   // ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      ignoreNativeEventsRef.current = true;
 
-    /**
-     * Make sure an old recognition session cannot leak into the
-     * newly opened modal.
-     */
-    try {
-      ExpoSpeechRecognitionModule.abort();
-    } catch {
-      // Ignore if no recognition session exists.
+      if (recognitionActiveRef.current || startingRef.current) {
+        try {
+          ExpoSpeechRecognitionModule.abort();
+        } catch {
+          // Ignore cleanup errors.
+        }
+      }
+
+      recognitionActiveRef.current = false;
+      startingRef.current = false;
+      return;
     }
 
+    ignoreNativeEventsRef.current = true;
     phaseRef.current = "idle";
     recognitionActiveRef.current = false;
     startingRef.current = false;
@@ -125,6 +137,7 @@ export function SwearModal({
     setDevTypedText("");
 
     transcriptRef.current = "";
+    finalTranscriptRef.current = "";
   }, [visible]);
 
   // ─────────────────────────────────────────────────────────────
@@ -132,6 +145,13 @@ export function SwearModal({
   // ─────────────────────────────────────────────────────────────
 
   useSpeechRecognitionEvent("start", () => {
+    if (
+      !mountedRef.current ||
+      !visibleRef.current ||
+      ignoreNativeEventsRef.current
+    )
+      return;
+
     console.log("[swear] speech recognition started");
 
     recognitionActiveRef.current = true;
@@ -175,31 +195,29 @@ export function SwearModal({
   // ─────────────────────────────────────────────────────────────
 
   useSpeechRecognitionEvent("result", (event) => {
-    const results = event.results ?? [];
+    if (
+      !mountedRef.current ||
+      !visibleRef.current ||
+      ignoreNativeEventsRef.current
+    )
+      return;
 
-    /**
-     * Some Android recognizers return multiple alternatives/results.
-     *
-     * We use the first result from each event and preserve the latest
-     * useful transcript.
-     */
-    const pieces = results
-      .map((result) => result?.transcript?.trim())
-      .filter(Boolean);
-
-    const text = pieces.join(" ").replace(/\s+/g, " ").trim();
+    // Alternatives describe one segment; they must not be concatenated.
+    const text = event.results?.[0]?.transcript?.trim() ?? "";
 
     if (!text) return;
 
     console.log("[swear] recognition result:", text);
 
-    transcriptRef.current = text;
+    const finalized = finalTranscriptRef.current;
+    const nextTranscript = finalized
+      ? `${finalized} ${text}`.replace(/\s+/g, " ").trim()
+      : text;
 
-    if (!mountedRef.current) return;
+    transcriptRef.current = nextTranscript;
+    if (event.isFinal) finalTranscriptRef.current = nextTranscript;
 
-    if (phaseRef.current === "recording") {
-      setTranscript(text);
-    }
+    if (phaseRef.current === "recording") setTranscript(nextTranscript);
   });
 
   // ─────────────────────────────────────────────────────────────
@@ -207,6 +225,13 @@ export function SwearModal({
   // ─────────────────────────────────────────────────────────────
 
   useSpeechRecognitionEvent("end", () => {
+    if (
+      !mountedRef.current ||
+      !visibleRef.current ||
+      ignoreNativeEventsRef.current
+    )
+      return;
+
     console.log(
       "[swear] recognition ended:",
       transcriptRef.current.trim() || "(empty)",
@@ -231,6 +256,13 @@ export function SwearModal({
   // ─────────────────────────────────────────────────────────────
 
   useSpeechRecognitionEvent("error", (event) => {
+    if (
+      !mountedRef.current ||
+      !visibleRef.current ||
+      ignoreNativeEventsRef.current
+    )
+      return;
+
     console.warn("[swear] speech recognition error:", event);
 
     recognitionActiveRef.current = false;
@@ -297,10 +329,12 @@ export function SwearModal({
     }
 
     startingRef.current = true;
+    ignoreNativeEventsRef.current = false;
 
     setError(null);
     setTranscript("");
     transcriptRef.current = "";
+    finalTranscriptRef.current = "";
     setStarting(true);
 
     try {
@@ -323,6 +357,11 @@ export function SwearModal({
         throw new Error(
           "Microphone or speech recognition permission was denied.",
         );
+      }
+
+      if (!mountedRef.current || !visibleRef.current) {
+        startingRef.current = false;
+        return;
       }
 
       // Android diagnostics.
@@ -367,8 +406,9 @@ export function SwearModal({
         // Show partial/interim recognition while speaking.
         interimResults: true,
 
-        // One utterance. Android ends after it receives a final result.
-        continuous: false,
+        // Keep Android listening through natural pauses; Stop submits the
+        // final result. Android 12 and below do not support this mode.
+        continuous: Platform.OS === "android" && Number(Platform.Version) >= 33,
 
         // Use the normal recognition service/network when necessary.
         requiresOnDeviceRecognition: false,
@@ -380,6 +420,19 @@ export function SwearModal({
         contextualStrings: phrase ? [phrase] : [],
 
         maxAlternatives: 1,
+
+        ...(Platform.OS === "ios"
+          ? {
+              iosCategory: {
+                category: "playAndRecord" as const,
+                categoryOptions: [
+                  "defaultToSpeaker" as const,
+                  "allowBluetooth" as const,
+                ],
+                mode: "measurement" as const,
+              },
+            }
+          : {}),
 
         ...(Platform.OS === "android"
           ? {
@@ -470,6 +523,8 @@ export function SwearModal({
   // ─────────────────────────────────────────────────────────────
 
   const handleRetry = useCallback(() => {
+    ignoreNativeEventsRef.current = true;
+
     try {
       if (recognitionActiveRef.current) {
         ExpoSpeechRecognitionModule.abort();
@@ -482,6 +537,7 @@ export function SwearModal({
     startingRef.current = false;
 
     transcriptRef.current = "";
+    finalTranscriptRef.current = "";
 
     setError(null);
     setTranscript("");
