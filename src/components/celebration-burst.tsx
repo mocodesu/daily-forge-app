@@ -3,8 +3,14 @@ import { PrimaryIcon } from "@/components/themed";
 import { playSound } from "@/utils/sounds";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Modal, Platform, Pressable, View } from "react-native";
-import ConfettiCannon from "react-native-confetti-cannon";
+import {
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet as RNStyleSheet,
+  View,
+} from "react-native";
+import { CannonConfetti } from "react-native-fast-confetti";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -15,10 +21,8 @@ import Animated, {
 import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 
-/** Delay before the "Continue" button appears, in ms. */
 const SETTLE_DELAY = 2500;
-/** Fallback auto-dismiss if the user never taps, in ms. */
-const AUTO_DISMISS_DELAY = 12000;
+const AUTO_DISMISS_DELAY = 16000;
 
 type BurstSound = "dayComplete" | "targetReached" | "none";
 
@@ -34,24 +38,19 @@ export function CelebrationBurst({
   visible: boolean;
   streak: number;
   onDismiss: () => void;
-  /** Optional override. Default: "Day {streak} done". */
   title?: string;
-  /** Optional override. Default: "Rest up. Come back tomorrow.". */
   subtitle?: string;
-  /** SF Symbol name inside the ring. Default: "checkmark". */
   icon?: keyof typeof Ionicons.glyphMap;
-  /** Which sound to play on appear. Default: "dayComplete". */
   sound?: BurstSound;
 }) {
-  const [key, setKey] = useState(0);
   const [dismissable, setDismissable] = useState(false);
+  /** Incrementing this re-mounts the confetti, forcing a fresh burst. */
+  const [confettiKey, setConfettiKey] = useState(0);
 
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
   const messageOpacity = useSharedValue(0);
   const buttonOpacity = useSharedValue(0);
-
-  const cannon2Ref = useRef<ConfettiCannon>(null);
 
   const dismissCalledRef = useRef(false);
 
@@ -62,18 +61,14 @@ export function CelebrationBurst({
     opacity.value = withTiming(0, { duration: 300 });
     messageOpacity.value = withTiming(0, { duration: 300 });
     buttonOpacity.value = withTiming(0, { duration: 300 }, (finished) => {
-      if (finished) {
-        scheduleOnRN(onDismiss);
-      }
+      if (finished) scheduleOnRN(onDismiss);
     });
   }, [opacity, messageOpacity, buttonOpacity, onDismiss]);
 
   useEffect(() => {
     if (!visible) return;
 
-    if (sound !== "none") {
-      playSound(sound);
-    }
+    if (sound !== "none") playSound(sound);
 
     dismissCalledRef.current = false;
     scale.value = 0;
@@ -81,7 +76,6 @@ export function CelebrationBurst({
     messageOpacity.value = 0;
     buttonOpacity.value = 0;
     setDismissable(false);
-    setKey((k) => k + 1);
 
     scale.value = withSpring(1, { damping: 12, stiffness: 180 });
     opacity.value = withTiming(1, { duration: 250 });
@@ -91,38 +85,37 @@ export function CelebrationBurst({
       withTiming(1, { duration: 350 }),
     );
 
-    const cannonTimer = setTimeout(() => {
-      cannon2Ref.current?.start();
-    }, 500);
     const dismissTimer = setTimeout(() => setDismissable(true), SETTLE_DELAY);
     const autoTimer = setTimeout(handleDismiss, AUTO_DISMISS_DELAY);
 
     return () => {
-      clearTimeout(cannonTimer);
       clearTimeout(dismissTimer);
       clearTimeout(autoTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, handleDismiss, sound]);
 
+  /** DEV ONLY: refire the confetti and replay the sound. */
+  const handleDevRefire = useCallback(() => {
+    setConfettiKey((k) => k + 1);
+    if (sound !== "none") playSound(sound);
+  }, [sound]);
+
   const iconAnimatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ scale: scale.value }],
   }));
-
   const messageAnimatedStyle = useAnimatedStyle(() => ({
     opacity: messageOpacity.value,
   }));
-
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     opacity: buttonOpacity.value,
   }));
 
   if (!visible) return null;
 
-  const primary = UnistylesRuntime.getTheme().colors.primary;
+  const theme = UnistylesRuntime.getTheme();
   const showConfetti = Platform.OS !== "web";
-
   const resolvedTitle = title ?? `Day ${streak} done`;
   const resolvedSubtitle = subtitle ?? "Rest up. Come back tomorrow.";
 
@@ -136,29 +129,55 @@ export function CelebrationBurst({
     >
       <View style={styles.root}>
         {showConfetti && (
-          <>
-            <ConfettiCannon
-              key={`left-${key}`}
-              count={90}
-              origin={{ x: -10, y: 0 }}
-              autoStart
-              fadeOut
-              explosionSpeed={550}
-              fallSpeed={4500}
-              colors={[primary, "#FF6B35", "#FBBF24", "#4ADE80"]}
-            />
-            <ConfettiCannon
-              ref={cannon2Ref}
-              key={`right-${key}`}
-              count={90}
-              origin={{ x: 420, y: 0 }}
-              autoStart={false}
-              fadeOut
-              explosionSpeed={550}
-              fallSpeed={4500}
-              colors={[primary, "#4ADE80", "#F472B6", "#60A5FA"]}
-            />
-          </>
+          <View style={RNStyleSheet.absoluteFill} pointerEvents="none">
+            <CannonConfetti
+              key={confettiKey}
+              autoplay
+              fadeOutOnEnd
+              gravity={0.6}
+              colors={[
+                theme.colors.primary,
+                "#FF6B35",
+                "#FBBF24",
+                "#4ADE80",
+                "#F472B6",
+                "#60A5FA",
+              ]}
+              containerStyle={RNStyleSheet.absoluteFill}
+            >
+              <CannonConfetti.Origin
+                position="bottom-left"
+                count={150}
+                initialSpeed={8}
+                spread={Math.PI / 10}
+              >
+                <CannonConfetti.Flake width={9} height={17} radius={3} />
+              </CannonConfetti.Origin>
+
+              <CannonConfetti.Origin
+                position="bottom-right"
+                count={150}
+                initialSpeed={8}
+                spread={Math.PI / 10}
+              >
+                <CannonConfetti.Flake width={9} height={17} radius={3} />
+              </CannonConfetti.Origin>
+            </CannonConfetti>
+          </View>
+        )}
+
+        {/* ── DEV ONLY: refire button ─────────────────────── */}
+        {__DEV__ && (
+          <Pressable
+            onPress={handleDevRefire}
+            hitSlop={12}
+            style={styles.devRefire}
+          >
+            <Ionicons name="refresh" size={16} color="#FFFFFF" />
+            <Text variant="micro" color="onPrimary">
+              REFIRE
+            </Text>
+          </Pressable>
         )}
 
         <Pressable
@@ -206,6 +225,20 @@ const styles = StyleSheet.create((theme, rt) => ({
     flex: 1,
     backgroundColor: theme.colors.background,
     overflow: "hidden",
+  },
+  devRefire: {
+    position: "absolute",
+    top: rt.insets.top + theme.spacing.md,
+    right: theme.layout.screenPaddingH,
+    zIndex: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+    borderRadius: theme.radii.full,
+    backgroundColor: theme.colors.primary,
+    opacity: 0.9,
   },
   tapArea: {
     flex: 1,

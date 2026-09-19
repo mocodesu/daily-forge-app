@@ -3,8 +3,13 @@ import Text from "@/components/text";
 import { PrimaryIcon } from "@/components/themed";
 import { playSound } from "@/utils/sounds";
 import React, { useCallback, useEffect, useRef } from "react";
-import { Modal, Platform, View } from "react-native";
-import ConfettiCannon from "react-native-confetti-cannon";
+import {
+  Modal,
+  Platform,
+  StyleSheet as RNStyleSheet,
+  View,
+} from "react-native";
+import { CannonConfetti } from "react-native-fast-confetti";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -29,10 +34,6 @@ export function GrandCelebration({
   const textOpacity = useSharedValue(0);
   const buttonOpacity = useSharedValue(0);
 
-  const leftCannonRef = useRef<ConfettiCannon>(null);
-  const rightCannonRef = useRef<ConfettiCannon>(null);
-
-  /** Guards against double-firing onDismiss from back button + tap. */
   const dismissCalledRef = useRef(false);
 
   const handleDismiss = useCallback(() => {
@@ -54,29 +55,15 @@ export function GrandCelebration({
     trophyScale.value = withSpring(1, { damping: 12, stiffness: 140 });
     textOpacity.value = withDelay(500, withTiming(1, { duration: 350 }));
     buttonOpacity.value = withDelay(1300, withTiming(1, { duration: 400 }));
-
-    const leftTimer = setTimeout(() => {
-      leftCannonRef.current?.start();
-    }, 700);
-    const rightTimer = setTimeout(() => {
-      rightCannonRef.current?.start();
-    }, 1100);
-
-    return () => {
-      clearTimeout(leftTimer);
-      clearTimeout(rightTimer);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const trophyAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: trophyScale.value }],
   }));
-
   const textAnimatedStyle = useAnimatedStyle(() => ({
     opacity: textOpacity.value,
   }));
-
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     opacity: buttonOpacity.value,
   }));
@@ -96,50 +83,40 @@ export function GrandCelebration({
     >
       <View style={styles.root}>
         {showConfetti && (
-          <>
-            <ConfettiCannon
-              key="grand-a"
-              count={120}
-              origin={{ x: -10, y: 0 }}
-              autoStart
-              fadeOut
-              explosionSpeed={600}
-              fallSpeed={5000}
-              colors={[theme.colors.primary, "#FF6B35", "#FBBF24"]}
-            />
-            <ConfettiCannon
-              key="grand-b"
-              count={120}
-              origin={{ x: 420, y: 0 }}
-              autoStart
-              fadeOut
-              explosionSpeed={600}
-              fallSpeed={5000}
-              colors={[theme.colors.primary, "#4ADE80", "#F472B6"]}
-            />
-            <ConfettiCannon
-              ref={leftCannonRef}
-              key="grand-c"
-              count={100}
-              origin={{ x: 100, y: 800 }}
-              autoStart={false}
-              fadeOut
-              explosionSpeed={650}
-              fallSpeed={-1600}
-              colors={[theme.colors.primary, "#60A5FA", "#FBBF24"]}
-            />
-            <ConfettiCannon
-              ref={rightCannonRef}
-              key="grand-d"
-              count={100}
-              origin={{ x: 320, y: 800 }}
-              autoStart={false}
-              fadeOut
-              explosionSpeed={650}
-              fallSpeed={-1600}
-              colors={[theme.colors.primary, "#4ADE80", "#F472B6"]}
-            />
-          </>
+          <View style={RNStyleSheet.absoluteFill} pointerEvents="none">
+            <CannonConfetti
+              autoplay
+              fadeOutOnEnd
+              gravity={0.3}
+              colors={[
+                theme.colors.primary,
+                "#FF6B35",
+                "#FBBF24",
+                "#4ADE80",
+                "#F472B6",
+                "#60A5FA",
+              ]}
+              containerStyle={RNStyleSheet.absoluteFill}
+            >
+              <CannonConfetti.Origin
+                position="bottom-left"
+                count={250}
+                initialSpeed={4.5}
+                spread={Math.PI / 3.5}
+              >
+                <CannonConfetti.Flake width={10} height={19} radius={3} />
+              </CannonConfetti.Origin>
+
+              <CannonConfetti.Origin
+                position="bottom-right"
+                count={250}
+                initialSpeed={4.5}
+                spread={Math.PI / 3.5}
+              >
+                <CannonConfetti.Flake width={10} height={19} radius={3} />
+              </CannonConfetti.Origin>
+            </CannonConfetti>
+          </View>
         )}
 
         <View style={styles.content}>

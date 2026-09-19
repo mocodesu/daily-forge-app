@@ -6,6 +6,7 @@
     "@expo/ui": "~57.0.19",
     "@expo/vector-icons": "^15.0.2",
     "@sentry/react-native": "~7.11.0",
+    "@shopify/react-native-skia": "2.6.2",
     "expo": "~57.0.24",
     "expo-asset": "~57.0.18",
     "expo-audio": "~57.0.5",
@@ -37,9 +38,9 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
-    "react-native-confetti-cannon": "^1.5.2",
     "react-native-country-flag": "^2.0.2",
     "react-native-edge-to-edge": "^1.8.1",
+    "react-native-fast-confetti": "^2.0.2",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",
     "react-native-mmkv": "^4.3.2",
@@ -70,5 +71,9 @@
     "format": "eslint . --ext .js,.jsx,.ts,.tsx --fix && prettier . --write",
     "typecheck": "tsc --noEmit"
   },
-  "private": true
+  "private": true,
+  "trustedDependencies": [
+    "@sentry/cli",
+    "@shopify/react-native-skia"
+  ]
 }
