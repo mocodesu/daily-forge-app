@@ -18,7 +18,7 @@ export const sentryConfig = {
   profilesSampleRate: 1.0,
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1.0,
-  dsn: "https://bffc41a855007f7d91382c1e465089d1@o4505758870863872.ingest.us.sentry.io/4511819296538629",
+  dsn: "https://0c85330f3d1c863b99f3111cbe2a104a@o4511920472326144.ingest.us.sentry.io/4512113682284544",
   sendDefaultPii: true,
   integrations: [
     Sentry.mobileReplayIntegration({

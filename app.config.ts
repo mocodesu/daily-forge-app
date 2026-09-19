@@ -11,9 +11,9 @@ import {
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-const EAS_PROJECT_ID = "e043e157-97dd-4185-a931-f550b7dbc68a";
 const PROJECT_SLUG = "dailyforge";
 const OWNER = "mocodesu";
+const EAS_PROJECT_ID = "d18d3158-865c-4d55-bcf7-b8988716c4ca";
 
 /**
  * App identity
@@ -78,18 +78,12 @@ const ENVIRONMENTS = {
 type AppEnvironment = keyof typeof ENVIRONMENTS;
 
 /**
- * Validate APP_ENV rather than relying only on a TypeScript cast.
+ * Use APP_ENV locally and EAS_BUILD_PROFILE during EAS builds. Expo config
+ * commands without a selected build profile use the development defaults.
  */
 const getAppEnvironment = (): AppEnvironment => {
-  const value = process.env.APP_ENV;
-
-  if (!value) {
-    throw new Error(
-      `APP_ENV is not set. Expected one of: ${Object.keys(ENVIRONMENTS).join(
-        ", ",
-      )}`,
-    );
-  }
+  const value =
+    process.env.APP_ENV ?? process.env.EAS_BUILD_PROFILE ?? "development";
 
   if (!(value in ENVIRONMENTS)) {
     throw new Error(

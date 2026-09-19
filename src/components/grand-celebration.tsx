@@ -111,16 +111,16 @@ export function GrandCelebration({
               // ── Slow pass ─────────────────────────────
               // Lower gravity + speed + longer spray = drifting
               // curtain. Iterate here with the lab open.
-              gravity={0.07}
-              drag={0.985}
-              sprayDuration={2000}
+              gravity={1}
+              drag={4.5}
+              sprayDuration={4000}
               colors={palette}
               containerStyle={RNStyleSheet.absoluteFill}
             >
               <CannonConfetti.Origin
                 position="bottom-left"
-                count={180}
-                initialSpeed={1.8}
+                count={900}
+                initialSpeed={4.5}
                 spread={Math.PI / 3}
                 speedVariation={{ min: 0.7, max: 1.5 }}
               >
@@ -129,8 +129,8 @@ export function GrandCelebration({
 
               <CannonConfetti.Origin
                 position="bottom-right"
-                count={180}
-                initialSpeed={1.8}
+                count={900}
+                initialSpeed={4.5}
                 spread={Math.PI / 3}
                 speedVariation={{ min: 0.7, max: 1.5 }}
               >

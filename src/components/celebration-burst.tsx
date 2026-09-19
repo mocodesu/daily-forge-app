@@ -147,16 +147,16 @@ export function CelebrationBurst({
               // ── Slow pass ─────────────────────────────
               // gravity halved, initialSpeed lowered, spray stretched.
               // Iterate here with the lab open.
-              gravity={0.1}
-              drag={0.98}
-              sprayDuration={1400}
+              gravity={1}
+              drag={4.5}
+              sprayDuration={700}
               colors={palette}
               containerStyle={RNStyleSheet.absoluteFill}
             >
               <CannonConfetti.Origin
                 position="bottom-left"
-                count={110}
-                initialSpeed={2}
+                count={400}
+                initialSpeed={4.5}
                 spread={Math.PI / 4}
                 speedVariation={{ min: 0.7, max: 1.4 }}
               >
@@ -165,8 +165,8 @@ export function CelebrationBurst({
 
               <CannonConfetti.Origin
                 position="bottom-right"
-                count={110}
-                initialSpeed={2}
+                count={400}
+                initialSpeed={4.5}
                 spread={Math.PI / 4}
                 speedVariation={{ min: 0.7, max: 1.4 }}
               >
