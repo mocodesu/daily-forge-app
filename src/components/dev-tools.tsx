@@ -187,7 +187,6 @@ function DevToolsInner() {
       "resetCelebrations",
       async () => {
         await resetCelebrations(db);
-        flash("Celebrations reset.");
       },
       "Celebrations reset.",
     );
@@ -197,7 +196,6 @@ function DevToolsInner() {
       "resetRetention",
       async () => {
         await resetRetention();
-        flash("Retention state cleared.");
       },
       "Retention state cleared.",
     );
@@ -207,9 +205,8 @@ function DevToolsInner() {
       "recordActivity",
       async () => {
         await recordActivityNow();
-        flash("Activity recorded. Retention timer reset.");
       },
-      "Activity recorded.",
+      "Activity recorded. Retention timer reset.",
     );
 
   const handleRequestPermission = () =>
@@ -299,6 +296,7 @@ function DevToolsInner() {
       "Retention reminders cancelled.",
     );
 
+  // ── Render ─────────────────────────────────────────────────
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -514,6 +512,18 @@ function DevToolsInner() {
         destructive
       />
 
+      {/* ── Confetti Lab ────────────────────────────────── */}
+      <SectionHeader icon="sparkles-outline" title="Confetti Lab" />
+
+      <DevButton
+        icon="sparkles-outline"
+        label="Open Confetti Lab"
+        subtitle="Fire CelebrationBurst and GrandCelebration on demand"
+        onPress={() => router.push("/(main)/dev/confetti-lab")}
+        busy={false}
+        disabled={busy !== null}
+      />
+
       {/* ── Exercises ───────────────────────────────────── */}
       <SectionHeader icon="barbell-outline" title="Exercises" />
 
@@ -545,18 +555,6 @@ function DevToolsInner() {
         busy={busy === "deleteExercises"}
         disabled={busy !== null}
         destructive
-      />
-
-      {/* ── Confetti Lab ────────────────────────────────── */}
-      <SectionHeader icon="sparkles-outline" title="Celebrations" />
-
-      <DevButton
-        icon="sparkles-outline"
-        label="Open Confetti Lab"
-        subtitle="Fire CelebrationBurst and GrandCelebration on demand"
-        onPress={() => router.push("/(main)/dev/confetti-lab")}
-        busy={false}
-        disabled={busy !== null}
       />
 
       {/* ── Data ────────────────────────────────────────── */}

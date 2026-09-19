@@ -73,400 +73,410 @@ export default function SettingsScreen() {
 
   return (
     <ScrollScreen>
-      {/* ── Appearance ────────────────────────────────── */}
-      <View style={styles.card}>
-        <Text variant="title" color="onSurface">
-          Appearance
-        </Text>
+      <View style={styles.cardGrid}>
+        {/* ── Appearance ────────────────────────────────── */}
+        <View style={styles.card}>
+          <Text variant="title" color="onSurface">
+            Appearance
+          </Text>
 
-        <View style={styles.sectionBlock}>
-          <View style={styles.sectionHeader}>
-            <Text variant="subheadBold" color="onSurface">
-              App Color
-            </Text>
-            <Text variant="caption" color="mutedText">
-              Choose your accent color scheme
-            </Text>
-          </View>
-
-          <View style={styles.accentSwatchRow}>
-            {APP_COLOR_SCHEMES.map((scheme) => {
-              const selected = scheme.id === schemeId;
-              return (
-                <Pressable
-                  key={scheme.id}
-                  style={styles.accentSwatchWrapper}
-                  onPress={() => selectScheme(scheme.id as AppColorSchemeId)}
-                  accessibilityRole="button"
-                  accessibilityLabel={scheme.label}
-                  accessibilityState={{ selected }}
-                  hitSlop={6}
-                >
-                  <View
-                    style={[
-                      styles.accentSwatch,
-                      { backgroundColor: scheme.tokens.light.primary },
-                      selected && styles.accentSwatchSelected,
-                    ]}
-                  />
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.sectionBlock}>
-          <View style={styles.sectionHeader}>
-            <Text variant="subheadBold" color="onSurface">
-              Theme Mode
-            </Text>
-            <Text variant="caption" color="mutedText">
-              Choose how the app looks
-            </Text>
-          </View>
-
-          <View style={styles.themeRow}>
-            {THEME_MODES.map((m) => {
-              const selected = mode === m.key;
-              return (
-                <Pressable
-                  key={m.key}
-                  style={[
-                    styles.themeOption,
-                    selected && styles.themeOptionSelected,
-                  ]}
-                  onPress={() => selectMode(m.key)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                >
-                  <Ionicons
-                    name={m.icon}
-                    size={22}
-                    style={selected ? styles.iconPrimary : styles.iconSurface}
-                  />
-                  <Text
-                    variant="subhead"
-                    color={selected ? "primary" : "onSurface"}
-                  >
-                    {m.label}
-                  </Text>
-                  <View
-                    style={[
-                      styles.themeRadioDot,
-                      selected && styles.themeRadioDotSelected,
-                    ]}
-                  />
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      </View>
-
-      {/* ── Streak Target ─────────────────────────────── */}
-      <View style={styles.card}>
-        <Text variant="title" color="onSurface">
-          Streak Target
-        </Text>
-
-        <View style={styles.sectionBlock}>
-          <View style={styles.sectionHeader}>
-            <Text variant="subheadBold" color="onSurface">
-              Goal
-            </Text>
-            <Text variant="caption" color="mutedText">
-              How many consecutive days do you want to commit to?
-            </Text>
-          </View>
-
-          <View style={styles.pillRow}>
-            {TARGET_DAYS_OPTIONS.map((n) => {
-              const selected = targetDays === n && !showCustomTarget;
-              return (
-                <Pressable
-                  key={n}
-                  onPress={() => {
-                    setShowCustomTarget(false);
-                    setTargetDays(n);
-                  }}
-                  style={[
-                    styles.pill,
-                    selected ? styles.pillSelected : styles.pillIdle,
-                  ]}
-                >
-                  <Text
-                    variant="subheadBold"
-                    color={selected ? "onPrimary" : "onSurface"}
-                  >
-                    {n}
-                  </Text>
-                </Pressable>
-              );
-            })}
-
-            <Pressable
-              onPress={() => setShowCustomTarget((v) => !v)}
-              style={[
-                styles.pill,
-                showCustomTarget ? styles.pillSelected : styles.pillIdle,
-              ]}
-            >
-              <Text
-                variant="subheadBold"
-                color={showCustomTarget ? "onPrimary" : "onSurface"}
-              >
-                Custom
+          <View style={styles.sectionBlock}>
+            <View style={styles.sectionHeader}>
+              <Text variant="subheadBold" color="onSurface">
+                App Color
               </Text>
-            </Pressable>
+              <Text variant="caption" color="mutedText">
+                Choose your accent color scheme
+              </Text>
+            </View>
+
+            <View style={styles.accentSwatchRow}>
+              {APP_COLOR_SCHEMES.map((scheme) => {
+                const selected = scheme.id === schemeId;
+                return (
+                  <Pressable
+                    key={scheme.id}
+                    style={styles.accentSwatchWrapper}
+                    onPress={() => selectScheme(scheme.id as AppColorSchemeId)}
+                    accessibilityRole="button"
+                    accessibilityLabel={scheme.label}
+                    accessibilityState={{ selected }}
+                    hitSlop={6}
+                  >
+                    <View
+                      style={[
+                        styles.accentSwatch,
+                        { backgroundColor: scheme.tokens.light.primary },
+                        selected && styles.accentSwatchSelected,
+                      ]}
+                    />
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
 
-          {showCustomTarget && (
-            <View style={styles.customRow}>
-              <TextInput
-                value={customTargetText}
-                onChangeText={(v) =>
-                  setCustomTargetText(v.replace(/[^0-9]/g, ""))
-                }
-                placeholder={String(targetDays)}
-                placeholderTextColor={
-                  UnistylesRuntime.getTheme().colors.mutedText
-                }
-                keyboardType="number-pad"
-                style={styles.customInput}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleCustomTargetSave}
-              />
+          <View style={styles.divider} />
+
+          <View style={styles.sectionBlock}>
+            <View style={styles.sectionHeader}>
+              <Text variant="subheadBold" color="onSurface">
+                Theme Mode
+              </Text>
+              <Text variant="caption" color="mutedText">
+                Choose how the app looks
+              </Text>
+            </View>
+
+            <View style={styles.themeRow}>
+              {THEME_MODES.map((m) => {
+                const selected = mode === m.key;
+                return (
+                  <Pressable
+                    key={m.key}
+                    style={[
+                      styles.themeOption,
+                      selected && styles.themeOptionSelected,
+                    ]}
+                    onPress={() => selectMode(m.key)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <Ionicons
+                      name={m.icon}
+                      size={22}
+                      style={selected ? styles.iconPrimary : styles.iconSurface}
+                    />
+                    <Text
+                      variant="subhead"
+                      color={selected ? "primary" : "onSurface"}
+                    >
+                      {m.label}
+                    </Text>
+                    <View
+                      style={[
+                        styles.themeRadioDot,
+                        selected && styles.themeRadioDotSelected,
+                      ]}
+                    />
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        {/* ── Streak Target ─────────────────────────────── */}
+        <View style={styles.card}>
+          <Text variant="title" color="onSurface">
+            Streak Target
+          </Text>
+
+          <View style={styles.sectionBlock}>
+            <View style={styles.sectionHeader}>
+              <Text variant="subheadBold" color="onSurface">
+                Goal
+              </Text>
+              <Text variant="caption" color="mutedText">
+                How many consecutive days do you want to commit to?
+              </Text>
+            </View>
+
+            <View style={styles.pillRow}>
+              {TARGET_DAYS_OPTIONS.map((n) => {
+                const selected = targetDays === n && !showCustomTarget;
+                return (
+                  <Pressable
+                    key={n}
+                    onPress={() => {
+                      setShowCustomTarget(false);
+                      setTargetDays(n);
+                    }}
+                    style={[
+                      styles.pill,
+                      selected ? styles.pillSelected : styles.pillIdle,
+                    ]}
+                  >
+                    <Text
+                      variant="subheadBold"
+                      color={selected ? "onPrimary" : "onSurface"}
+                    >
+                      {n}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+
               <Pressable
-                onPress={handleCustomTargetSave}
-                disabled={!customTargetText}
+                onPress={() => setShowCustomTarget((v) => !v)}
                 style={[
-                  styles.customSave,
-                  customTargetText
-                    ? styles.customSaveEnabled
-                    : styles.customSaveDisabled,
+                  styles.pill,
+                  showCustomTarget ? styles.pillSelected : styles.pillIdle,
                 ]}
               >
                 <Text
                   variant="subheadBold"
-                  color={customTargetText ? "onPrimary" : "mutedText"}
+                  color={showCustomTarget ? "onPrimary" : "onSurface"}
                 >
-                  Save
+                  Custom
                 </Text>
               </Pressable>
             </View>
-          )}
 
-          <Text variant="caption" color="mutedText">
-            Current target: {targetDays} days
-          </Text>
-        </View>
-      </View>
-
-      {/* ── Daily Minimum ─────────────────────────────── */}
-      <View style={styles.card}>
-        <Text variant="title" color="onSurface">
-          Daily Minimum
-        </Text>
-
-        <View style={styles.sectionBlock}>
-          <View style={styles.sectionHeader}>
-            <Text variant="subheadBold" color="onSurface">
-              Exercises per day
-            </Text>
-            <Text variant="caption" color="mutedText">
-              The minimum number of exercises required for a day to count.
-            </Text>
-          </View>
-
-          <View style={styles.pillRow}>
-            {MINIMUM_EXERCISES_OPTIONS.map((n) => {
-              const selected = minimumExercises === n && !showCustomMin;
-              return (
+            {showCustomTarget && (
+              <View style={styles.customRow}>
+                <TextInput
+                  value={customTargetText}
+                  onChangeText={(v) =>
+                    setCustomTargetText(v.replace(/[^0-9]/g, ""))
+                  }
+                  placeholder={String(targetDays)}
+                  placeholderTextColor={
+                    UnistylesRuntime.getTheme().colors.mutedText
+                  }
+                  keyboardType="number-pad"
+                  style={styles.customInput}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleCustomTargetSave}
+                />
                 <Pressable
-                  key={n}
-                  onPress={() => {
-                    setShowCustomMin(false);
-                    setMinimumExercises(n);
-                  }}
+                  onPress={handleCustomTargetSave}
+                  disabled={!customTargetText}
                   style={[
-                    styles.pill,
-                    selected ? styles.pillSelected : styles.pillIdle,
+                    styles.customSave,
+                    customTargetText
+                      ? styles.customSaveEnabled
+                      : styles.customSaveDisabled,
                   ]}
                 >
                   <Text
                     variant="subheadBold"
-                    color={selected ? "onPrimary" : "onSurface"}
+                    color={customTargetText ? "onPrimary" : "mutedText"}
                   >
-                    {n}
+                    Save
                   </Text>
                 </Pressable>
-              );
-            })}
+              </View>
+            )}
 
-            <Pressable
-              onPress={() => setShowCustomMin((v) => !v)}
-              style={[
-                styles.pill,
-                showCustomMin ? styles.pillSelected : styles.pillIdle,
-              ]}
-            >
-              <Text
-                variant="subheadBold"
-                color={showCustomMin ? "onPrimary" : "onSurface"}
-              >
-                Custom
-              </Text>
-            </Pressable>
+            <Text variant="caption" color="mutedText">
+              Current target: {targetDays} days
+            </Text>
           </View>
+        </View>
 
-          {showCustomMin && (
-            <View style={styles.customRow}>
-              <TextInput
-                value={customMinText}
-                onChangeText={(v) => setCustomMinText(v.replace(/[^0-9]/g, ""))}
-                placeholder={String(minimumExercises)}
-                placeholderTextColor={
-                  UnistylesRuntime.getTheme().colors.mutedText
-                }
-                keyboardType="number-pad"
-                style={styles.customInput}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleCustomMinSave}
-              />
+        {/* ── Daily Minimum ─────────────────────────────── */}
+        <View style={styles.card}>
+          <Text variant="title" color="onSurface">
+            Daily Minimum
+          </Text>
+
+          <View style={styles.sectionBlock}>
+            <View style={styles.sectionHeader}>
+              <Text variant="subheadBold" color="onSurface">
+                Exercises per day
+              </Text>
+              <Text variant="caption" color="mutedText">
+                The minimum number of exercises required for a day to count.
+              </Text>
+            </View>
+
+            <View style={styles.pillRow}>
+              {MINIMUM_EXERCISES_OPTIONS.map((n) => {
+                const selected = minimumExercises === n && !showCustomMin;
+                return (
+                  <Pressable
+                    key={n}
+                    onPress={() => {
+                      setShowCustomMin(false);
+                      setMinimumExercises(n);
+                    }}
+                    style={[
+                      styles.pill,
+                      selected ? styles.pillSelected : styles.pillIdle,
+                    ]}
+                  >
+                    <Text
+                      variant="subheadBold"
+                      color={selected ? "onPrimary" : "onSurface"}
+                    >
+                      {n}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+
               <Pressable
-                onPress={handleCustomMinSave}
-                disabled={!customMinText}
+                onPress={() => setShowCustomMin((v) => !v)}
                 style={[
-                  styles.customSave,
-                  customMinText
-                    ? styles.customSaveEnabled
-                    : styles.customSaveDisabled,
+                  styles.pill,
+                  showCustomMin ? styles.pillSelected : styles.pillIdle,
                 ]}
               >
                 <Text
                   variant="subheadBold"
-                  color={customMinText ? "onPrimary" : "mutedText"}
+                  color={showCustomMin ? "onPrimary" : "onSurface"}
                 >
-                  Save
+                  Custom
                 </Text>
               </Pressable>
             </View>
-          )}
 
-          <Text variant="caption" color="mutedText">
-            Current minimum: {minimumExercises} exercise
-            {minimumExercises === 1 ? "" : "s"} per day
-          </Text>
-        </View>
-      </View>
+            {showCustomMin && (
+              <View style={styles.customRow}>
+                <TextInput
+                  value={customMinText}
+                  onChangeText={(v) =>
+                    setCustomMinText(v.replace(/[^0-9]/g, ""))
+                  }
+                  placeholder={String(minimumExercises)}
+                  placeholderTextColor={
+                    UnistylesRuntime.getTheme().colors.mutedText
+                  }
+                  keyboardType="number-pad"
+                  style={styles.customInput}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleCustomMinSave}
+                />
+                <Pressable
+                  onPress={handleCustomMinSave}
+                  disabled={!customMinText}
+                  style={[
+                    styles.customSave,
+                    customMinText
+                      ? styles.customSaveEnabled
+                      : styles.customSaveDisabled,
+                  ]}
+                >
+                  <Text
+                    variant="subheadBold"
+                    color={customMinText ? "onPrimary" : "mutedText"}
+                  >
+                    Save
+                  </Text>
+                </Pressable>
+              </View>
+            )}
 
-      {/* ── Daily Reminder ────────────────────────────── */}
-      <View style={styles.card}>
-        <Text variant="title" color="onSurface">
-          Reminders
-        </Text>
-        <DailyReminderEditor />
-      </View>
-
-      {/* ── Units ─────────────────────────────────────── */}
-      <View style={styles.card}>
-        <Text variant="title" color="onSurface">
-          Units
-        </Text>
-        <UnitSystemPicker />
-      </View>
-
-      {/* ── Swear ─────────────────────────────────────── */}
-      <View style={styles.card}>
-        <Text variant="title" color="onSurface">
-          Swear
-        </Text>
-        <SwearPhraseEditor />
-      </View>
-
-      {/* ── Data ──────────────────────────────────────── */}
-      <View style={styles.card}>
-        <Text variant="title" color="onSurface">
-          Data
-        </Text>
-
-        <Pressable
-          onPress={() => router.push("/(main)/data-management")}
-          style={({ pressed }) => [styles.dataRow, pressed && styles.pressed]}
-        >
-          <View style={styles.dataRowIcon}>
-            <PrimaryIcon name="server-outline" size={20} />
-          </View>
-          <View style={styles.dataRowBody}>
-            <Text variant="subheadBold" color="onSurface">
-              Manage Data
-            </Text>
             <Text variant="caption" color="mutedText">
-              Export, import, or wipe everything
+              Current minimum: {minimumExercises} exercise
+              {minimumExercises === 1 ? "" : "s"} per day
             </Text>
           </View>
-          <MutedIcon name="chevron-forward" size={18} />
-        </Pressable>
-      </View>
-
-      {/* ── About ─────────────────────────────────────── */}
-      <View style={styles.card}>
-        <Text variant="title" color="onSurface">
-          About
-        </Text>
-
-        <View style={styles.aboutRow}>
-          <Text variant="subhead" color="mutedText">
-            Version
-          </Text>
-          <Text variant="subheadBold" color="onSurface">
-            {appVersion}
-          </Text>
         </View>
 
-        <View style={styles.aboutRow}>
-          <Text variant="subhead" color="mutedText">
-            Build
+        {/* ── Daily Reminder ────────────────────────────── */}
+        <View style={styles.card}>
+          <Text variant="title" color="onSurface">
+            Reminders
           </Text>
-          <Text variant="subheadBold" color="onSurface">
-            {buildVersion}
-          </Text>
+          <DailyReminderEditor />
         </View>
 
-        <View style={styles.aboutRow}>
-          <Text variant="subhead" color="mutedText">
-            Made with ❤️ by
+        {/* ── Units ─────────────────────────────────────── */}
+        <View style={styles.card}>
+          <Text variant="title" color="onSurface">
+            Units
           </Text>
-          <Text variant="subheadBold" color="onSurface">
-            Mocodesu
-          </Text>
+          <UnitSystemPicker />
         </View>
 
-        <Pressable
-          onPress={() => Linking.openURL("https://example.com/privacy")}
-          hitSlop={8}
-          style={({ pressed }) => [styles.aboutLink, pressed && styles.pressed]}
-        >
-          <Text variant="subhead" color="primary">
-            Privacy policy
+        {/* ── Swear ─────────────────────────────────────── */}
+        <View style={styles.card}>
+          <Text variant="title" color="onSurface">
+            Swear
           </Text>
-          <PrimaryIcon name="chevron-forward" size={16} />
-        </Pressable>
+          <SwearPhraseEditor />
+        </View>
 
-        <Pressable
-          onPress={() => Linking.openURL("https://example.com/terms")}
-          hitSlop={8}
-          style={({ pressed }) => [styles.aboutLink, pressed && styles.pressed]}
-        >
-          <Text variant="subhead" color="primary">
-            Terms of service
+        {/* ── Data ──────────────────────────────────────── */}
+        <View style={styles.card}>
+          <Text variant="title" color="onSurface">
+            Data
           </Text>
-          <PrimaryIcon name="chevron-forward" size={16} />
-        </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/(main)/data-management")}
+            style={({ pressed }) => [styles.dataRow, pressed && styles.pressed]}
+          >
+            <View style={styles.dataRowIcon}>
+              <PrimaryIcon name="server-outline" size={20} />
+            </View>
+            <View style={styles.dataRowBody}>
+              <Text variant="subheadBold" color="onSurface">
+                Manage Data
+              </Text>
+              <Text variant="caption" color="mutedText">
+                Export, import, or wipe everything
+              </Text>
+            </View>
+            <MutedIcon name="chevron-forward" size={18} />
+          </Pressable>
+        </View>
+
+        {/* ── About ─────────────────────────────────────── */}
+        <View style={styles.card}>
+          <Text variant="title" color="onSurface">
+            About
+          </Text>
+
+          <View style={styles.aboutRow}>
+            <Text variant="subhead" color="mutedText">
+              Version
+            </Text>
+            <Text variant="subheadBold" color="onSurface">
+              {appVersion}
+            </Text>
+          </View>
+
+          <View style={styles.aboutRow}>
+            <Text variant="subhead" color="mutedText">
+              Build
+            </Text>
+            <Text variant="subheadBold" color="onSurface">
+              {buildVersion}
+            </Text>
+          </View>
+
+          <View style={styles.aboutRow}>
+            <Text variant="subhead" color="mutedText">
+              Made with ❤️ by
+            </Text>
+            <Text variant="subheadBold" color="onSurface">
+              Mocodesu
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={() => Linking.openURL("https://example.com/privacy")}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.aboutLink,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text variant="subhead" color="primary">
+              Privacy policy
+            </Text>
+            <PrimaryIcon name="chevron-forward" size={16} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => Linking.openURL("https://example.com/terms")}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.aboutLink,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text variant="subhead" color="primary">
+              Terms of service
+            </Text>
+            <PrimaryIcon name="chevron-forward" size={16} />
+          </Pressable>
+        </View>
       </View>
 
       {/* ── Dev Tools (only rendered when __DEV__) ────── */}
@@ -476,7 +486,22 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create((theme) => ({
+  // Card grid. On phone each card fills the row; on tablet two
+  // cards share a row with even spacing. `space-between` handles
+  // the horizontal gap so we don't need calc(). rowGap keeps rows
+  // visually separated on tablet.
+  cardGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: theme.spacing.md,
+    width: "100%",
+  },
   card: {
+    width: {
+      phone: "100%",
+      tablet: "48%",
+    },
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
     backgroundColor: theme.colors.surface,

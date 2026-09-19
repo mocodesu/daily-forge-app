@@ -3,29 +3,16 @@ import { GestureResponderEvent, Platform } from "react-native";
 
 /**
  * ============================================================================
- * HAPTIC FEEDBACK UTILITY — reusable template
+ * HAPTIC FEEDBACK UTILITY
  * ============================================================================
- * Provides a central place for haptic triggers, throttling, and high-level
- * wrappers that keep your UI code clean.  Nothing project-specific – drop
- * this file in and customise the sections below.
- *
- * WHAT TO CUSTOMIZE (search for "CUSTOMIZE"):
- *   1. CONFIG                        – throttle interval, global enable/disable
- *   2. hapticErrorHandler()          – how to handle (or ignore) haptic failures
- *
- * HOW TO WIRE IT UP:
- *   - Call `triggerHaptic()` directly in callbacks.
- *   - Use `withHaptic(handler, 'light')` to wrap any `onPress` and get
- *     haptic + your logic with zero extra boilerplate.
- *   - Drop `<HapticPressable>` anywhere you would use `<Pressable>` – it
- *     adds a `haptic` prop with a sensible default.
+ * Central place for haptic triggers, throttling, and high-level wrappers
+ * that keep UI code clean.
  *
  * HOW IT AVOIDS SPAM:
- *   - A built‑in throttle (CONFIG.minTriggerIntervalMs) prevents rapid
+ *   - A built-in throttle (CONFIG.minTriggerIntervalMs) prevents rapid
  *     consecutive triggers from feeling overwhelming.
  *   - The global enable flag (CONFIG.enabled) lets you turn off haptics
- *     across the whole app (e.g. accessibility setting) without touching
- *     every call site.
+ *     across the whole app without touching every call site.
  * ============================================================================
  */
 
@@ -37,9 +24,6 @@ export type HapticType =
   | "warning"
   | "error";
 
-// ---------------------------------------------------------------------------
-// CUSTOMIZE #1: adjust the throttle interval or disable haptics globally.
-// ---------------------------------------------------------------------------
 const CONFIG = {
   /** Minimum time (ms) between two actual haptic triggers. */
   minTriggerIntervalMs: 40,
@@ -50,15 +34,13 @@ const CONFIG = {
 
 let lastTriggerAt = 0;
 
-// ---------------------------------------------------------------------------
-// CUSTOMIZE #2: change how haptic failures are logged or reported.
-// For example, you might send the error to a crash-reporting service.
-// ---------------------------------------------------------------------------
 const hapticErrorHandler = (error: unknown) => {
-  console.error("Haptic trigger failed:", error);
+  // Downgraded from console.error. Haptics are cosmetic — a device
+  // without a haptic engine, or a user who has disabled haptics
+  // system-wide, will trip this path harmlessly. Logged at warn so
+  // it doesn't pollute error aggregation.
+  console.warn("Haptic trigger failed:", error);
 };
-
-// ---------------------------------------------------------------------------
 
 export function triggerHaptic(type: HapticType = "selection") {
   if (Platform.OS === "web" || !CONFIG.enabled) return;
@@ -121,38 +103,3 @@ export function triggerHapticIf(
     triggerHaptic(type);
   }
 }
-
-/**
- * 
- * <Pressable
-  onPress={withHaptic(() => {
-    navigation.navigate("Settings");
-  })}
-/>
-
-type HapticPressableProps = PressableProps & {
-  haptic?: HapticType;
-};
-
-export function HapticPressable({
-  haptic = "selection",
-  onPress,
-  ...props
-}: HapticPressableProps) {
-  return (
-    <Pressable
-      {...props}
-      onPress={withHaptic(onPress, haptic)}
-    />
-  );
-}
-
-<HapticPressable
-  haptic="light"
-  onPress={handlePress}
->
-  ...
-</HapticPressable>
-
-  triggerHapticIf(isEnabled, "medium");
- */

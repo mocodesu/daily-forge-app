@@ -14,7 +14,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import Animated, {
   Easing as ReanimatedEasing,
   interpolateColor,
@@ -93,6 +93,11 @@ export default function SessionScreen() {
 
   usePreventRemove(!finished && !loading, () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      "Timer running",
+      "This timer can't be stopped once it starts. Finish the countdown to mark the exercise done.",
+      [{ text: "OK" }],
+    );
   });
 
   // ── Load exercise metadata (does NOT start the ring) ──────

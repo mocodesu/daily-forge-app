@@ -202,6 +202,7 @@ export default function DataManagementScreen() {
 
   return (
     <ScrollScreen header={<ScreenHeader title="Data" />}>
+      {/* ── Storage ─────────────────────────────────── */}
       <View style={styles.section}>
         <Text variant="subheadBold" color="onSurface">
           Storage
@@ -227,51 +228,54 @@ export default function DataManagementScreen() {
         )}
       </View>
 
-      <View style={styles.section}>
-        <Text variant="subheadBold" color="onSurface">
-          Backup
-        </Text>
-
-        <ActionRow
-          icon="share-outline"
-          title="Export JSON"
-          subtitle="Share a full snapshot to Files, Drive, email…"
-          onPress={handleExport}
-          busy={busy === "export"}
-          disabled={busy !== null}
-        />
-
-        <ActionRow
-          icon="download-outline"
-          title="Import Backup"
-          subtitle="Replace current data with a previous export"
-          onPress={handleImport}
-          busy={busy === "import"}
-          disabled={busy !== null}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <Text variant="subheadBold" color="onSurface">
-          Danger zone
-        </Text>
-
-        <HapticPressable
-          haptic="heavy"
-          onPress={handleWipe}
-          disabled={busy !== null}
-          style={styles.dangerButton}
-        >
-          <PrimaryIcon name="trash-outline" size={18} />
-          <Text variant="subheadBold" color="primary">
-            {busy === "wipe" ? "Wiping…" : "Wipe All Data"}
+      {/* ── Backup + Danger, side by side on tablet ──── */}
+      <View style={styles.sectionGrid}>
+        <View style={styles.section}>
+          <Text variant="subheadBold" color="onSurface">
+            Backup
           </Text>
-        </HapticPressable>
 
-        <Text variant="caption" color="mutedText" style={styles.dangerHint}>
-          Deletes every exercise, record, swear, and milestone. There is no
-          undo.
-        </Text>
+          <ActionRow
+            icon="share-outline"
+            title="Export JSON"
+            subtitle="Share a full snapshot to Files, Drive, email…"
+            onPress={handleExport}
+            busy={busy === "export"}
+            disabled={busy !== null}
+          />
+
+          <ActionRow
+            icon="download-outline"
+            title="Import Backup"
+            subtitle="Replace current data with a previous export"
+            onPress={handleImport}
+            busy={busy === "import"}
+            disabled={busy !== null}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text variant="subheadBold" color="onSurface">
+            Danger zone
+          </Text>
+
+          <HapticPressable
+            haptic="heavy"
+            onPress={handleWipe}
+            disabled={busy !== null}
+            style={styles.dangerButton}
+          >
+            <PrimaryIcon name="trash-outline" size={18} />
+            <Text variant="subheadBold" color="primary">
+              {busy === "wipe" ? "Wiping…" : "Wipe All Data"}
+            </Text>
+          </HapticPressable>
+
+          <Text variant="caption" color="mutedText" style={styles.dangerHint}>
+            Deletes every exercise, record, swear, and milestone. There is no
+            undo.
+          </Text>
+        </View>
       </View>
     </ScrollScreen>
   );
@@ -336,6 +340,18 @@ function ActionRow({
 
 const styles = StyleSheet.create((theme) => ({
   section: { gap: theme.spacing.sm },
+
+  // Grid wrapper for the two tablet-column sections. `space-between`
+  // handles the horizontal gutter. rowGap keeps them apart if they
+  // ever wrap onto two rows.
+  sectionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: theme.spacing.lg,
+    width: "100%",
+  },
+
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -343,7 +359,12 @@ const styles = StyleSheet.create((theme) => ({
   },
   statTile: {
     flexGrow: 1,
-    flexBasis: "30%",
+    // 3 per row on phone, 4 per row on tablet. flexGrow lets the
+    // final short row stretch to fill instead of leaving a gap.
+    flexBasis: {
+      phone: "30%",
+      tablet: "22%",
+    },
     minWidth: 100,
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
