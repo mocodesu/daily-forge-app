@@ -1,6 +1,7 @@
 import Text from "@/components/text";
 import { PrimaryIcon } from "@/components/themed";
 import { playSound } from "@/utils/sounds";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, Platform, Pressable, View } from "react-native";
 import ConfettiCannon from "react-native-confetti-cannon";
@@ -19,19 +20,32 @@ const SETTLE_DELAY = 2500;
 /** Fallback auto-dismiss if the user never taps, in ms. */
 const AUTO_DISMISS_DELAY = 12000;
 
+type BurstSound = "dayComplete" | "targetReached" | "none";
+
 export function CelebrationBurst({
   visible,
   streak,
   onDismiss,
+  title,
+  subtitle,
+  icon = "checkmark",
+  sound = "dayComplete",
 }: {
   visible: boolean;
   streak: number;
   onDismiss: () => void;
+  /** Optional override. Default: "Day {streak} done". */
+  title?: string;
+  /** Optional override. Default: "Rest up. Come back tomorrow.". */
+  subtitle?: string;
+  /** SF Symbol name inside the ring. Default: "checkmark". */
+  icon?: keyof typeof Ionicons.glyphMap;
+  /** Which sound to play on appear. Default: "dayComplete". */
+  sound?: BurstSound;
 }) {
   const [key, setKey] = useState(0);
   const [dismissable, setDismissable] = useState(false);
 
-  // ── Shared values (Reanimated, live on the UI thread) ──
   const scale = useSharedValue(0);
   const opacity = useSharedValue(0);
   const messageOpacity = useSharedValue(0);
@@ -39,7 +53,6 @@ export function CelebrationBurst({
 
   const cannon2Ref = useRef<ConfettiCannon>(null);
 
-  /** Guards against double-firing onDismiss from a tap + back button. */
   const dismissCalledRef = useRef(false);
 
   const handleDismiss = useCallback(() => {
@@ -50,19 +63,18 @@ export function CelebrationBurst({
     messageOpacity.value = withTiming(0, { duration: 300 });
     buttonOpacity.value = withTiming(0, { duration: 300 }, (finished) => {
       if (finished) {
-        // Hop back to JS thread to trigger the parent's state update.
         scheduleOnRN(onDismiss);
       }
     });
   }, [opacity, messageOpacity, buttonOpacity, onDismiss]);
 
-  // ── Intro animation ──────────────────────────────────────
   useEffect(() => {
     if (!visible) return;
 
-    playSound("dayComplete");
+    if (sound !== "none") {
+      playSound(sound);
+    }
 
-    // Reset everything for a fresh run.
     dismissCalledRef.current = false;
     scale.value = 0;
     opacity.value = 0;
@@ -71,10 +83,6 @@ export function CelebrationBurst({
     setDismissable(false);
     setKey((k) => k + 1);
 
-    // Orchestration:
-    //   t=0     icon springs in, background fades in
-    //   t=400   message fades in
-    //   t=2500  continue button fades in, overlay becomes tappable
     scale.value = withSpring(1, { damping: 12, stiffness: 180 });
     opacity.value = withTiming(1, { duration: 250 });
     messageOpacity.value = withDelay(400, withTiming(1, { duration: 300 }));
@@ -95,9 +103,8 @@ export function CelebrationBurst({
       clearTimeout(autoTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, handleDismiss]);
+  }, [visible, handleDismiss, sound]);
 
-  // ── Animated styles (computed on UI thread) ──────────────
   const iconAnimatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ scale: scale.value }],
@@ -115,6 +122,9 @@ export function CelebrationBurst({
 
   const primary = UnistylesRuntime.getTheme().colors.primary;
   const showConfetti = Platform.OS !== "web";
+
+  const resolvedTitle = title ?? `Day ${streak} done`;
+  const resolvedSubtitle = subtitle ?? "Rest up. Come back tomorrow.";
 
   return (
     <Modal
@@ -161,16 +171,16 @@ export function CelebrationBurst({
           <View style={styles.centerContent} pointerEvents="none">
             <Animated.View style={[styles.centerBlock, iconAnimatedStyle]}>
               <View style={styles.iconCircle}>
-                <PrimaryIcon name="checkmark" size={48} />
+                <PrimaryIcon name={icon} size={48} />
               </View>
             </Animated.View>
 
             <Animated.View style={[styles.textBlock, messageAnimatedStyle]}>
               <Text variant="h2" color="onBackground" style={styles.headline}>
-                Day {streak} done
+                {resolvedTitle}
               </Text>
               <Text variant="subhead" color="mutedText" style={styles.sub}>
-                Rest up. Come back tomorrow.
+                {resolvedSubtitle}
               </Text>
             </Animated.View>
           </View>

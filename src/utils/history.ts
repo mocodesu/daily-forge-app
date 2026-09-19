@@ -1,3 +1,4 @@
+import { FrozenDaysRepo } from "@/repositories/frozen-days-repo";
 import type { SQLiteDatabase } from "expo-sqlite";
 
 export interface DayProgress {
@@ -6,14 +7,10 @@ export interface DayProgress {
   completed: number;
   total: number;
   isToday: boolean;
+  /** True if this day was a missed day that was frozen retroactively. */
+  isFrozen: boolean;
 }
 
-/**
- * Returns progress for the last `days` days, newest first.
- * A day's "total" is the set of exercises that were due that day:
- *   - all daily exercises (is_daily = 1 and created before end of day)
- *   - plus one-offs created that day
- */
 export async function computeHistory(
   db: SQLiteDatabase,
   days: number,
@@ -21,18 +18,19 @@ export async function computeHistory(
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Load all exercises once
   const exercises = await db.getAllAsync<{
     id: string;
     is_daily: number;
     created_at: number;
   }>(`SELECT id, is_daily, created_at FROM exercises`);
 
-  // Load all completions once
   const completions = await db.getAllAsync<{
     day_key: string;
     exercise_id: string;
   }>(`SELECT day_key, exercise_id FROM completion_records`);
+
+  const frozen = await FrozenDaysRepo.getAll(db);
+  const frozenKeys = new Set(frozen.map((f) => f.dayKey));
 
   const byDay = new Map<string, Set<string>>();
   for (const row of completions) {
@@ -65,6 +63,7 @@ export async function computeHistory(
       completed: done,
       total: due.length,
       isToday: offset === 0,
+      isFrozen: frozenKeys.has(key),
     });
   }
 

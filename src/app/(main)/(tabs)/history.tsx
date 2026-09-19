@@ -51,13 +51,16 @@ export default function HistoryScreen() {
       let cancelled = false;
       (async () => {
         try {
-          const [result, currentStreak] = await Promise.all([
+          const [result, streakResult] = await Promise.all([
             computeHistory(db, HISTORY_WINDOW_DAYS),
             calculateStreak(db),
           ]);
           if (cancelled) return;
           setDays(result);
-          setStreak(currentStreak);
+          // calculateStreak now returns a StreakResult object with
+          // `streak`, `frozenKeys`, `freezeBalance`, etc. Extract the
+          // number — otherwise <Text> tries to render the object.
+          setStreak(streakResult.streak);
         } catch (err) {
           console.warn("[history] load failed:", err);
         } finally {
@@ -111,7 +114,7 @@ export default function HistoryScreen() {
             day={day}
             size={cellSize}
             onPress={() => {
-              if (day.total > 0) {
+              if (day.total > 0 || day.isFrozen) {
                 router.push({
                   pathname: "/(main)/day/[dayKey]",
                   params: { dayKey: day.dayKey },

@@ -19,3 +19,9 @@ export const DEFAULT_TARGET_DAYS = 30;
 
 /** Preset options shown in the Settings target picker. */
 export const TARGET_DAYS_OPTIONS = [30, 60, 90, 100] as const;
+
+/** How many freezes the user gets per calendar month. */
+export const DEFAULT_MONTHLY_FREEZES = 2;
+
+/** Max number of days the auto-freeze scan looks back. */
+export const MAX_FREEZE_LOOKBACK_DAYS = 30;

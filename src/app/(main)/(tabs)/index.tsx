@@ -10,7 +10,7 @@ import { SwearModal } from "@/components/swear-modal";
 import { SwipeableExerciseCard } from "@/components/swipeable-exercise-card";
 import Text from "@/components/text";
 import { MutedIcon, PrimaryIcon } from "@/components/themed";
-import { cancelDailyReminderForToday } from "@/hooks/use-daily-reminder";
+import { useAppBadge } from "@/hooks/use-app-badge";
 import { useDayState } from "@/hooks/use-day-state";
 import { useMilestone } from "@/hooks/use-milestone";
 import { useMinimumExercises } from "@/hooks/use-minimum-exercises";
@@ -98,6 +98,11 @@ function TodayContent({
   const celebratingRef = useRef(false);
   const pendingStreakPulseRef = useRef(false);
 
+  // App icon badge
+  const remainingToday = Math.max(0, day.progress.total - day.progress.done);
+  const badgeCount = day.isLocked ? 0 : remainingToday;
+  useAppBadge(badgeCount);
+
   useFocusEffect(
     useCallback(() => {
       day.refresh();
@@ -115,13 +120,6 @@ function TodayContent({
     if (justCompleted && !celebratingRef.current) setPromptVisible(true);
     prevAllDoneRef.current = day.allDone;
   }, [day.allDone, day.isLocked, day.sworeToday]);
-
-  // Cancel today's reminder whenever the day is sealed.
-  useEffect(() => {
-    if (day.isLocked) {
-      cancelDailyReminderForToday();
-    }
-  }, [day.isLocked]);
 
   const requestLock = () => {
     setPromptVisible(false);
@@ -172,10 +170,8 @@ function TodayContent({
 
       await trackUserActivity();
 
-      // Cancel today's reminder — the user is done.
-      await cancelDailyReminderForToday();
-
-      const newStreak = await calculateStreak(db);
+      const streakResult = await calculateStreak(db);
+      const newStreak = streakResult.streak;
       await day.refresh();
 
       const reachedTarget = newStreak >= targetDays;
@@ -272,7 +268,11 @@ function TodayContent({
             </Text>
           </View>
 
-          <StreakBadge streak={day.streak} pulseKey={streakPulseKey} />
+          <StreakBadge
+            streak={day.streak}
+            freezeBalance={day.freezeBalance}
+            pulseKey={streakPulseKey}
+          />
         </View>
 
         {showMinimumBanner && (

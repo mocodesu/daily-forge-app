@@ -1,5 +1,6 @@
 import Text from "@/components/text";
 import type { DayProgress } from "@/utils/history";
+import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable } from "react-native";
 import Animated, {
@@ -27,8 +28,9 @@ export function DayCircle({
   const dayNumber = String(day.date.getDate());
   const percent = Math.round(progress * 100);
 
-  const isInactive = day.total === 0;
-  const isComplete = !isInactive && progress >= 1;
+  const isFrozen = day.isFrozen;
+  const isInactive = !isFrozen && day.total === 0;
+  const isComplete = !isFrozen && !isInactive && progress >= 1;
 
   const fontSize = Math.round(size * 0.34);
   const borderWidth = isComplete ? 3 : 2;
@@ -37,7 +39,6 @@ export function DayCircle({
   const mountOpacity = useSharedValue(0);
   const mountTranslateY = useSharedValue(8);
 
-  // ── Mount animation ───────────────────────────────────────
   React.useEffect(() => {
     const staggerIndex = Math.min(
       Math.abs(
@@ -55,7 +56,6 @@ export function DayCircle({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Completed-day pulse ───────────────────────────────────
   React.useEffect(() => {
     if (!isComplete) return;
     const timer = setTimeout(() => {
@@ -92,9 +92,25 @@ export function DayCircle({
     ],
   }));
 
-  const ringColor = isInactive
-    ? theme.colors.panelBorder
-    : theme.colors.primary;
+  // Ring color and background by state
+  const ringColor = isFrozen
+    ? theme.colors.primary
+    : isInactive
+      ? theme.colors.panelBorder
+      : theme.colors.primary;
+
+  const ringBackground = isComplete
+    ? theme.colors.primary
+    : isFrozen
+      ? theme.colors.panel
+      : theme.colors.surface;
+
+  // Caption
+  const caption = isFrozen
+    ? "freeze"
+    : isInactive
+      ? "rest"
+      : `${percent}% · ${day.completed}/${day.total}`;
 
   return (
     <Pressable
@@ -114,31 +130,42 @@ export function DayCircle({
               borderRadius: size / 2,
               borderColor: ringColor,
               borderWidth,
-              backgroundColor: isComplete
-                ? theme.colors.primary
-                : theme.colors.surface,
+              backgroundColor: ringBackground,
             },
             isInactive && styles.ringInactive,
+            isFrozen && styles.ringFrozen,
           ]}
         >
-          <Text
-            variant="title"
-            color={
-              isComplete ? "onPrimary" : isInactive ? "mutedText" : "onSurface"
-            }
-            style={{ fontSize, lineHeight: fontSize * 1.15 }}
-          >
-            {dayNumber}
-          </Text>
+          {isFrozen ? (
+            <Ionicons
+              name="snow"
+              size={Math.round(size * 0.42)}
+              color={theme.colors.primary}
+            />
+          ) : (
+            <Text
+              variant="title"
+              color={
+                isComplete
+                  ? "onPrimary"
+                  : isInactive
+                    ? "mutedText"
+                    : "onSurface"
+              }
+              style={{ fontSize, lineHeight: fontSize * 1.15 }}
+            >
+              {dayNumber}
+            </Text>
+          )}
         </Animated.View>
 
         <Text
           variant="caption"
-          color="mutedText"
+          color={isFrozen ? "primary" : "mutedText"}
           style={[styles.caption, isInactive && styles.captionInactive]}
           numberOfLines={1}
         >
-          {isInactive ? "rest" : `${percent}% · ${day.completed}/${day.total}`}
+          {caption}
         </Text>
       </Animated.View>
     </Pressable>
@@ -147,11 +174,9 @@ export function DayCircle({
 
 const styles = StyleSheet.create((theme) => ({
   cell: {
-    // Center the inner stack horizontally within the fixed-width cell.
     alignItems: "center",
   },
   cellInner: {
-    // Fill the cell so the ring and caption share the same center line.
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
@@ -163,6 +188,10 @@ const styles = StyleSheet.create((theme) => ({
   },
   ringInactive: {
     opacity: 0.5,
+  },
+  ringFrozen: {
+    borderStyle: "dashed",
+    borderWidth: 2,
   },
   caption: {
     textAlign: "center",

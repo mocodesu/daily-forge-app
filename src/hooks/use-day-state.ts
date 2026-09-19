@@ -13,9 +13,7 @@ export interface DayState {
   exercises: Exercise[];
   records: CompletionRecord[];
   completedIds: Set<string>;
-  /** Every exercise completed AND minimum met. */
   allDone: boolean;
-  /** Every exercise completed, regardless of the minimum. */
   allExercisesCompleted: boolean;
   isLocked: boolean;
   sworeToday: boolean;
@@ -23,6 +21,12 @@ export interface DayState {
   progress: { done: number; total: number };
   streak: number;
   todayKey: string;
+
+  // ── Freeze metadata ───────────────────────────────────────
+  frozenDayKeys: Set<string>;
+  freezeAllowance: number;
+  freezeUsed: number;
+  freezeBalance: number;
 }
 
 const EMPTY: DayState = {
@@ -38,14 +42,12 @@ const EMPTY: DayState = {
   progress: { done: 0, total: 0 },
   streak: 0,
   todayKey: dayKey(),
+  frozenDayKeys: new Set(),
+  freezeAllowance: 0,
+  freezeUsed: 0,
+  freezeBalance: 0,
 };
 
-/**
- * @param minimumExercises  The user-configured minimum number of daily
- *                          exercises required for a day to count as
- *                          "complete". Comes from `useMinimumExercises`.
- * @param enabled           When false, no queries run.
- */
 export function useDayState(minimumExercises: number, enabled: boolean = true) {
   const db = useSQLiteContext();
   const [state, setState] = useState<DayState>(EMPTY);
@@ -66,7 +68,7 @@ export function useDayState(minimumExercises: number, enabled: boolean = true) {
       const startMs = dayStartMs(now);
       const endMs = dayEndMs(now);
 
-      const [exercises, records, isLocked, sworeToday, streak] =
+      const [exercises, records, isLocked, sworeToday, streakResult] =
         await Promise.all([
           ExercisesRepo.getActiveForDay(db, startMs, endMs),
           CompletionsRepo.getForDay(db, key),
@@ -78,12 +80,8 @@ export function useDayState(minimumExercises: number, enabled: boolean = true) {
       if (!mountedRef.current) return;
 
       const completedIds = new Set(records.map((r) => r.exerciseId));
-
       const allExercisesCompleted =
         exercises.length > 0 && exercises.every((e) => completedIds.has(e.id));
-
-      // The day is only "done" when the user has completed every exercise
-      // AND they have at least `minimumExercises` configured.
       const allDone =
         exercises.length >= minimumExercises && allExercisesCompleted;
 
@@ -101,8 +99,12 @@ export function useDayState(minimumExercises: number, enabled: boolean = true) {
           done: exercises.filter((e) => completedIds.has(e.id)).length,
           total: exercises.length,
         },
-        streak,
+        streak: streakResult.streak,
         todayKey: key,
+        frozenDayKeys: streakResult.frozenKeys,
+        freezeAllowance: streakResult.freezeAllowance,
+        freezeUsed: streakResult.freezeUsed,
+        freezeBalance: streakResult.freezeBalance,
       });
     } catch (err) {
       if (!mountedRef.current) return;

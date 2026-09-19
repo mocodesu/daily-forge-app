@@ -1,7 +1,7 @@
+import { CelebrationBurst } from "@/components/celebration-burst";
 import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
-import { PrimaryIcon } from "@/components/themed";
 import { UnitSystemPicker } from "@/components/unit-system-picker";
 import { useUnitSystem } from "@/hooks/use-unit-system";
 import { UserProfileRepo } from "@/repositories/user-profile-repo";
@@ -38,6 +38,7 @@ export default function OnboardingScreen() {
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   const weightUnit = system === "metric" ? "kg" : "lb";
 
@@ -119,7 +120,10 @@ export default function OnboardingScreen() {
       };
 
       await UserProfileRepo.insert(db, profile);
-      router.replace("/(main)/(tabs)");
+
+      // Show the welcome celebration. Navigation to Today happens after
+      // the user dismisses it.
+      setShowWelcome(true);
     } catch (err) {
       console.error("[onboarding] save failed", err);
       setError("Could not save your profile. Try again.");
@@ -136,6 +140,11 @@ export default function OnboardingScreen() {
     displayToKg,
     db,
   ]);
+
+  const handleWelcomeDismiss = useCallback(() => {
+    setShowWelcome(false);
+    router.replace("/(main)/(tabs)");
+  }, []);
 
   const handleNext = useCallback(() => {
     if (step < TOTAL_STEPS - 1) {
@@ -205,7 +214,11 @@ export default function OnboardingScreen() {
 
           {error && (
             <View style={styles.errorBox}>
-              <PrimaryIcon name="alert-circle-outline" size={16} />
+              <Ionicons
+                name="alert-circle-outline"
+                size={16}
+                color={UnistylesRuntime.getTheme().colors.primary}
+              />
               <Text variant="caption" color="primary" style={styles.flex}>
                 {error}
               </Text>
@@ -255,6 +268,17 @@ export default function OnboardingScreen() {
           )}
         </HapticPressable>
       </View>
+
+      {/* ── Welcome celebration ────────────────────────── */}
+      <CelebrationBurst
+        visible={showWelcome}
+        streak={0}
+        title={`Welcome, ${name.trim() || "friend"}`}
+        subtitle="The first day is the hardest. You just started it."
+        icon="flame"
+        sound="dayComplete"
+        onDismiss={handleWelcomeDismiss}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -262,7 +286,11 @@ export default function OnboardingScreen() {
 function WelcomeStep() {
   return (
     <View style={styles.step}>
-      <PrimaryIcon name="flame" size={72} />
+      <Ionicons
+        name="flame"
+        size={72}
+        color={UnistylesRuntime.getTheme().colors.primary}
+      />
       <Text variant="h1" color="onBackground" style={styles.stepTitle}>
         Welcome to DailyForge
       </Text>
@@ -450,9 +478,14 @@ function NotificationsStep({
   status: "idle" | "granted" | "denied";
   onRequest: () => void;
 }) {
+  const theme = UnistylesRuntime.getTheme();
+
   const cta =
     status === "granted"
-      ? { icon: "checkmark-circle" as const, text: "Notifications are on." }
+      ? {
+          icon: "checkmark-circle" as const,
+          text: "Notifications are on.",
+        }
       : status === "denied"
         ? {
             icon: "notifications-off-outline" as const,
@@ -465,7 +498,7 @@ function NotificationsStep({
 
   return (
     <View style={styles.step}>
-      <PrimaryIcon name="notifications" size={56} />
+      <Ionicons name="notifications" size={56} color={theme.colors.primary} />
       <Text variant="h2" color="onBackground" style={styles.stepTitle}>
         Stay on track
       </Text>
@@ -483,18 +516,14 @@ function NotificationsStep({
           onPress={onRequest}
           style={styles.notifButton}
         >
-          <Ionicons
-            name={cta.icon}
-            size={18}
-            color={UnistylesRuntime.getTheme().colors.onPrimary}
-          />
+          <Ionicons name={cta.icon} size={18} color={theme.colors.onPrimary} />
           <Text variant="subheadBold" color="onPrimary">
             {cta.text}
           </Text>
         </HapticPressable>
       ) : (
         <View style={styles.notifStatusRow}>
-          <PrimaryIcon name={cta.icon} size={20} />
+          <Ionicons name={cta.icon} size={20} color={theme.colors.primary} />
           <Text variant="subhead" color="onSurface" style={styles.flex}>
             {cta.text}
           </Text>
