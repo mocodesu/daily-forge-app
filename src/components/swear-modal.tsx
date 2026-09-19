@@ -1,5 +1,6 @@
 import { HapticPressable } from "@/components/haptic-pressable";
 import Text from "@/components/text";
+import { PrimaryIcon } from "@/components/themed";
 import { useSwearPhrase } from "@/hooks/use-swear-phrase";
 import { matchSwear } from "@/utils/swear-matcher";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,7 +18,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 type Phase = "idle" | "recording" | "reviewing";
 
@@ -32,7 +33,6 @@ export function SwearModal({
   onCancel: () => void;
   onSworn: (data: { transcript: string; matchedPhrase: string }) => void;
 }) {
-  const { theme } = useUnistyles();
   const { phrase, loading } = useSwearPhrase();
 
   const [phase, setPhase] = useState<Phase>("idle");
@@ -40,20 +40,28 @@ export function SwearModal({
   const [error, setError] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
 
+  /** Dev-only typed phrase. Kept separate from `transcript` so the
+   *  reviewing phase isn't triggered mid-typing. Committed only when
+   *  the user taps "Use Phrase" or submits the keyboard. */
+  const [devTypedText, setDevTypedText] = useState("");
+
   const transcriptRef = useRef("");
   const hasFinalRef = useRef(false);
 
+  // ── Reset when the modal opens ────────────────────────────
   useEffect(() => {
     if (visible) {
       setPhase("idle");
       setTranscript("");
       setError(null);
       setPreparing(false);
+      setDevTypedText("");
       transcriptRef.current = "";
       hasFinalRef.current = false;
     }
   }, [visible]);
 
+  // ── Speech recognition events ─────────────────────────────
   useSpeechRecognitionEvent("result", (event) => {
     const text = event.results?.[0]?.transcript ?? "";
     transcriptRef.current = text;
@@ -88,6 +96,7 @@ export function SwearModal({
     setTranscript(transcriptRef.current.trim());
   });
 
+  // ── Handlers ──────────────────────────────────────────────
   const handleStart = useCallback(async () => {
     setError(null);
     setTranscript("");
@@ -105,11 +114,9 @@ export function SwearModal({
       if (Platform.OS === "android") {
         setPreparing(true);
         try {
-          const result =
-            await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload(
-              { locale: "en-US" },
-            );
-          console.log("[swear] model download result:", result);
+          await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({
+            locale: "en-US",
+          });
         } catch (err) {
           console.warn("[swear] model download failed:", err);
         }
@@ -150,6 +157,7 @@ export function SwearModal({
   const handleRetry = useCallback(() => {
     setError(null);
     setTranscript("");
+    setDevTypedText("");
     transcriptRef.current = "";
     setPhase("idle");
   }, []);
@@ -160,18 +168,19 @@ export function SwearModal({
     onSworn({ transcript: transcript.trim(), matchedPhrase: phrase });
   }, [transcript, phrase, onSworn]);
 
-  const handleDevTyped = useCallback(
-    (text: string) => {
-      transcriptRef.current = text;
-      setTranscript(text);
-      if (text.length > 0 && phase === "idle") {
-        setPhase("reviewing");
-      }
-    },
-    [phase],
-  );
-
-  const match = phase === "reviewing" ? matchSwear(transcript, phrase) : null;
+  /**
+   * Dev-only: commit the typed phrase to the transcript and move to the
+   * reviewing phase. Called from the "Use Phrase" button or the keyboard
+   * submit action — never on every keystroke.
+   */
+  const handleCommitDevTyped = useCallback(() => {
+    const trimmed = devTypedText.trim();
+    if (!trimmed) return;
+    transcriptRef.current = trimmed;
+    setTranscript(trimmed);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPhase("reviewing");
+  }, [devTypedText]);
 
   const handleRequestClose = () => {
     if (phase === "recording") {
@@ -181,29 +190,21 @@ export function SwearModal({
     if (phase === "idle") onCancel();
   };
 
+  const match = phase === "reviewing" ? matchSwear(transcript, phrase) : null;
+  const placeholderColor = UnistylesRuntime.getTheme().colors.mutedText;
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
       onRequestClose={handleRequestClose}
+      statusBarTranslucent
     >
       <View style={styles.backdrop}>
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.panelBorder,
-            },
-          ]}
-        >
+        <View style={styles.card}>
           <View style={styles.header}>
-            <Ionicons
-              name="checkmark-circle"
-              size={28}
-              color={theme.colors.primary}
-            />
+            <PrimaryIcon name="checkmark-circle" size={28} />
             <Text variant="h2" color="onSurface">
               Seal the Day
             </Text>
@@ -212,15 +213,7 @@ export function SwearModal({
             </Text>
           </View>
 
-          <View
-            style={[
-              styles.phraseCard,
-              {
-                backgroundColor: theme.colors.panel,
-                borderColor: theme.colors.panelBorder,
-              },
-            ]}
-          >
+          <View style={styles.phraseCard}>
             <Text variant="caption" color="mutedText">
               Say this phrase:
             </Text>
@@ -229,45 +222,57 @@ export function SwearModal({
             </Text>
           </View>
 
-          {phase === "idle" && (
-            <IdleStage onStart={handleStart} busy={preparing} />
-          )}
+          {phase === "idle" && <IdleStage busy={preparing} />}
           {phase === "recording" && <RecordingStage transcript={transcript} />}
           {phase === "reviewing" && (
             <ReviewStage transcript={transcript} match={match} />
           )}
 
-          {/* ── DEV FALLBACK: typed phrase ──────────────────── */}
+          {/* ── DEV FALLBACK: type the phrase ─────────────────── */}
           {__DEV__ && phase === "idle" && (
             <View style={styles.devBlock}>
               <Text variant="caption" color="mutedText">
-                [dev] Or type the phrase to bypass the mic
+                [dev] Or type the full phrase
               </Text>
               <TextInput
-                placeholder="Type the exact phrase"
-                placeholderTextColor={theme.colors.mutedText}
-                style={[
-                  styles.devInput,
-                  {
-                    backgroundColor: theme.colors.panel,
-                    borderColor: theme.colors.panelBorder,
-                    color: theme.colors.onSurface,
-                  },
-                ]}
-                onChangeText={handleDevTyped}
+                value={devTypedText}
+                onChangeText={setDevTypedText}
+                placeholder="Type the exact phrase, then tap Use Phrase"
+                placeholderTextColor={placeholderColor}
+                style={styles.devInput}
                 autoCapitalize="sentences"
+                autoCorrect={false}
+                multiline
+                returnKeyType="done"
+                blurOnSubmit
+                onSubmitEditing={handleCommitDevTyped}
               />
+              <Pressable
+                onPress={handleCommitDevTyped}
+                disabled={devTypedText.trim().length === 0}
+                style={[
+                  styles.devCommit,
+                  devTypedText.trim().length > 0
+                    ? styles.devCommitEnabled
+                    : styles.devCommitDisabled,
+                ]}
+              >
+                <Text
+                  variant="caption"
+                  color={
+                    devTypedText.trim().length > 0 ? "onPrimary" : "mutedText"
+                  }
+                >
+                  Use Phrase
+                </Text>
+              </Pressable>
             </View>
           )}
 
           {error && (
             <View style={styles.errorRow}>
-              <Ionicons
-                name="alert-circle-outline"
-                size={16}
-                color={theme.colors.primary}
-              />
-              <Text variant="caption" color="onSurface" style={{ flex: 1 }}>
+              <PrimaryIcon name="alert-circle-outline" size={16} />
+              <Text variant="caption" color="onSurface" style={styles.flex}>
                 {error}
               </Text>
             </View>
@@ -300,7 +305,7 @@ export function SwearModal({
               </Pressable>
             )}
 
-            <View style={{ flex: 1 }} />
+            <View style={styles.flex} />
 
             {phase === "idle" && (
               <HapticPressable
@@ -309,19 +314,12 @@ export function SwearModal({
                 disabled={preparing}
                 style={[
                   styles.primaryButton,
-                  {
-                    backgroundColor: preparing
-                      ? theme.colors.panelBorder
-                      : theme.colors.primary,
-                  },
+                  preparing ? styles.btnDisabled : styles.btnPrimary,
                 ]}
               >
                 {preparing ? (
                   <>
-                    <ActivityIndicator
-                      size="small"
-                      color={theme.colors.mutedText}
-                    />
+                    <ActivityIndicator size="small" color={placeholderColor} />
                     <Text variant="subheadBold" color="mutedText">
                       Preparing…
                     </Text>
@@ -331,7 +329,7 @@ export function SwearModal({
                     <Ionicons
                       name="mic"
                       size={16}
-                      color={theme.colors.onPrimary}
+                      color={UnistylesRuntime.getTheme().colors.onPrimary}
                     />
                     <Text variant="subheadBold" color="onPrimary">
                       Start
@@ -345,15 +343,12 @@ export function SwearModal({
               <HapticPressable
                 haptic="medium"
                 onPress={handleStop}
-                style={[
-                  styles.primaryButton,
-                  { backgroundColor: theme.colors.primary },
-                ]}
+                style={[styles.primaryButton, styles.btnPrimary]}
               >
                 <Ionicons
                   name="stop"
                   size={16}
-                  color={theme.colors.onPrimary}
+                  color={UnistylesRuntime.getTheme().colors.onPrimary}
                 />
                 <Text variant="subheadBold" color="onPrimary">
                   Stop
@@ -368,20 +363,14 @@ export function SwearModal({
                 disabled={!match?.matched}
                 style={[
                   styles.primaryButton,
-                  {
-                    backgroundColor: match?.matched
-                      ? theme.colors.primary
-                      : theme.colors.panelBorder,
-                  },
+                  match?.matched ? styles.btnPrimary : styles.btnDisabled,
                 ]}
               >
                 <Ionicons
                   name="checkmark"
                   size={16}
-                  color={
-                    match?.matched
-                      ? theme.colors.onPrimary
-                      : theme.colors.mutedText
+                  style={
+                    match?.matched ? styles.iconOnPrimary : styles.iconMuted
                   }
                 />
                 <Text
@@ -399,15 +388,14 @@ export function SwearModal({
   );
 }
 
-function IdleStage({ onStart, busy }: { onStart: () => void; busy: boolean }) {
-  const { theme } = useUnistyles();
+function IdleStage({ busy }: { busy: boolean }) {
   return (
     <View style={styles.stage}>
-      <View style={[styles.micCircle, { backgroundColor: theme.colors.panel }]}>
+      <View style={styles.micCircle}>
         <Ionicons
           name="mic"
           size={36}
-          color={busy ? theme.colors.mutedText : theme.colors.primary}
+          style={busy ? styles.iconMuted : styles.iconPrimary}
         />
       </View>
       <Text variant="caption" color="mutedText" style={styles.stageHint}>
@@ -420,17 +408,10 @@ function IdleStage({ onStart, busy }: { onStart: () => void; busy: boolean }) {
 }
 
 function RecordingStage({ transcript }: { transcript: string }) {
-  const { theme } = useUnistyles();
   return (
     <View style={styles.stage}>
-      <View
-        style={[
-          styles.micCircle,
-          styles.micCircleRecording,
-          { backgroundColor: theme.colors.panel },
-        ]}
-      >
-        <Ionicons name="mic" size={36} color={theme.colors.primary} />
+      <View style={[styles.micCircle, styles.micCircleRecording]}>
+        <PrimaryIcon name="mic" size={36} />
       </View>
       <Text variant="subheadBold" color="onSurface" style={styles.stageHint}>
         Speak now…
@@ -456,20 +437,11 @@ function ReviewStage({
   transcript: string;
   match: ReturnType<typeof matchSwear> | null;
 }) {
-  const { theme } = useUnistyles();
   const isEmpty = transcript.trim().length === 0;
 
   return (
     <View style={styles.stage}>
-      <View
-        style={[
-          styles.transcriptCard,
-          {
-            backgroundColor: theme.colors.panel,
-            borderColor: theme.colors.panelBorder,
-          },
-        ]}
-      >
+      <View style={styles.transcriptCard}>
         <Text variant="caption" color="mutedText">
           This is what we heard:
         </Text>
@@ -483,9 +455,7 @@ function ReviewStage({
           <Ionicons
             name={match.matched ? "checkmark-circle" : "close-circle"}
             size={18}
-            color={
-              match.matched ? theme.colors.primary : theme.colors.mutedText
-            }
+            style={match.matched ? styles.iconPrimary : styles.iconMuted}
           />
           <Text variant="caption" color="mutedText">
             {match.matched
@@ -499,6 +469,7 @@ function ReviewStage({
 }
 
 const styles = StyleSheet.create((theme) => ({
+  flex: { flex: 1 },
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.45)",
@@ -513,16 +484,17 @@ const styles = StyleSheet.create((theme) => ({
     padding: theme.spacing.xl,
     borderRadius: theme.radii.lg,
     borderWidth: theme.borderWidth.thin,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.panelBorder,
   },
-  header: {
-    alignItems: "center",
-    gap: theme.spacing.xs,
-  },
+  header: { alignItems: "center", gap: theme.spacing.xs },
   subtitle: { textAlign: "center" },
   phraseCard: {
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.panelBorder,
     gap: theme.spacing.xs,
   },
   phraseText: { fontStyle: "italic" },
@@ -537,20 +509,20 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: 44,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: theme.colors.panel,
   },
   micCircleRecording: {
     borderWidth: 3,
     borderColor: theme.colors.primary,
   },
-  stageHint: {
-    textAlign: "center",
-    paddingHorizontal: theme.spacing.md,
-  },
+  stageHint: { textAlign: "center", paddingHorizontal: theme.spacing.md },
   transcriptCard: {
     width: "100%",
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.panelBorder,
     gap: theme.spacing.xs,
   },
   matchRow: {
@@ -558,17 +530,28 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: theme.spacing.xs,
   },
-  devBlock: {
-    gap: theme.spacing.xs,
-  },
+  devBlock: { gap: theme.spacing.xs },
   devInput: {
     borderRadius: theme.radii.sm,
     borderWidth: theme.borderWidth.thin,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     fontSize: 15,
+    minHeight: 60,
+    textAlignVertical: "top",
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.panelBorder,
+    color: theme.colors.onSurface,
+  },
+  devCommit: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radii.sm,
     minHeight: 40,
   },
+  devCommitEnabled: { backgroundColor: theme.colors.primary },
+  devCommitDisabled: { backgroundColor: theme.colors.panelBorder },
   errorRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -591,4 +574,9 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.radii.md,
     minHeight: 44,
   },
+  btnPrimary: { backgroundColor: theme.colors.primary },
+  btnDisabled: { backgroundColor: theme.colors.panelBorder },
+  iconPrimary: { color: theme.colors.primary },
+  iconMuted: { color: theme.colors.mutedText },
+  iconOnPrimary: { color: theme.colors.onPrimary },
 }));

@@ -39,13 +39,11 @@ const SCHEME = PROJECT_SLUG;
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-const ICON = "./assets/images/icon.png";
+const ICON = "./assets/images/icon.jpeg";
 
 const ADAPTIVE_ICON = {
   backgroundColor: DEFAULT_PRIMARY_COLOR,
-  backgroundImage: "./assets/images/android-icon-background.png",
-  foregroundImage: "./assets/images/android-icon-foreground.png",
-  monochromeImage: "./assets/images/android-icon-monochrome.png",
+  foregroundImage: ICON,
 };
 
 /**
@@ -149,7 +147,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       supportsTablet: false,
       bundleIdentifier: environment.bundleIdentifier,
 
-      icon: ICON,
+      icon: "./assets/forgeApp.icon",
 
       /**
        * Google services are only included in preview/production.
@@ -231,12 +229,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         "expo-splash-screen",
         {
-          image: "./assets/images/splash-icon.png",
+          image: ICON,
           imageWidth: 76,
           backgroundColor: DEFAULT_LIGHT_BACKGROUND_COLOR,
 
           dark: {
-            image: "./assets/images/splash-icon.png",
+            image: ICON,
             backgroundColor: DEFAULT_DARK_BACKGROUND_COLOR,
           },
         },

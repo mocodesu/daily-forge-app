@@ -1,8 +1,10 @@
 import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
 import { HISTORY_WINDOW_DAYS } from "@/constants/dailyforge";
+import { useTargetDays } from "@/hooks/use-target-days";
 import type { DayProgress } from "@/utils/history";
 import { computeHistory } from "@/utils/history";
+import { calculateStreak } from "@/utils/streak";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useState } from "react";
@@ -12,32 +14,25 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
-/** Content max width mirrored from Screen. */
 const MAX_CONTENT_WIDTH = 640;
-/** Horizontal screen padding mirrored from theme.layout.screenPaddingH. */
 const H_PADDING = 15;
-/** Gap between grid cells. */
 const CELL_GAP = 12;
-/** Minimum cell size in points. */
 const MIN_CELL = 64;
-/** Maximum cell size in points — bigger looks silly on wide screens. */
 const MAX_CELL = 84;
 
 export default function HistoryScreen() {
-  const { theme } = useUnistyles();
   const db = useSQLiteContext();
   const { width } = useWindowDimensions();
+  const { targetDays } = useTargetDays();
 
   const [days, setDays] = useState<DayProgress[]>([]);
+  const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // ── Compute responsive cell size ─────────────────────────
   const available = Math.min(width, MAX_CONTENT_WIDTH) - H_PADDING * 2;
 
-  // Try a range of columns from widest-fits down to smallest-allowed,
-  // and pick the largest cell size that still fits.
   const columns = (() => {
     let best = 3;
     for (let cols = 8; cols >= 3; cols--) {
@@ -60,8 +55,13 @@ export default function HistoryScreen() {
       let cancelled = false;
       (async () => {
         try {
-          const result = await computeHistory(db, HISTORY_WINDOW_DAYS);
-          if (!cancelled) setDays(result);
+          const [result, currentStreak] = await Promise.all([
+            computeHistory(db, HISTORY_WINDOW_DAYS),
+            calculateStreak(db),
+          ]);
+          if (cancelled) return;
+          setDays(result);
+          setStreak(currentStreak);
         } catch (err) {
           console.warn("[history] load failed:", err);
         } finally {
@@ -77,34 +77,34 @@ export default function HistoryScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={theme.colors.primary} size="large" />
+        <ActivityIndicator
+          color={UnistylesRuntime.getTheme().colors.primary}
+          size="large"
+        />
       </View>
     );
   }
 
-  const completeDays = days.filter(
-    (d) => d.total > 0 && d.completed === d.total,
-  ).length;
-  const attemptedDays = days.filter((d) => d.total > 0).length;
+  // ── Context text — adapts to progress ────────────────────
+  const remaining = Math.max(0, targetDays - streak);
+  const statusText =
+    streak === 0
+      ? `Target: ${targetDays} days. Start your streak today.`
+      : streak >= targetDays
+        ? `You've hit your ${targetDays}-day target. Well done.`
+        : `You have ${remaining} day${remaining === 1 ? "" : "s"} to go.`;
 
   return (
     <ScrollScreen>
       <View style={styles.header}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text variant="h1" color="onBackground">
-            History
-          </Text>
-          <Text variant="subhead" color="mutedText">
-            Last {HISTORY_WINDOW_DAYS} days — tap a circle for details
+        <View style={styles.headerLeft}>
+          <Text variant="caption" color="mutedText" numberOfLines={2}>
+            {statusText}
           </Text>
         </View>
-
         <View style={styles.summaryBadge}>
           <Text variant="title" color="onSurface">
-            {completeDays}/{attemptedDays}
-          </Text>
-          <Text variant="caption" color="mutedText">
-            days complete
+            {streak}/{targetDays}
           </Text>
         </View>
       </View>
@@ -139,22 +139,25 @@ function DayCircle({
   size: number;
   onPress: () => void;
 }) {
-  const { theme } = useUnistyles();
-
   const progress = day.total > 0 ? day.completed / day.total : 0;
   const dayNumber = String(day.date.getDate());
   const percent = Math.round(progress * 100);
 
-  const ringColor =
-    day.total === 0 ? theme.colors.panelBorder : theme.colors.primary;
+  const isInactive = day.total === 0;
+  const isComplete = !isInactive && progress >= 1;
 
-  const isComplete = day.total > 0 && progress >= 1;
   const fontSize = Math.round(size * 0.34);
+
+  const textColor = isComplete
+    ? "onPrimary"
+    : isInactive
+      ? "mutedText"
+      : "onSurface";
 
   return (
     <Pressable
       onPress={onPress}
-      disabled={day.total === 0}
+      disabled={isInactive}
       style={[styles.cell, { width: size }]}
     >
       <View
@@ -164,27 +167,29 @@ function DayCircle({
             width: size,
             height: size,
             borderRadius: size / 2,
-            borderColor: ringColor,
             borderWidth: isComplete ? 3 : 2,
-            backgroundColor: isComplete
-              ? theme.colors.primary
-              : theme.colors.surface,
           },
+          isComplete && styles.ringComplete,
+          !isComplete && !isInactive && styles.ringPartial,
+          isInactive && styles.ringInactive,
         ]}
       >
         <Text
           variant="title"
-          color={isComplete ? "onPrimary" : "onSurface"}
+          color={textColor}
           style={{ fontSize, lineHeight: fontSize * 1.15 }}
         >
           {dayNumber}
         </Text>
       </View>
 
-      <Text variant="caption" color="mutedText" numberOfLines={1}>
-        {day.total === 0
-          ? "rest"
-          : `${percent}% · ${day.completed}/${day.total}`}
+      <Text
+        variant="caption"
+        color="mutedText"
+        style={isInactive ? styles.captionInactive : undefined}
+        numberOfLines={1}
+      >
+        {isInactive ? "rest" : `${percent}% · ${day.completed}/${day.total}`}
       </Text>
     </Pressable>
   );
@@ -199,20 +204,25 @@ const styles = StyleSheet.create((theme) => ({
   },
   header: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: theme.spacing.md,
+    minHeight: 40,
+  },
+  headerLeft: {
+    flex: 1,
+    justifyContent: "center",
   },
   summaryBadge: {
     alignItems: "center",
-    gap: 2,
+    justifyContent: "center",
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radii.md,
+    borderRadius: theme.radii.full,
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.panelBorder,
-    minWidth: 72,
+    minHeight: 40,
   },
   grid: {
     flexDirection: "row",
@@ -226,5 +236,21 @@ const styles = StyleSheet.create((theme) => ({
   ring: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  ringComplete: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  ringPartial: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.primary,
+  },
+  ringInactive: {
+    backgroundColor: "transparent",
+    borderColor: theme.colors.panelBorder,
+    opacity: 0.5,
+  },
+  captionInactive: {
+    opacity: 0.5,
   },
 }));

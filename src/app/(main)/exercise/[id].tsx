@@ -1,6 +1,8 @@
 import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
+import { ScreenHeader } from "@/components/screen-header";
 import Text from "@/components/text";
+import { PrimaryIcon } from "@/components/themed";
 import { CompletionsRepo } from "@/repositories/completions-repo";
 import { ExercisesRepo } from "@/repositories/exercises-repo";
 import type { Exercise } from "@/types/dailyforge";
@@ -9,11 +11,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { ActivityIndicator, View } from "react-native";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 export default function ExerciseDetailScreen() {
-  const { theme } = useUnistyles();
   const db = useSQLiteContext();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -56,23 +57,23 @@ export default function ExerciseDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={theme.colors.primary} size="large" />
+        <ActivityIndicator
+          color={UnistylesRuntime.getTheme().colors.primary}
+          size="large"
+        />
       </View>
     );
   }
 
   if (!exercise) {
     return (
-      <View style={styles.loading}>
-        <Text variant="subhead" color="mutedText">
-          Exercise not found.
-        </Text>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text variant="subheadBold" color="primary">
-            Go back
+      <ScrollScreen header={<ScreenHeader />}>
+        <View style={styles.notFound}>
+          <Text variant="subhead" color="mutedText">
+            Exercise not found.
           </Text>
-        </Pressable>
-      </View>
+        </View>
+      </ScrollScreen>
     );
   }
 
@@ -86,14 +87,10 @@ export default function ExerciseDetailScreen() {
   };
 
   return (
-    <ScrollScreen>
+    <ScrollScreen header={<ScreenHeader />}>
       <View style={styles.badgeRow}>
         <View style={styles.typeBadge}>
-          <Ionicons
-            name={isTimer ? "timer-outline" : "repeat"}
-            size={13}
-            color={theme.colors.primary}
-          />
+          <PrimaryIcon name={isTimer ? "timer-outline" : "repeat"} size={13} />
           <Text variant="micro" color="primary">
             {isTimer ? "TIMED" : "REPETITIONS"}
           </Text>
@@ -102,19 +99,13 @@ export default function ExerciseDetailScreen() {
         <View
           style={[
             styles.typeBadge,
-            {
-              borderColor: exercise.isDaily
-                ? theme.colors.primary
-                : theme.colors.mutedText,
-            },
+            exercise.isDaily ? styles.typeBadgeDaily : styles.typeBadgeOneOff,
           ]}
         >
           <Ionicons
             name={exercise.isDaily ? "repeat" : "1-circle-outline"}
             size={13}
-            color={
-              exercise.isDaily ? theme.colors.primary : theme.colors.mutedText
-            }
+            style={exercise.isDaily ? styles.iconPrimary : styles.iconMuted}
           />
           <Text
             variant="micro"
@@ -131,16 +122,7 @@ export default function ExerciseDetailScreen() {
 
       <View style={styles.chipRow}>
         {exercise.bodyParts.map((part) => (
-          <View
-            key={part}
-            style={[
-              styles.chip,
-              {
-                backgroundColor: theme.colors.panel,
-                borderColor: theme.colors.panelBorder,
-              },
-            ]}
-          >
+          <View key={part} style={styles.chip}>
             <Text variant="caption" color="onSurface">
               {part}
             </Text>
@@ -172,18 +154,10 @@ export default function ExerciseDetailScreen() {
         )}
       </View>
 
-      <View
-        style={[
-          styles.sessionCard,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.panelBorder,
-          },
-        ]}
-      >
+      <View style={styles.sessionCard}>
         <View style={styles.sessionLeft}>
-          <Ionicons name="timer" size={22} color={theme.colors.primary} />
-          <View style={{ gap: 2 }}>
+          <PrimaryIcon name="timer" size={22} />
+          <View style={styles.sessionText}>
             <Text variant="caption" color="mutedText">
               Session timer
             </Text>
@@ -192,25 +166,13 @@ export default function ExerciseDetailScreen() {
             </Text>
           </View>
         </View>
-        <Text
-          variant="caption"
-          color="mutedText"
-          style={{ flex: 1, textAlign: "right" }}
-        >
+        <Text variant="caption" color="mutedText" style={styles.sessionNote}>
           Cannot be stopped once started
         </Text>
       </View>
 
       {exercise.notes.trim().length > 0 && (
-        <View
-          style={[
-            styles.notesCard,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.panelBorder,
-            },
-          ]}
-        >
+        <View style={styles.notesCard}>
           <Text variant="caption" color="mutedText">
             Notes
           </Text>
@@ -220,51 +182,30 @@ export default function ExerciseDetailScreen() {
         </View>
       )}
 
-      <View style={{ height: 20 }} />
+      <View style={styles.spacer} />
 
       {completedToday ? (
         <View style={styles.completedRow}>
-          <Ionicons
-            name="checkmark-circle"
-            size={20}
-            color={theme.colors.primary}
-          />
+          <PrimaryIcon name="checkmark-circle" size={20} />
           <Text variant="subheadBold" color="primary">
             Completed today
           </Text>
-          <View style={{ flex: 1 }} />
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Text variant="subheadBold" color="onSurface">
-              Close
-            </Text>
-          </Pressable>
         </View>
       ) : (
-        <>
-          <HapticPressable
-            haptic="medium"
-            onPress={handleStart}
-            style={[
-              styles.startButton,
-              { backgroundColor: theme.colors.primary },
-            ]}
-          >
-            <Ionicons name="play" size={18} color={theme.colors.onPrimary} />
-            <Text variant="subheadBold" color="onPrimary">
-              Start Workout
-            </Text>
-          </HapticPressable>
-
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={12}
-            style={styles.notYet}
-          >
-            <Text variant="subhead" color="mutedText">
-              Not yet
-            </Text>
-          </Pressable>
-        </>
+        <HapticPressable
+          haptic="medium"
+          onPress={handleStart}
+          style={styles.startButton}
+        >
+          <Ionicons
+            name="play"
+            size={18}
+            color={UnistylesRuntime.getTheme().colors.onPrimary}
+          />
+          <Text variant="subheadBold" color="onPrimary">
+            Start Workout
+          </Text>
+        </HapticPressable>
       )}
     </ScrollScreen>
   );
@@ -296,8 +237,8 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: theme.colors.background,
-    gap: theme.spacing.md,
   },
+  notFound: { alignItems: "center", paddingVertical: theme.spacing.huge },
   badgeRow: {
     flexDirection: "row",
     gap: theme.spacing.sm,
@@ -311,8 +252,9 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: 4,
     borderRadius: theme.radii.full,
     borderWidth: theme.borderWidth.thin,
-    borderColor: theme.colors.primary,
   },
+  typeBadgeDaily: { borderColor: theme.colors.primary },
+  typeBadgeOneOff: { borderColor: theme.colors.mutedText },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -323,6 +265,8 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: 5,
     borderRadius: theme.radii.full,
     borderWidth: theme.borderWidth.thin,
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.panelBorder,
   },
   statsRow: {
     flexDirection: "row",
@@ -338,18 +282,27 @@ const styles = StyleSheet.create((theme) => ({
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.panelBorder,
   },
   sessionLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.sm,
   },
+  sessionText: { gap: 2 },
+  sessionNote: { flex: 1, textAlign: "right" },
   notesCard: {
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.panelBorder,
     gap: theme.spacing.xs,
   },
+  spacer: { height: 20 },
+  iconPrimary: { color: theme.colors.primary },
+  iconMuted: { color: theme.colors.mutedText },
   startButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -358,15 +311,12 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: theme.spacing.md,
     borderRadius: theme.radii.md,
     minHeight: 52,
-  },
-  notYet: {
-    alignItems: "center",
-    paddingVertical: theme.spacing.sm,
-    minHeight: 44,
+    backgroundColor: theme.colors.primary,
   },
   completedRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
     minHeight: 44,

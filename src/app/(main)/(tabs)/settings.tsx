@@ -1,7 +1,10 @@
 import { ScrollScreen } from "@/components/screen";
 import { SwearPhraseEditor } from "@/components/swear-phrase-editor";
 import Text from "@/components/text";
+import { MutedIcon, PrimaryIcon } from "@/components/themed";
 import { UnitSystemPicker } from "@/components/unit-system-picker";
+import { TARGET_DAYS_OPTIONS } from "@/constants/dailyforge";
+import { useTargetDays } from "@/hooks/use-target-days";
 import { useThemePreference } from "@/hooks/use-theme-preference";
 import {
   APP_COLOR_SCHEMES,
@@ -11,9 +14,9 @@ import { ThemeMode } from "@/types";
 import { Ionicons } from "@expo/vector-icons";
 import * as Application from "expo-application";
 import { router } from "expo-router";
-import React from "react";
-import { Linking, Pressable, View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import React, { useState } from "react";
+import { Linking, Pressable, TextInput, View } from "react-native";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 const THEME_MODES: {
   key: ThemeMode;
@@ -26,20 +29,26 @@ const THEME_MODES: {
 ];
 
 export default function SettingsScreen() {
-  const { theme } = useUnistyles();
-
   const { schemeId, mode, selectScheme, selectMode } = useThemePreference();
+  const { targetDays, setTargetDays } = useTargetDays();
+
+  const [customText, setCustomText] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
 
   const appVersion = Application.nativeApplicationVersion ?? "—";
   const buildVersion = Application.nativeBuildVersion ?? "—";
 
+  const handleCustomSave = () => {
+    const parsed = parseInt(customText, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      setTargetDays(parsed);
+      setCustomText("");
+      setShowCustom(false);
+    }
+  };
+
   return (
     <ScrollScreen>
-      <Text variant="h2" color="onBackground">
-        Settings
-      </Text>
-
-      {/* ── Appearance ────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Appearance
@@ -110,9 +119,7 @@ export default function SettingsScreen() {
                   <Ionicons
                     name={m.icon}
                     size={22}
-                    color={
-                      selected ? theme.colors.primary : theme.colors.onSurface
-                    }
+                    style={selected ? styles.iconPrimary : styles.iconSurface}
                   />
                   <Text
                     variant="subhead"
@@ -133,7 +140,103 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* ── Units ─────────────────────────────────────── */}
+      <View style={styles.card}>
+        <Text variant="title" color="onSurface">
+          Streak Target
+        </Text>
+
+        <View style={styles.sectionBlock}>
+          <View style={styles.sectionHeader}>
+            <Text variant="subheadBold" color="onSurface">
+              Goal
+            </Text>
+            <Text variant="caption" color="mutedText">
+              How many consecutive days do you want to commit to?
+            </Text>
+          </View>
+
+          <View style={styles.pillRow}>
+            {TARGET_DAYS_OPTIONS.map((n) => {
+              const selected = targetDays === n && !showCustom;
+              return (
+                <Pressable
+                  key={n}
+                  onPress={() => {
+                    setShowCustom(false);
+                    setTargetDays(n);
+                  }}
+                  style={[
+                    styles.pill,
+                    selected ? styles.pillSelected : styles.pillIdle,
+                  ]}
+                >
+                  <Text
+                    variant="subheadBold"
+                    color={selected ? "onPrimary" : "onSurface"}
+                  >
+                    {n}
+                  </Text>
+                </Pressable>
+              );
+            })}
+
+            <Pressable
+              onPress={() => setShowCustom((v) => !v)}
+              style={[
+                styles.pill,
+                showCustom ? styles.pillSelected : styles.pillIdle,
+              ]}
+            >
+              <Text
+                variant="subheadBold"
+                color={showCustom ? "onPrimary" : "onSurface"}
+              >
+                Custom
+              </Text>
+            </Pressable>
+          </View>
+
+          {showCustom && (
+            <View style={styles.customRow}>
+              <TextInput
+                value={customText}
+                onChangeText={(v) => setCustomText(v.replace(/[^0-9]/g, ""))}
+                placeholder={String(targetDays)}
+                placeholderTextColor={
+                  UnistylesRuntime.getTheme().colors.mutedText
+                }
+                keyboardType="number-pad"
+                style={styles.customInput}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleCustomSave}
+              />
+              <Pressable
+                onPress={handleCustomSave}
+                disabled={!customText}
+                style={[
+                  styles.customSave,
+                  customText
+                    ? styles.customSaveEnabled
+                    : styles.customSaveDisabled,
+                ]}
+              >
+                <Text
+                  variant="subheadBold"
+                  color={customText ? "onPrimary" : "mutedText"}
+                >
+                  Save
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          <Text variant="caption" color="mutedText">
+            Current target: {targetDays} days
+          </Text>
+        </View>
+      </View>
+
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Units
@@ -141,7 +244,6 @@ export default function SettingsScreen() {
         <UnitSystemPicker />
       </View>
 
-      {/* ── Swear ─────────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Swear
@@ -149,7 +251,6 @@ export default function SettingsScreen() {
         <SwearPhraseEditor />
       </View>
 
-      {/* ── Data ──────────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           Data
@@ -159,19 +260,10 @@ export default function SettingsScreen() {
           onPress={() => router.push("/(main)/data-management")}
           style={({ pressed }) => [styles.dataRow, pressed && styles.pressed]}
         >
-          <View
-            style={[
-              styles.dataRowIcon,
-              { backgroundColor: theme.colors.panel },
-            ]}
-          >
-            <Ionicons
-              name="server-outline"
-              size={20}
-              color={theme.colors.primary}
-            />
+          <View style={styles.dataRowIcon}>
+            <PrimaryIcon name="server-outline" size={20} />
           </View>
-          <View style={{ flex: 1, gap: 2 }}>
+          <View style={styles.dataRowBody}>
             <Text variant="subheadBold" color="onSurface">
               Manage Data
             </Text>
@@ -179,15 +271,10 @@ export default function SettingsScreen() {
               Export, import, or wipe everything
             </Text>
           </View>
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={theme.colors.mutedText}
-          />
+          <MutedIcon name="chevron-forward" size={18} />
         </Pressable>
       </View>
 
-      {/* ── About ─────────────────────────────────────── */}
       <View style={styles.card}>
         <Text variant="title" color="onSurface">
           About
@@ -228,11 +315,7 @@ export default function SettingsScreen() {
           <Text variant="subhead" color="primary">
             Privacy policy
           </Text>
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color={theme.colors.primary}
-          />
+          <PrimaryIcon name="chevron-forward" size={16} />
         </Pressable>
 
         <Pressable
@@ -243,11 +326,7 @@ export default function SettingsScreen() {
           <Text variant="subhead" color="primary">
             Terms of service
           </Text>
-          <Ionicons
-            name="chevron-forward"
-            size={16}
-            color={theme.colors.primary}
-          />
+          <PrimaryIcon name="chevron-forward" size={16} />
         </Pressable>
       </View>
     </ScrollScreen>
@@ -269,10 +348,7 @@ const styles = StyleSheet.create((theme) => ({
   sectionHeader: { gap: theme.spacing.xxs },
   divider: { height: 1, backgroundColor: theme.colors.panelBorder },
 
-  themeRow: {
-    flexDirection: "row",
-    gap: theme.spacing.sm,
-  },
+  themeRow: { flexDirection: "row", gap: theme.spacing.sm },
   themeOption: {
     flex: 1,
     borderWidth: 2,
@@ -297,6 +373,9 @@ const styles = StyleSheet.create((theme) => ({
   },
   themeRadioDotSelected: { backgroundColor: theme.colors.primary },
 
+  iconPrimary: { color: theme.colors.primary },
+  iconSurface: { color: theme.colors.onSurface },
+
   accentSwatchRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -312,6 +391,58 @@ const styles = StyleSheet.create((theme) => ({
   },
   accentSwatchSelected: { borderColor: theme.colors.onSurface },
 
+  pillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.xs,
+  },
+  pill: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radii.full,
+    borderWidth: theme.borderWidth.thin,
+    minHeight: 40,
+    minWidth: 60,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pillSelected: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  pillIdle: {
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.panelBorder,
+  },
+  customRow: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    alignItems: "center",
+  },
+  customInput: {
+    flex: 1,
+    borderRadius: theme.radii.sm,
+    borderWidth: theme.borderWidth.thin,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    fontSize: 17,
+    minHeight: 44,
+    textAlign: "center",
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.panelBorder,
+    color: theme.colors.onSurface,
+  },
+  customSave: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radii.sm,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  customSaveEnabled: { backgroundColor: theme.colors.primary },
+  customSaveDisabled: { backgroundColor: theme.colors.panelBorder },
+
   dataRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -324,7 +455,9 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: theme.colors.panel,
   },
+  dataRowBody: { flex: 1, gap: 2, minWidth: 0 },
 
   aboutRow: {
     flexDirection: "row",

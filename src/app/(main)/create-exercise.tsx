@@ -1,8 +1,10 @@
+import { BackButton } from "@/components/back-button";
 import { BodyPartChip } from "@/components/body-part-chip";
 import { CatalogPickerSheet } from "@/components/catalog-picker-sheet";
 import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
+import { PrimaryIcon } from "@/components/themed";
 import type { CatalogExercise } from "@/constants/workout-catalog";
 import { ExercisesRepo } from "@/repositories/exercises-repo";
 import {
@@ -23,10 +25,9 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 export default function CreateExerciseScreen() {
-  const { theme } = useUnistyles();
   const db = useSQLiteContext();
 
   const [name, setName] = useState("");
@@ -43,7 +44,13 @@ export default function CreateExerciseScreen() {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** How many exercises have been saved in this session. Shown briefly
+   *  after a "Save & Add Another" so the user sees confirmation. */
+  const [savedCount, setSavedCount] = useState(0);
 
+  const placeholderColor = UnistylesRuntime.getTheme().colors.mutedText;
+
+  // ── Form mutators ────────────────────────────────────────
   function togglePart(part: BodyPart) {
     setSelectedParts((prev) => {
       const next = new Set(prev);
@@ -74,7 +81,23 @@ export default function CreateExerciseScreen() {
     setPickerVisible(false);
   }
 
-  async function handleSave() {
+  /** Clears the form back to defaults. Keeps `isDaily` so bulk entry of
+   *  similar exercises stays fast. Does NOT reset `savedCount`. */
+  function resetForm() {
+    setName("");
+    setSelectedParts(new Set());
+    setExerciseType("reps");
+    setSets("3");
+    setReps("10");
+    setDuration("30");
+    setSessionDuration("60");
+    setNotes("");
+    setConfirmLock(false);
+    setError(null);
+  }
+
+  // ── Save ─────────────────────────────────────────────────
+  async function handleSave(stayOpen: boolean) {
     setError(null);
 
     const trimmed = name.trim();
@@ -125,7 +148,14 @@ export default function CreateExerciseScreen() {
         createdAt: Date.now(),
         sortIndex: Date.now(),
       });
-      router.back();
+
+      if (stayOpen) {
+        setSavedCount((c) => c + 1);
+        resetForm();
+        setSaving(false);
+      } else {
+        router.back();
+      }
     } catch (err) {
       console.error("[create-exercise] save failed:", err);
       setError("Could not save the exercise. Check the console.");
@@ -140,41 +170,34 @@ export default function CreateExerciseScreen() {
       style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View
-        style={[styles.header, { borderBottomColor: theme.colors.panelBorder }]}
-      >
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text variant="subhead" color="mutedText">
-            Cancel
-          </Text>
-        </Pressable>
+      <View style={styles.header}>
+        <BackButton />
         <Text variant="title" color="onBackground">
           New Exercise
         </Text>
-        <View style={{ width: 52 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollScreen safeTop={false}>
+        {savedCount > 0 && (
+          <View style={styles.savedBanner}>
+            <PrimaryIcon name="checkmark-circle" size={18} />
+            <Text variant="caption" color="onSurface" style={styles.flex}>
+              {savedCount} exercise{savedCount === 1 ? "" : "s"} saved this
+              session. Keep going.
+            </Text>
+          </View>
+        )}
+
         <Pressable
           onPress={() => setPickerVisible(true)}
-          style={[
-            styles.quickStartCard,
-            {
-              backgroundColor: theme.colors.panel,
-              borderColor: theme.colors.primary,
-            },
-          ]}
+          style={styles.quickStartCard}
         >
-          <View
-            style={[
-              styles.quickStartIcon,
-              { backgroundColor: theme.colors.primary },
-            ]}
-          >
+          <View style={styles.quickStartIcon}>
             <Ionicons
               name="sparkles"
               size={20}
-              color={theme.colors.onPrimary}
+              color={UnistylesRuntime.getTheme().colors.onPrimary}
             />
           </View>
           <View style={styles.quickStartBody}>
@@ -185,11 +208,7 @@ export default function CreateExerciseScreen() {
               Pick a common home workout to prefill every field below.
             </Text>
           </View>
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={theme.colors.primary}
-          />
+          <PrimaryIcon name="chevron-forward" size={18} />
         </Pressable>
 
         <Field label="Name">
@@ -197,15 +216,8 @@ export default function CreateExerciseScreen() {
             value={name}
             onChangeText={setName}
             placeholder="e.g. Push-ups"
-            placeholderTextColor={theme.colors.mutedText}
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.panelBorder,
-                color: theme.colors.onSurface,
-              },
-            ]}
+            placeholderTextColor={placeholderColor}
+            style={styles.input}
             autoCapitalize="words"
             returnKeyType="done"
           />
@@ -221,22 +233,13 @@ export default function CreateExerciseScreen() {
                   onPress={() => setExerciseType(type)}
                   style={[
                     styles.segment,
-                    {
-                      backgroundColor: active
-                        ? theme.colors.primary
-                        : theme.colors.panel,
-                      borderColor: active
-                        ? theme.colors.primary
-                        : theme.colors.panelBorder,
-                    },
+                    active ? styles.segmentActive : styles.segmentIdle,
                   ]}
                 >
                   <Ionicons
                     name={type === "reps" ? "repeat" : "timer-outline"}
                     size={16}
-                    color={
-                      active ? theme.colors.onPrimary : theme.colors.mutedText
-                    }
+                    style={active ? styles.iconOnPrimary : styles.iconMuted}
                   />
                   <Text
                     variant="subheadBold"
@@ -250,15 +253,7 @@ export default function CreateExerciseScreen() {
           </View>
         </Field>
 
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.panelBorder,
-            },
-          ]}
-        >
+        <View style={styles.card}>
           <View style={styles.row}>
             <View style={styles.rowText}>
               <Text variant="subheadBold" color="onSurface">
@@ -274,10 +269,10 @@ export default function CreateExerciseScreen() {
               value={isDaily}
               onValueChange={setIsDaily}
               trackColor={{
-                false: theme.colors.panelBorder,
-                true: theme.colors.primary,
+                false: UnistylesRuntime.getTheme().colors.panelBorder,
+                true: UnistylesRuntime.getTheme().colors.primary,
               }}
-              thumbColor={theme.colors.surface}
+              thumbColor={UnistylesRuntime.getTheme().colors.surface}
             />
           </View>
         </View>
@@ -318,15 +313,7 @@ export default function CreateExerciseScreen() {
           </Field>
         )}
 
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.panelBorder,
-            },
-          ]}
-        >
+        <View style={styles.card}>
           <View style={styles.row}>
             <View style={styles.rowText}>
               <Text variant="subheadBold" color="onSurface">
@@ -365,16 +352,8 @@ export default function CreateExerciseScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder="Form cues, reminders…"
-            placeholderTextColor={theme.colors.mutedText}
-            style={[
-              styles.input,
-              styles.textArea,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.panelBorder,
-                color: theme.colors.onSurface,
-              },
-            ]}
+            placeholderTextColor={placeholderColor}
+            style={[styles.input, styles.textArea]}
             multiline
             numberOfLines={3}
           />
@@ -387,61 +366,73 @@ export default function CreateExerciseScreen() {
           <View
             style={[
               styles.checkbox,
-              {
-                backgroundColor: confirmLock
-                  ? theme.colors.primary
-                  : "transparent",
-                borderColor: confirmLock
-                  ? theme.colors.primary
-                  : theme.colors.panelBorder,
-              },
+              confirmLock ? styles.checkboxOn : styles.checkboxOff,
             ]}
           >
             {confirmLock && (
               <Ionicons
                 name="checkmark"
                 size={14}
-                color={theme.colors.onPrimary}
+                color={UnistylesRuntime.getTheme().colors.onPrimary}
               />
             )}
           </View>
-          <Text variant="callout" color="onSurface" style={{ flex: 1 }}>
+          <Text variant="callout" color="onSurface" style={styles.flex}>
             I understand this exercise is permanent and cannot be changed.
           </Text>
         </Pressable>
 
         {error && (
-          <View
-            style={[styles.errorBox, { backgroundColor: theme.colors.panel }]}
-          >
-            <Ionicons
-              name="alert-circle-outline"
-              size={18}
-              color={theme.colors.primary}
-            />
-            <Text variant="subhead" color="onSurface" style={{ flex: 1 }}>
+          <View style={styles.errorBox}>
+            <PrimaryIcon name="alert-circle-outline" size={18} />
+            <Text variant="subhead" color="onSurface" style={styles.flex}>
               {error}
             </Text>
           </View>
         )}
 
-        <HapticPressable
-          haptic="medium"
-          onPress={handleSave}
-          disabled={!canSave}
-          style={[
-            styles.saveButton,
-            {
-              backgroundColor: canSave
-                ? theme.colors.primary
-                : theme.colors.panelBorder,
-            },
-          ]}
-        >
-          <Text variant="subheadBold" color="onPrimary">
-            {saving ? "Saving…" : "Save Exercise"}
-          </Text>
-        </HapticPressable>
+        {/* ── ACTIONS ───────────────────────────────────── */}
+        <View style={styles.actionsRow}>
+          <HapticPressable
+            haptic="light"
+            onPress={() => handleSave(true)}
+            disabled={!canSave}
+            style={[
+              styles.saveButton,
+              styles.saveSecondary,
+              !canSave && styles.saveDisabled,
+            ]}
+          >
+            <Ionicons
+              name="add-circle-outline"
+              size={18}
+              style={canSave ? styles.iconPrimary : styles.iconMuted}
+            />
+            <Text
+              variant="subheadBold"
+              color={canSave ? "primary" : "mutedText"}
+            >
+              Save & Add Another
+            </Text>
+          </HapticPressable>
+
+          <HapticPressable
+            haptic="medium"
+            onPress={() => handleSave(false)}
+            disabled={!canSave}
+            style={[
+              styles.saveButton,
+              canSave ? styles.savePrimary : styles.saveDisabled,
+            ]}
+          >
+            <Text
+              variant="subheadBold"
+              color={canSave ? "onPrimary" : "mutedText"}
+            >
+              {saving && !canSave ? "Saving…" : "Save Exercise"}
+            </Text>
+          </HapticPressable>
+        </View>
       </ScrollScreen>
 
       <CatalogPickerSheet
@@ -452,6 +443,10 @@ export default function CreateExerciseScreen() {
     </KeyboardAvoidingView>
   );
 }
+
+// ─────────────────────────────────────────────────────────────
+// Sub-components
+// ─────────────────────────────────────────────────────────────
 
 function Field({
   label,
@@ -479,22 +474,13 @@ function NumberInput({
   onChange: (v: string) => void;
   width?: number;
 }) {
-  const { theme } = useUnistyles();
   return (
     <TextInput
       value={value}
       onChangeText={(v) => onChange(v.replace(/[^0-9]/g, ""))}
       keyboardType="number-pad"
-      style={[
-        styles.input,
-        {
-          width,
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.panelBorder,
-          color: theme.colors.onSurface,
-          textAlign: width ? "right" : "left",
-        },
-      ]}
+      style={[styles.input, { width, textAlign: width ? "right" : "left" }]}
+      placeholderTextColor={UnistylesRuntime.getTheme().colors.mutedText}
       returnKeyType="done"
     />
   );
@@ -507,18 +493,8 @@ function QuickButton({
   label: string;
   onPress: () => void;
 }) {
-  const { theme } = useUnistyles();
   return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.quickButton,
-        {
-          backgroundColor: theme.colors.panel,
-          borderColor: theme.colors.panelBorder,
-        },
-      ]}
-    >
+    <Pressable onPress={onPress} style={styles.quickButton}>
       <Text variant="caption" color="onSurface">
         {label}
       </Text>
@@ -526,11 +502,16 @@ function QuickButton({
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create((theme, rt) => ({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  flex: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -539,7 +520,10 @@ const styles = StyleSheet.create((theme, rt) => ({
     paddingTop: rt.insets.top + theme.spacing.md,
     paddingBottom: theme.spacing.md,
     borderBottomWidth: theme.borderWidth.hairline,
+    borderBottomColor: theme.colors.panelBorder,
   },
+  headerSpacer: { width: 40 },
+
   field: { gap: theme.spacing.xs },
   input: {
     borderRadius: theme.radii.sm,
@@ -548,12 +532,28 @@ const styles = StyleSheet.create((theme, rt) => ({
     paddingVertical: theme.spacing.sm,
     fontSize: 17,
     minHeight: 44,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.panelBorder,
+    color: theme.colors.onSurface,
   },
   textArea: {
     minHeight: 80,
     paddingTop: theme.spacing.sm,
     textAlignVertical: "top",
   },
+
+  savedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.radii.md,
+    backgroundColor: theme.colors.panel,
+    borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.primary,
+  },
+
   segmented: { flexDirection: "row", gap: theme.spacing.sm },
   segment: {
     flex: 1,
@@ -566,23 +566,30 @@ const styles = StyleSheet.create((theme, rt) => ({
     borderWidth: theme.borderWidth.thin,
     minHeight: 44,
   },
+  segmentActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  segmentIdle: {
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.panelBorder,
+  },
+  iconOnPrimary: { color: theme.colors.onPrimary },
+  iconMuted: { color: theme.colors.mutedText },
+  iconPrimary: { color: theme.colors.primary },
+
   card: {
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.panelBorder,
     gap: theme.spacing.sm,
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing.md,
-  },
+  row: { flexDirection: "row", alignItems: "center", gap: theme.spacing.md },
   rowText: { flex: 1, gap: 2 },
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing.xs,
-  },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.xs },
+
   quickRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -596,7 +603,10 @@ const styles = StyleSheet.create((theme, rt) => ({
     borderWidth: theme.borderWidth.thin,
     minHeight: 36,
     justifyContent: "center",
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.panelBorder,
   },
+
   confirmRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -611,20 +621,49 @@ const styles = StyleSheet.create((theme, rt) => ({
     alignItems: "center",
     justifyContent: "center",
   },
+  checkboxOn: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  checkboxOff: {
+    backgroundColor: "transparent",
+    borderColor: theme.colors.panelBorder,
+  },
+
   errorBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.sm,
     padding: theme.spacing.md,
     borderRadius: theme.radii.sm,
+    backgroundColor: theme.colors.panel,
+  },
+
+  actionsRow: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
   },
   saveButton: {
-    paddingVertical: theme.spacing.md,
-    borderRadius: theme.radii.md,
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.radii.md,
     minHeight: 52,
   },
+  savePrimary: { backgroundColor: theme.colors.primary },
+  saveSecondary: {
+    backgroundColor: "transparent",
+    borderWidth: theme.borderWidth.thick,
+    borderColor: theme.colors.primary,
+  },
+  saveDisabled: {
+    backgroundColor: theme.colors.panelBorder,
+    borderColor: theme.colors.panelBorder,
+  },
+
   quickStartCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -633,6 +672,8 @@ const styles = StyleSheet.create((theme, rt) => ({
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
     minHeight: 68,
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.primary,
   },
   quickStartIcon: {
     width: 40,
@@ -640,6 +681,7 @@ const styles = StyleSheet.create((theme, rt) => ({
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: theme.colors.primary,
   },
   quickStartBody: { flex: 1, gap: 2, minWidth: 0 },
 }));

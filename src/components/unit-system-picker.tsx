@@ -3,7 +3,7 @@ import { useUnitSystem, type UnitSystem } from "@/hooks/use-unit-system";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 
 const OPTIONS: {
   key: UnitSystem;
@@ -11,12 +11,7 @@ const OPTIONS: {
   detail: string;
   icon: keyof typeof Ionicons.glyphMap;
 }[] = [
-  {
-    key: "metric",
-    label: "Metric",
-    detail: "kg · cm",
-    icon: "globe-outline",
-  },
+  { key: "metric", label: "Metric", detail: "kg · cm", icon: "globe-outline" },
   {
     key: "imperial",
     label: "Imperial",
@@ -26,7 +21,6 @@ const OPTIONS: {
 ];
 
 export function UnitSystemPicker() {
-  const { theme } = useUnistyles();
   const { system, setSystem } = useUnitSystem();
 
   return (
@@ -49,22 +43,15 @@ export function UnitSystemPicker() {
               onPress={() => setSystem(opt.key)}
               style={[
                 styles.option,
-                {
-                  borderColor: selected
-                    ? theme.colors.primary
-                    : theme.colors.panelBorder,
-                  backgroundColor: selected
-                    ? theme.colors.panel
-                    : "transparent",
-                },
+                selected ? styles.optionSelected : styles.optionIdle,
               ]}
             >
               <Ionicons
                 name={opt.icon}
                 size={20}
-                color={selected ? theme.colors.primary : theme.colors.mutedText}
+                style={selected ? styles.iconSelected : styles.iconIdle}
               />
-              <View style={{ gap: 2 }}>
+              <View style={styles.optionText}>
                 <Text
                   variant="subheadBold"
                   color={selected ? "primary" : "onSurface"}
@@ -84,16 +71,9 @@ export function UnitSystemPicker() {
 }
 
 const styles = StyleSheet.create((theme) => ({
-  container: {
-    gap: theme.spacing.sm,
-  },
-  header: {
-    gap: theme.spacing.xxs,
-  },
-  row: {
-    flexDirection: "row",
-    gap: theme.spacing.sm,
-  },
+  container: { gap: theme.spacing.sm },
+  header: { gap: theme.spacing.xxs },
+  row: { flexDirection: "row", gap: theme.spacing.sm },
   option: {
     flex: 1,
     flexDirection: "row",
@@ -103,4 +83,15 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
   },
+  optionSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.panel,
+  },
+  optionIdle: {
+    borderColor: theme.colors.panelBorder,
+    backgroundColor: "transparent",
+  },
+  iconSelected: { color: theme.colors.primary },
+  iconIdle: { color: theme.colors.mutedText },
+  optionText: { gap: 2 },
 }));

@@ -1,6 +1,7 @@
 import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
+import { PrimaryIcon } from "@/components/themed";
 import { UnitSystemPicker } from "@/components/unit-system-picker";
 import { useUnitSystem } from "@/hooks/use-unit-system";
 import { UserProfileRepo } from "@/repositories/user-profile-repo";
@@ -17,12 +18,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 const TOTAL_STEPS = 6;
 
 export default function OnboardingScreen() {
-  const { theme, rt } = useUnistyles();
   const db = useSQLiteContext();
   const { system, displayToKg } = useUnitSystem();
 
@@ -150,26 +150,20 @@ export default function OnboardingScreen() {
     if (step > 0) setStep(step - 1);
   }, [step]);
 
+  const placeholderColor = UnistylesRuntime.getTheme().colors.mutedText;
+
   return (
     <KeyboardAvoidingView
       style={styles.screen}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View
-        style={[
-          styles.progressRow,
-          { paddingTop: rt.insets.top + theme.spacing.md },
-        ]}
-      >
+      <View style={styles.progressRow}>
         {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
           <View
             key={i}
             style={[
               styles.progressDot,
-              {
-                backgroundColor:
-                  i <= step ? theme.colors.primary : theme.colors.panelBorder,
-              },
+              i <= step ? styles.progressDotActive : styles.progressDotIdle,
             ]}
           />
         ))}
@@ -189,6 +183,7 @@ export default function OnboardingScreen() {
               onCmChange={setHeightCmText}
               onFeetChange={setHeightFeetText}
               onInchesChange={setHeightInchesText}
+              placeholderColor={placeholderColor}
             />
           )}
           {step === 4 && (
@@ -198,6 +193,7 @@ export default function OnboardingScreen() {
               goal={goalText}
               onWeightChange={setWeightText}
               onGoalChange={setGoalText}
+              placeholderColor={placeholderColor}
             />
           )}
           {step === 5 && (
@@ -209,12 +205,8 @@ export default function OnboardingScreen() {
 
           {error && (
             <View style={styles.errorBox}>
-              <Ionicons
-                name="alert-circle-outline"
-                size={16}
-                color={theme.colors.primary}
-              />
-              <Text variant="caption" color="primary" style={{ flex: 1 }}>
+              <PrimaryIcon name="alert-circle-outline" size={16} />
+              <Text variant="caption" color="primary" style={styles.flex}>
                 {error}
               </Text>
             </View>
@@ -222,12 +214,7 @@ export default function OnboardingScreen() {
         </View>
       </ScrollScreen>
 
-      <View
-        style={[
-          styles.footer,
-          { paddingBottom: rt.insets.bottom + theme.spacing.lg },
-        ]}
-      >
+      <View style={styles.footer}>
         {step > 0 && (
           <Pressable
             onPress={handleBack}
@@ -239,19 +226,14 @@ export default function OnboardingScreen() {
             </Text>
           </Pressable>
         )}
-        <View style={{ flex: 1 }} />
+        <View style={styles.flex} />
         <HapticPressable
           haptic="medium"
           onPress={handleNext}
           disabled={!canContinue || saving}
           style={[
             styles.nextButton,
-            {
-              backgroundColor:
-                canContinue && !saving
-                  ? theme.colors.primary
-                  : theme.colors.panelBorder,
-            },
+            canContinue && !saving ? styles.nextEnabled : styles.nextDisabled,
           ]}
         >
           <Text
@@ -264,13 +246,11 @@ export default function OnboardingScreen() {
                 : "Finish"
               : "Continue"}
           </Text>
-          {step < TOTAL_STEPS - 1 && (
+          {step < TOTAL_STEPS - 1 && canContinue && (
             <Ionicons
               name="arrow-forward"
               size={16}
-              color={
-                canContinue ? theme.colors.onPrimary : theme.colors.mutedText
-              }
+              color={UnistylesRuntime.getTheme().colors.onPrimary}
             />
           )}
         </HapticPressable>
@@ -280,10 +260,9 @@ export default function OnboardingScreen() {
 }
 
 function WelcomeStep() {
-  const { theme } = useUnistyles();
   return (
     <View style={styles.step}>
-      <Ionicons name="flame" size={72} color={theme.colors.primary} />
+      <PrimaryIcon name="flame" size={72} />
       <Text variant="h1" color="onBackground" style={styles.stepTitle}>
         Welcome to DailyForge
       </Text>
@@ -304,7 +283,6 @@ function NameStep({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const { theme } = useUnistyles();
   return (
     <View style={styles.step}>
       <Text variant="h2" color="onBackground" style={styles.stepTitle}>
@@ -314,18 +292,11 @@ function NameStep({
         value={value}
         onChangeText={onChange}
         placeholder="Your name"
-        placeholderTextColor={theme.colors.mutedText}
+        placeholderTextColor={UnistylesRuntime.getTheme().colors.mutedText}
         autoFocus
         autoCapitalize="words"
         returnKeyType="done"
-        style={[
-          styles.input,
-          {
-            color: theme.colors.onSurface,
-            borderColor: theme.colors.panelBorder,
-            backgroundColor: theme.colors.panel,
-          },
-        ]}
+        style={styles.input}
       />
     </View>
   );
@@ -340,7 +311,7 @@ function UnitsStep() {
       <Text variant="callout" color="mutedText" style={styles.stepBody}>
         You can change this later in Settings.
       </Text>
-      <View style={{ width: "100%" }}>
+      <View style={styles.fullWidth}>
         <UnitSystemPicker />
       </View>
     </View>
@@ -355,6 +326,7 @@ function HeightStep({
   onCmChange,
   onFeetChange,
   onInchesChange,
+  placeholderColor,
 }: {
   system: "metric" | "imperial";
   cm: string;
@@ -363,17 +335,8 @@ function HeightStep({
   onCmChange: (v: string) => void;
   onFeetChange: (v: string) => void;
   onInchesChange: (v: string) => void;
+  placeholderColor: string;
 }) {
-  const { theme } = useUnistyles();
-  const inputStyle = [
-    styles.input,
-    {
-      color: theme.colors.onSurface,
-      borderColor: theme.colors.panelBorder,
-      backgroundColor: theme.colors.panel,
-    },
-  ];
-
   return (
     <View style={styles.step}>
       <Text variant="h2" color="onBackground" style={styles.stepTitle}>
@@ -385,10 +348,10 @@ function HeightStep({
           value={cm}
           onChangeText={(v) => onCmChange(v.replace(/[^0-9.]/g, ""))}
           placeholder="Height in cm (e.g. 175)"
-          placeholderTextColor={theme.colors.mutedText}
+          placeholderTextColor={placeholderColor}
           keyboardType="decimal-pad"
           autoFocus
-          style={inputStyle}
+          style={styles.input}
         />
       ) : (
         <View style={styles.twoCol}>
@@ -396,18 +359,18 @@ function HeightStep({
             value={feet}
             onChangeText={(v) => onFeetChange(v.replace(/[^0-9]/g, ""))}
             placeholder="ft"
-            placeholderTextColor={theme.colors.mutedText}
+            placeholderTextColor={placeholderColor}
             keyboardType="number-pad"
             autoFocus
-            style={[inputStyle, { flex: 1 }]}
+            style={[styles.input, styles.flex]}
           />
           <TextInput
             value={inches}
             onChangeText={(v) => onInchesChange(v.replace(/[^0-9.]/g, ""))}
             placeholder="in"
-            placeholderTextColor={theme.colors.mutedText}
+            placeholderTextColor={placeholderColor}
             keyboardType="decimal-pad"
-            style={[inputStyle, { flex: 1 }]}
+            style={[styles.input, styles.flex]}
           />
         </View>
       )}
@@ -427,30 +390,22 @@ function WeightStep({
   goal,
   onWeightChange,
   onGoalChange,
+  placeholderColor,
 }: {
   unit: string;
   weight: string;
   goal: string;
   onWeightChange: (v: string) => void;
   onGoalChange: (v: string) => void;
+  placeholderColor: string;
 }) {
-  const { theme } = useUnistyles();
-  const inputStyle = [
-    styles.input,
-    {
-      color: theme.colors.onSurface,
-      borderColor: theme.colors.panelBorder,
-      backgroundColor: theme.colors.panel,
-    },
-  ];
-
   return (
     <View style={styles.step}>
       <Text variant="h2" color="onBackground" style={styles.stepTitle}>
         Your weight
       </Text>
 
-      <View style={{ width: "100%", gap: 12 }}>
+      <View style={styles.weightStack}>
         <View>
           <Text variant="caption" color="mutedText" style={styles.fieldLabel}>
             Starting weight ({unit})
@@ -459,10 +414,10 @@ function WeightStep({
             value={weight}
             onChangeText={(v) => onWeightChange(v.replace(/[^0-9.]/g, ""))}
             placeholder={`e.g. ${unit === "kg" ? "75" : "165"}`}
-            placeholderTextColor={theme.colors.mutedText}
+            placeholderTextColor={placeholderColor}
             keyboardType="decimal-pad"
             autoFocus
-            style={inputStyle}
+            style={styles.input}
           />
         </View>
 
@@ -474,9 +429,9 @@ function WeightStep({
             value={goal}
             onChangeText={(v) => onGoalChange(v.replace(/[^0-9.]/g, ""))}
             placeholder={`e.g. ${unit === "kg" ? "70" : "155"}`}
-            placeholderTextColor={theme.colors.mutedText}
+            placeholderTextColor={placeholderColor}
             keyboardType="decimal-pad"
-            style={inputStyle}
+            style={styles.input}
           />
         </View>
       </View>
@@ -495,14 +450,9 @@ function NotificationsStep({
   status: "idle" | "granted" | "denied";
   onRequest: () => void;
 }) {
-  const { theme } = useUnistyles();
-
   const cta =
     status === "granted"
-      ? {
-          icon: "checkmark-circle" as const,
-          text: "Notifications are on.",
-        }
+      ? { icon: "checkmark-circle" as const, text: "Notifications are on." }
       : status === "denied"
         ? {
             icon: "notifications-off-outline" as const,
@@ -515,7 +465,7 @@ function NotificationsStep({
 
   return (
     <View style={styles.step}>
-      <Ionicons name="notifications" size={56} color={theme.colors.primary} />
+      <PrimaryIcon name="notifications" size={56} />
       <Text variant="h2" color="onBackground" style={styles.stepTitle}>
         Stay on track
       </Text>
@@ -531,20 +481,21 @@ function NotificationsStep({
         <HapticPressable
           haptic="medium"
           onPress={onRequest}
-          style={[
-            styles.notifButton,
-            { backgroundColor: theme.colors.primary },
-          ]}
+          style={styles.notifButton}
         >
-          <Ionicons name={cta.icon} size={18} color={theme.colors.onPrimary} />
+          <Ionicons
+            name={cta.icon}
+            size={18}
+            color={UnistylesRuntime.getTheme().colors.onPrimary}
+          />
           <Text variant="subheadBold" color="onPrimary">
             {cta.text}
           </Text>
         </HapticPressable>
       ) : (
         <View style={styles.notifStatusRow}>
-          <Ionicons name={cta.icon} size={20} color={theme.colors.primary} />
-          <Text variant="subhead" color="onSurface" style={{ flex: 1 }}>
+          <PrimaryIcon name={cta.icon} size={20} />
+          <Text variant="subhead" color="onSurface" style={styles.flex}>
             {cta.text}
           </Text>
         </View>
@@ -559,44 +510,34 @@ function NotificationsStep({
   );
 }
 
-const styles = StyleSheet.create((theme) => ({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
+const styles = StyleSheet.create((theme, rt) => ({
+  screen: { flex: 1, backgroundColor: theme.colors.background },
+  flex: { flex: 1 },
+  fullWidth: { width: "100%" },
   progressRow: {
     flexDirection: "row",
     gap: 6,
     paddingHorizontal: theme.layout.screenPaddingH,
+    paddingTop: rt.insets.top + theme.spacing.md,
     paddingBottom: theme.spacing.md,
   },
-  progressDot: {
-    flex: 1,
-    height: 3,
-    borderRadius: 2,
-  },
-  stepWrapper: {
-    gap: theme.spacing.lg,
-    alignItems: "center",
-  },
+  progressDot: { flex: 1, height: 3, borderRadius: 2 },
+  progressDotActive: { backgroundColor: theme.colors.primary },
+  progressDotIdle: { backgroundColor: theme.colors.panelBorder },
+  stepWrapper: { gap: theme.spacing.lg, alignItems: "center" },
   step: {
     alignItems: "center",
     gap: theme.spacing.md,
     paddingVertical: theme.spacing.lg,
     width: "100%",
   },
-  stepTitle: {
-    textAlign: "center",
-    marginTop: theme.spacing.sm,
-  },
+  stepTitle: { textAlign: "center", marginTop: theme.spacing.sm },
   stepBody: {
     textAlign: "center",
     paddingHorizontal: theme.spacing.md,
     maxWidth: 380,
   },
-  fieldLabel: {
-    marginBottom: 4,
-  },
+  fieldLabel: { marginBottom: 4 },
   input: {
     width: "100%",
     borderRadius: theme.radii.md,
@@ -606,12 +547,16 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: 17,
     minHeight: 52,
     textAlign: "center",
+    color: theme.colors.onSurface,
+    borderColor: theme.colors.panelBorder,
+    backgroundColor: theme.colors.panel,
   },
   twoCol: {
     flexDirection: "row",
     gap: theme.spacing.md,
     width: "100%",
   },
+  weightStack: { width: "100%", gap: 12 },
   notifButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -623,6 +568,7 @@ const styles = StyleSheet.create((theme) => ({
     minHeight: 52,
     minWidth: 240,
     marginTop: theme.spacing.sm,
+    backgroundColor: theme.colors.primary,
   },
   notifStatusRow: {
     flexDirection: "row",
@@ -650,6 +596,7 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing.md,
     paddingHorizontal: theme.layout.screenPaddingH,
     paddingTop: theme.spacing.md,
+    paddingBottom: rt.insets.bottom + theme.spacing.lg,
     borderTopWidth: theme.borderWidth.hairline,
     borderTopColor: theme.colors.panelBorder,
   },
@@ -669,4 +616,6 @@ const styles = StyleSheet.create((theme) => ({
     minHeight: 52,
     minWidth: 140,
   },
+  nextEnabled: { backgroundColor: theme.colors.primary },
+  nextDisabled: { backgroundColor: theme.colors.panelBorder },
 }));

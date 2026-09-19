@@ -1,5 +1,6 @@
 import { HapticPressable } from "@/components/haptic-pressable";
 import Text from "@/components/text";
+import { PrimaryIcon } from "@/components/themed";
 import { CompletionsRepo } from "@/repositories/completions-repo";
 import { ExercisesRepo } from "@/repositories/exercises-repo";
 import type { Exercise } from "@/types/dailyforge";
@@ -8,14 +9,14 @@ import { trackUserActivity } from "@/utils/retention-reminder";
 import { playSound } from "@/utils/sounds";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams, usePreventRemove } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { usePreventRemove } from "expo-router/build/react-navigation";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 export default function SessionScreen() {
-  const { theme, rt } = useUnistyles();
   const db = useSQLiteContext();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -130,37 +131,28 @@ export default function SessionScreen() {
   if (loading || !exercise) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={theme.colors.primary} size="large" />
+        <ActivityIndicator
+          color={UnistylesRuntime.getTheme().colors.primary}
+          size="large"
+        />
       </View>
     );
   }
 
   const total = Math.max(exercise.sessionDurationSeconds, 1);
   const progress = 1 - remaining / total;
+  const isTimer = exercise.exerciseType === "timer";
 
   return (
-    <View
-      style={[
-        styles.screen,
-        {
-          paddingTop: rt.insets.top + theme.spacing.huge,
-          paddingBottom: rt.insets.bottom + theme.spacing.huge,
-        },
-      ]}
-    >
+    <View style={styles.screen}>
       <View style={styles.titleBlock}>
         <View style={styles.eyebrow}>
-          <Ionicons
-            name={
-              exercise.exerciseType === "timer"
-                ? "timer-outline"
-                : "barbell-outline"
-            }
+          <PrimaryIcon
+            name={isTimer ? "timer-outline" : "barbell-outline"}
             size={16}
-            color={theme.colors.primary}
           />
           <Text variant="micro" color="primary">
-            {exercise.exerciseType === "timer" ? "HOLD" : "WORKOUT"}
+            {isTimer ? "HOLD" : "WORKOUT"}
           </Text>
         </View>
         <Text variant="h1" color="onBackground" style={styles.name}>
@@ -179,22 +171,16 @@ export default function SessionScreen() {
         <Text variant="subhead" color="mutedText">
           {finished ? "Complete!" : "remaining"}
         </Text>
-        <View style={[styles.track, { backgroundColor: theme.colors.panel }]}>
+        <View style={styles.track}>
           <View
-            style={[
-              styles.fill,
-              {
-                width: `${Math.round(progress * 100)}%`,
-                backgroundColor: theme.colors.primary,
-              },
-            ]}
+            style={[styles.fill, { width: `${Math.round(progress * 100)}%` }]}
           />
         </View>
       </View>
 
       <View style={styles.setsBlock}>
         <Text variant="callout" color="mutedText">
-          {exercise.exerciseType === "timer"
+          {isTimer
             ? `${exercise.sets} sets × ${formatDuration(
                 exercise.durationSeconds,
               )} hold`
@@ -208,12 +194,12 @@ export default function SessionScreen() {
             haptic="medium"
             onPress={handleMarkDone}
             disabled={saving}
-            style={[styles.markDone, { backgroundColor: theme.colors.primary }]}
+            style={styles.markDone}
           >
             <Ionicons
               name="checkmark-circle"
               size={20}
-              color={theme.colors.onPrimary}
+              color={UnistylesRuntime.getTheme().colors.onPrimary}
             />
             <Text variant="subheadBold" color="onPrimary">
               {saving ? "Saving…" : "Mark Done"}
@@ -221,11 +207,7 @@ export default function SessionScreen() {
           </HapticPressable>
         ) : (
           <View style={styles.lockedNotice}>
-            <Ionicons
-              name="lock-closed"
-              size={14}
-              color={theme.colors.mutedText}
-            />
+            <Ionicons name="lock-closed" size={14} style={styles.iconMuted} />
             <Text variant="caption" color="mutedText">
               This timer cannot be stopped.
             </Text>
@@ -261,11 +243,13 @@ function formatDuration(seconds: number): string {
   return s === 0 ? `${m}m` : `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-const styles = StyleSheet.create((theme) => ({
+const styles = StyleSheet.create((theme, rt) => ({
   screen: {
     flex: 1,
     backgroundColor: theme.colors.background,
     paddingHorizontal: theme.layout.screenPaddingH,
+    paddingTop: rt.insets.top + theme.spacing.huge,
+    paddingBottom: rt.insets.bottom + theme.spacing.huge,
     alignItems: "center",
     justifyContent: "space-between",
   },
@@ -275,15 +259,8 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     backgroundColor: theme.colors.background,
   },
-  titleBlock: {
-    alignItems: "center",
-    gap: theme.spacing.xs,
-  },
-  eyebrow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
+  titleBlock: { alignItems: "center", gap: theme.spacing.xs },
+  eyebrow: { flexDirection: "row", alignItems: "center", gap: 6 },
   name: { textAlign: "center" },
   countdownBlock: {
     alignItems: "center",
@@ -302,14 +279,20 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: 4,
     overflow: "hidden",
     marginTop: theme.spacing.md,
+    backgroundColor: theme.colors.panel,
   },
-  fill: { height: "100%", borderRadius: 4 },
+  fill: {
+    height: "100%",
+    borderRadius: 4,
+    backgroundColor: theme.colors.primary,
+  },
   setsBlock: { alignItems: "center" },
   actions: {
     alignItems: "center",
     gap: theme.spacing.md,
     width: "100%",
   },
+  iconMuted: { color: theme.colors.mutedText },
   markDone: {
     flexDirection: "row",
     alignItems: "center",
@@ -320,6 +303,7 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.radii.md,
     minHeight: 56,
     minWidth: 240,
+    backgroundColor: theme.colors.primary,
   },
   lockedNotice: {
     flexDirection: "row",

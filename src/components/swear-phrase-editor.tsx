@@ -1,25 +1,23 @@
 import { HapticPressable } from "@/components/haptic-pressable";
 import Text from "@/components/text";
+import { PrimaryIcon } from "@/components/themed";
 import {
   DEFAULT_SWEAR_PHRASE,
   SWEAR_PHRASE_MAX_WORDS,
   SWEAR_PHRASE_MIN_WORDS,
 } from "@/constants/swear";
 import { useSwearPhrase } from "@/hooks/use-swear-phrase";
-import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { Pressable, TextInput, View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 export function SwearPhraseEditor() {
-  const { theme } = useUnistyles();
   const { phrase, setPhrase, loading } = useSwearPhrase();
 
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  // Sync draft when the stored phrase loads.
   useEffect(() => {
     if (!loading) setDraft(phrase);
   }, [loading, phrase]);
@@ -75,17 +73,8 @@ export function SwearPhraseEditor() {
         multiline
         numberOfLines={3}
         placeholder="Type your oath…"
-        placeholderTextColor={theme.colors.mutedText}
-        style={[
-          styles.input,
-          {
-            color: theme.colors.onSurface,
-            borderColor: error
-              ? theme.colors.primary
-              : theme.colors.panelBorder,
-            backgroundColor: theme.colors.panel,
-          },
-        ]}
+        placeholderTextColor={UnistylesRuntime.getTheme().colors.mutedText}
+        style={[styles.input, error ? styles.inputError : styles.inputIdle]}
       />
 
       <View style={styles.footer}>
@@ -96,7 +85,7 @@ export function SwearPhraseEditor() {
           {wordCount} / {SWEAR_PHRASE_MAX_WORDS} words
         </Text>
 
-        <View style={{ flex: 1 }} />
+        <View style={styles.flex} />
 
         <Pressable onPress={handleReset} hitSlop={10}>
           <Text variant="caption" color="mutedText">
@@ -107,12 +96,8 @@ export function SwearPhraseEditor() {
 
       {error && (
         <View style={styles.messageRow}>
-          <Ionicons
-            name="alert-circle-outline"
-            size={14}
-            color={theme.colors.primary}
-          />
-          <Text variant="caption" color="primary" style={{ flex: 1 }}>
+          <PrimaryIcon name="alert-circle-outline" size={14} />
+          <Text variant="caption" color="primary" style={styles.flex}>
             {error}
           </Text>
         </View>
@@ -120,12 +105,8 @@ export function SwearPhraseEditor() {
 
       {saved && (
         <View style={styles.messageRow}>
-          <Ionicons
-            name="checkmark-circle"
-            size={14}
-            color={theme.colors.primary}
-          />
-          <Text variant="caption" color="primary" style={{ flex: 1 }}>
+          <PrimaryIcon name="checkmark-circle" size={14} />
+          <Text variant="caption" color="primary" style={styles.flex}>
             Phrase saved.
           </Text>
         </View>
@@ -137,12 +118,7 @@ export function SwearPhraseEditor() {
         disabled={!isDirty || !isValid}
         style={[
           styles.saveButton,
-          {
-            backgroundColor:
-              isDirty && isValid
-                ? theme.colors.primary
-                : theme.colors.panelBorder,
-          },
+          isDirty && isValid ? styles.saveEnabled : styles.saveDisabled,
         ]}
       >
         <Text
@@ -157,12 +133,9 @@ export function SwearPhraseEditor() {
 }
 
 const styles = StyleSheet.create((theme) => ({
-  container: {
-    gap: theme.spacing.sm,
-  },
-  header: {
-    gap: theme.spacing.xxs,
-  },
+  container: { gap: theme.spacing.sm },
+  header: { gap: theme.spacing.xxs },
+  flex: { flex: 1 },
   input: {
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
@@ -171,11 +144,12 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: 15,
     minHeight: 80,
     textAlignVertical: "top",
+    backgroundColor: theme.colors.panel,
+    color: theme.colors.onSurface,
   },
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
+  inputError: { borderColor: theme.colors.primary },
+  inputIdle: { borderColor: theme.colors.panelBorder },
+  footer: { flexDirection: "row", alignItems: "center" },
   messageRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -188,4 +162,6 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.radii.md,
     minHeight: 40,
   },
+  saveEnabled: { backgroundColor: theme.colors.primary },
+  saveDisabled: { backgroundColor: theme.colors.panelBorder },
 }));

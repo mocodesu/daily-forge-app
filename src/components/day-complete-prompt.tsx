@@ -1,9 +1,9 @@
 import { HapticPressable } from "@/components/haptic-pressable";
 import Text from "@/components/text";
-import { Ionicons } from "@expo/vector-icons";
+import { PrimaryIcon } from "@/components/themed";
 import React from "react";
 import { Modal, Pressable, View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 
 export function DayCompletePrompt({
   visible,
@@ -16,35 +16,16 @@ export function DayCompletePrompt({
   onAddMore: () => void;
   onDone: () => void;
 }) {
-  const { theme } = useUnistyles();
-
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={() => {
-        // Tapping outside or hardware back = "add more exercises", which
-        // is the non-destructive path.
-        onAddMore();
-      }}
+      onRequestClose={onAddMore}
     >
       <Pressable style={styles.backdrop} onPress={onAddMore}>
-        <Pressable
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.panelBorder,
-            },
-          ]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <Ionicons
-            name="checkmark-circle"
-            size={56}
-            color={theme.colors.primary}
-          />
+        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+          <PrimaryIcon name="checkmark-circle" size={56} />
 
           <Text variant="h2" color="onSurface" style={styles.title}>
             Day complete!
@@ -60,13 +41,7 @@ export function DayCompletePrompt({
           </Text>
 
           <View style={styles.actions}>
-            <Pressable
-              onPress={onAddMore}
-              style={[
-                styles.secondary,
-                { borderColor: theme.colors.panelBorder },
-              ]}
-            >
+            <Pressable onPress={onAddMore} style={styles.secondary}>
               <Text variant="subheadBold" color="onSurface">
                 Add more
               </Text>
@@ -75,10 +50,7 @@ export function DayCompletePrompt({
             <HapticPressable
               haptic="medium"
               onPress={onDone}
-              style={[
-                styles.primary,
-                { backgroundColor: theme.colors.primary },
-              ]}
+              style={styles.primary}
             >
               <Text variant="subheadBold" color="onPrimary">
                 I'm done for today
@@ -107,18 +79,12 @@ const styles = StyleSheet.create((theme) => ({
     padding: theme.spacing.xl,
     borderRadius: theme.radii.lg,
     borderWidth: theme.borderWidth.thin,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.panelBorder,
   },
-  title: {
-    textAlign: "center",
-    marginTop: theme.spacing.sm,
-  },
-  body: {
-    textAlign: "center",
-    paddingHorizontal: theme.spacing.md,
-  },
-  sub: {
-    textAlign: "center",
-  },
+  title: { textAlign: "center", marginTop: theme.spacing.sm },
+  body: { textAlign: "center", paddingHorizontal: theme.spacing.md },
+  sub: { textAlign: "center" },
   actions: {
     flexDirection: "row",
     gap: theme.spacing.sm,
@@ -132,6 +98,7 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: theme.spacing.md,
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
+    borderColor: theme.colors.panelBorder,
   },
   primary: {
     flex: 1.4,
@@ -139,5 +106,6 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     paddingVertical: theme.spacing.md,
     borderRadius: theme.radii.md,
+    backgroundColor: theme.colors.primary,
   },
 }));

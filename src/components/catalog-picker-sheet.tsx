@@ -1,4 +1,5 @@
 import Text from "@/components/text";
+import { MutedIcon, PrimaryIcon } from "@/components/themed";
 import {
   CATALOG_CATEGORIES,
   catalogByCategory,
@@ -8,7 +9,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 
 const CATEGORY_ICONS: Record<CatalogCategory, keyof typeof Ionicons.glyphMap> =
   {
@@ -28,23 +29,16 @@ export function CatalogPickerSheet({
   onClose: () => void;
   onSelect: (exercise: CatalogExercise) => void;
 }) {
-  const { theme } = useUnistyles();
-
   return (
     <Modal
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
       <View style={styles.screen}>
-        {/* ── HEADER ──────────────────────────────────────── */}
-        <View
-          style={[
-            styles.header,
-            { borderBottomColor: theme.colors.panelBorder },
-          ]}
-        >
+        <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={12}>
             <Text variant="subhead" color="primary">
               Close
@@ -53,10 +47,9 @@ export function CatalogPickerSheet({
           <Text variant="title" color="onBackground">
             Choose Exercise
           </Text>
-          <View style={{ width: 52 }} />
+          <View style={styles.headerSpacer} />
         </View>
 
-        {/* ── LIST ────────────────────────────────────────── */}
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -64,11 +57,7 @@ export function CatalogPickerSheet({
           {CATALOG_CATEGORIES.map((category) => (
             <View key={category} style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Ionicons
-                  name={CATEGORY_ICONS[category]}
-                  size={18}
-                  color={theme.colors.primary}
-                />
+                <PrimaryIcon name={CATEGORY_ICONS[category]} size={18} />
                 <Text variant="subheadBold" color="onSurface">
                   {category}
                 </Text>
@@ -86,7 +75,7 @@ export function CatalogPickerSheet({
             </View>
           ))}
 
-          <View style={{ height: 40 }} />
+          <View style={styles.bottomSpacer} />
         </ScrollView>
       </View>
     </Modal>
@@ -100,24 +89,17 @@ function CatalogRow({
   item: CatalogExercise;
   onPress: () => void;
 }) {
-  const { theme } = useUnistyles();
-
   const summary =
     item.exerciseType === "timer"
-      ? `${item.sets} × ${formatDuration(item.perSetSeconds)} • session ${formatDuration(item.sessionSeconds)}`
-      : `${item.sets} × ${item.reps} reps • session ${formatDuration(item.sessionSeconds)}`;
+      ? `${item.sets} × ${formatDuration(item.perSetSeconds)} • session ${formatDuration(
+          item.sessionSeconds,
+        )}`
+      : `${item.sets} × ${item.reps} reps • session ${formatDuration(
+          item.sessionSeconds,
+        )}`;
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.row,
-        {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.panelBorder,
-        },
-      ]}
-    >
+    <Pressable onPress={onPress} style={styles.row}>
       <View style={styles.rowBody}>
         <Text variant="subheadBold" color="onSurface">
           {item.name}
@@ -130,11 +112,7 @@ function CatalogRow({
         </Text>
       </View>
 
-      <Ionicons
-        name="chevron-forward"
-        size={16}
-        color={theme.colors.mutedText}
-      />
+      <MutedIcon name="chevron-forward" size={16} />
     </Pressable>
   );
 }
@@ -146,38 +124,36 @@ function formatDuration(seconds: number): string {
   return s === 0 ? `${m}m` : `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-const styles = StyleSheet.create((theme) => ({
-  screen: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
+const styles = StyleSheet.create((theme, rt) => ({
+  screen: { flex: 1, backgroundColor: theme.colors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: theme.layout.screenPaddingH,
-    paddingTop: theme.spacing.lg,
+    // Clears the Android status bar. On iOS pageSheet, rt.insets.top is 0
+    // inside the modal, so nothing is double-padded.
+    paddingTop: rt.insets.top + theme.spacing.md,
     paddingBottom: theme.spacing.md,
     borderBottomWidth: theme.borderWidth.hairline,
+    borderBottomColor: theme.colors.panelBorder,
   },
+  headerSpacer: { width: 52 },
   content: {
-    padding: theme.layout.screenPaddingH,
+    paddingHorizontal: theme.layout.screenPaddingH,
     paddingTop: theme.spacing.lg,
+    // Clears the Android nav bar / iOS home indicator at the bottom.
+    paddingBottom: rt.insets.bottom + theme.spacing.xxl,
     gap: theme.spacing.xl,
   },
-
-  section: {
-    gap: theme.spacing.sm,
-  },
+  bottomSpacer: { height: 40 },
+  section: { gap: theme.spacing.sm },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.xs,
   },
-  sectionItems: {
-    gap: theme.spacing.xs,
-  },
-
+  sectionItems: { gap: theme.spacing.xs },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -185,9 +161,9 @@ const styles = StyleSheet.create((theme) => ({
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.panelBorder,
+    minHeight: 68,
   },
-  rowBody: {
-    flex: 1,
-    gap: 2,
-  },
+  rowBody: { flex: 1, gap: 2, minWidth: 0 },
 }));

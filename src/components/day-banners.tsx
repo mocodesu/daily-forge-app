@@ -1,11 +1,10 @@
 import { HapticPressable } from "@/components/haptic-pressable";
 import Text from "@/components/text";
-import { Ionicons } from "@expo/vector-icons";
+import { PrimaryIcon } from "@/components/themed";
 import React from "react";
 import { View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 
-/** Shown when today's exercise list is below the minimum. */
 export function MinimumNotMetBanner({
   count,
   minimum,
@@ -15,20 +14,11 @@ export function MinimumNotMetBanner({
   minimum: number;
   onAdd: () => void;
 }) {
-  const { theme } = useUnistyles();
   const remaining = Math.max(0, minimum - count);
 
   return (
-    <View
-      style={[
-        styles.banner,
-        {
-          backgroundColor: theme.colors.panel,
-          borderColor: theme.colors.primary,
-        },
-      ]}
-    >
-      <Ionicons name="warning-outline" size={22} color={theme.colors.primary} />
+    <View style={styles.banner}>
+      <PrimaryIcon name="warning-outline" size={22} />
 
       <View style={styles.body}>
         <Text variant="subheadBold" color="onSurface">
@@ -39,11 +29,7 @@ export function MinimumNotMetBanner({
         </Text>
       </View>
 
-      <HapticPressable
-        haptic="medium"
-        onPress={onAdd}
-        style={[styles.action, { backgroundColor: theme.colors.primary }]}
-      >
+      <HapticPressable haptic="medium" onPress={onAdd} style={styles.action}>
         <Text variant="caption" color="onPrimary">
           Add
         </Text>
@@ -52,25 +38,10 @@ export function MinimumNotMetBanner({
   );
 }
 
-/** Shown when every exercise for today is complete. */
 export function AllDoneBanner({ onLock }: { onLock: () => void }) {
-  const { theme } = useUnistyles();
-
   return (
-    <View
-      style={[
-        styles.banner,
-        {
-          backgroundColor: theme.colors.panel,
-          borderColor: theme.colors.primary,
-        },
-      ]}
-    >
-      <Ionicons
-        name="checkmark-circle"
-        size={22}
-        color={theme.colors.primary}
-      />
+    <View style={styles.banner}>
+      <PrimaryIcon name="checkmark-circle" size={22} />
 
       <View style={styles.body}>
         <Text variant="subheadBold" color="onSurface">
@@ -81,11 +52,7 @@ export function AllDoneBanner({ onLock }: { onLock: () => void }) {
         </Text>
       </View>
 
-      <HapticPressable
-        haptic="medium"
-        onPress={onLock}
-        style={[styles.action, { backgroundColor: theme.colors.primary }]}
-      >
+      <HapticPressable haptic="medium" onPress={onLock} style={styles.action}>
         <Text variant="caption" color="onPrimary">
           I'm done
         </Text>
@@ -102,6 +69,8 @@ const styles = StyleSheet.create((theme) => ({
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.primary,
   },
   body: {
     flex: 1,
@@ -111,5 +80,6 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: 8,
     borderRadius: theme.radii.sm,
+    backgroundColor: theme.colors.primary,
   },
 }));

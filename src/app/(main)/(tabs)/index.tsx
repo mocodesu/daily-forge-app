@@ -5,6 +5,7 @@ import { MilestoneModal } from "@/components/milestone-modal";
 import { ScrollScreen } from "@/components/screen";
 import { SwearModal } from "@/components/swear-modal";
 import Text from "@/components/text";
+import { MutedIcon, PrimaryIcon } from "@/components/themed";
 import { MIN_EXERCISES_PER_DAY } from "@/constants/dailyforge";
 import { useDayState } from "@/hooks/use-day-state";
 import { useMilestone } from "@/hooks/use-milestone";
@@ -18,17 +19,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { Redirect, router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, RefreshControl, View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { ActivityIndicator, View } from "react-native";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 export default function TodayScreen() {
-  const { theme } = useUnistyles();
   const profile = useProfile();
 
   if (profile.loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator
+          size="large"
+          color={UnistylesRuntime.getTheme().colors.primary}
+        />
       </View>
     );
   }
@@ -49,7 +52,6 @@ function TodayContent({
   profile: UserProfile;
   onProfileRefresh: () => Promise<void>;
 }) {
-  const { theme } = useUnistyles();
   const db = useSQLiteContext();
   const day = useDayState(true);
   const milestone = useMilestone(day.streak, !day.loading);
@@ -123,31 +125,24 @@ function TodayContent({
   if (day.loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator
+          size="large"
+          color={UnistylesRuntime.getTheme().colors.primary}
+        />
       </View>
     );
   }
 
   const showMinimumBanner =
     !day.isLocked && day.exercises.length > 0 && !day.meetsMinimum;
-
   const showAllDoneBanner = !day.isLocked && day.allDone && !day.sworeToday;
 
   return (
     <>
-      <ScrollScreen
-        refreshControl={
-          <RefreshControl
-            refreshing={day.loading}
-            onRefresh={day.refresh}
-            tintColor={theme.colors.primary}
-          />
-        }
-      >
-        {/* ── Header ─────────────────────────────────── */}
+      <ScrollScreen>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text variant="h1" color="onBackground">
+            <Text variant="h2" color="onBackground">
               {dateLabel}
             </Text>
             <Text variant="subhead" color="mutedText">
@@ -159,26 +154,20 @@ function TodayContent({
           </View>
 
           <View style={styles.streakBadge}>
-            <Ionicons
-              name="flame"
-              size={18}
-              color={
-                day.streak > 0 ? theme.colors.primary : theme.colors.mutedText
-              }
-            />
+            {day.streak > 0 ? (
+              <PrimaryIcon name="flame" size={20} />
+            ) : (
+              <MutedIcon name="flame" size={20} />
+            )}
             <Text
               variant="title"
               color={day.streak > 0 ? "onSurface" : "mutedText"}
             >
               {day.streak}
             </Text>
-            <Text variant="caption" color="mutedText">
-              day streak
-            </Text>
           </View>
         </View>
 
-        {/* ── Banners ────────────────────────────────── */}
         {showMinimumBanner && (
           <MinimumNotMetBanner
             count={day.exercises.length}
@@ -189,7 +178,6 @@ function TodayContent({
 
         {showAllDoneBanner && <AllDoneBanner onLock={requestLock} />}
 
-        {/* ── Body ───────────────────────────────────── */}
         {day.exercises.length === 0 ? (
           <EmptyState />
         ) : day.isLocked ? (
@@ -212,14 +200,13 @@ function TodayContent({
           </View>
         )}
 
-        {/* ── Add Exercise ───────────────────────────── */}
         {!day.isLocked && (
           <HapticPressable
             haptic="medium"
             onPress={() => router.push("/(main)/create-exercise")}
-            style={[styles.addButton, { borderColor: theme.colors.primary }]}
+            style={styles.addButton}
           >
-            <Ionicons name="add" size={20} color={theme.colors.primary} />
+            <PrimaryIcon name="add" size={20} />
             <Text variant="subheadBold" color="primary">
               Add Exercise
             </Text>
@@ -255,10 +242,6 @@ function TodayContent({
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// SUB-COMPONENTS
-// ─────────────────────────────────────────────────────────────
-
 function ExerciseCard({
   exercise,
   isDone,
@@ -268,7 +251,6 @@ function ExerciseCard({
   isDone: boolean;
   onPress: () => void;
 }) {
-  const { theme } = useUnistyles();
   const iconName =
     exercise.exerciseType === "timer" ? "timer-outline" : "barbell-outline";
   const summary =
@@ -285,16 +267,18 @@ function ExerciseCard({
       <View
         style={[
           styles.cardIcon,
-          {
-            backgroundColor: isDone ? theme.colors.primary : theme.colors.panel,
-          },
+          isDone ? styles.cardIconDone : styles.cardIconIdle,
         ]}
       >
-        <Ionicons
-          name={isDone ? "checkmark" : (iconName as any)}
-          size={20}
-          color={isDone ? theme.colors.onPrimary : theme.colors.primary}
-        />
+        {isDone ? (
+          <Ionicons
+            name="checkmark"
+            size={20}
+            color={UnistylesRuntime.getTheme().colors.onPrimary}
+          />
+        ) : (
+          <PrimaryIcon name={iconName as any} size={20} />
+        )}
       </View>
       <View style={styles.cardBody}>
         <View style={styles.cardTitleRow}>
@@ -322,24 +306,15 @@ function ExerciseCard({
           ))}
         </View>
       </View>
-      <Ionicons
-        name="chevron-forward"
-        size={18}
-        color={theme.colors.mutedText}
-      />
+      <MutedIcon name="chevron-forward" size={18} />
     </HapticPressable>
   );
 }
 
 function EmptyState() {
-  const { theme } = useUnistyles();
   return (
     <View style={styles.stateContainer}>
-      <Ionicons
-        name="barbell-outline"
-        size={56}
-        color={theme.colors.mutedText}
-      />
+      <MutedIcon name="barbell-outline" size={56} />
       <Text variant="h2" color="onBackground">
         No exercises today
       </Text>
@@ -351,14 +326,9 @@ function EmptyState() {
 }
 
 function LockedState({ streak, swore }: { streak: number; swore: boolean }) {
-  const { theme } = useUnistyles();
   return (
     <View style={styles.stateContainer}>
-      <Ionicons
-        name="checkmark-circle"
-        size={72}
-        color={theme.colors.primary}
-      />
+      <PrimaryIcon name="checkmark-circle" size={72} />
       <Text variant="h2" color="onBackground">
         Done for today
       </Text>
@@ -390,21 +360,22 @@ const styles = StyleSheet.create((theme) => ({
   },
   header: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: theme.spacing.md,
   },
   headerLeft: { flex: 1, gap: theme.spacing.xxs },
   streakBadge: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: theme.spacing.xs,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radii.md,
+    borderRadius: theme.radii.full,
     backgroundColor: theme.colors.surface,
     borderWidth: theme.borderWidth.thin,
     borderColor: theme.colors.panelBorder,
-    minWidth: 72,
+    minHeight: 40,
   },
   list: { gap: theme.spacing.sm },
   card: {
@@ -426,7 +397,9 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
-  cardBody: { flex: 1, gap: theme.spacing.xxs },
+  cardIconDone: { backgroundColor: theme.colors.primary },
+  cardIconIdle: { backgroundColor: theme.colors.panel },
+  cardBody: { flex: 1, gap: theme.spacing.xxs, minWidth: 0 },
   cardTitleRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -460,6 +433,7 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thick,
     borderStyle: "dashed",
+    borderColor: theme.colors.primary,
     minHeight: 52,
   },
   stateContainer: {

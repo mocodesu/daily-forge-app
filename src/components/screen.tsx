@@ -1,8 +1,10 @@
 import React from "react";
 import {
+  Platform,
   ScrollView,
-  View,
   type ScrollViewProps,
+  StatusBar,
+  View,
   type ViewProps,
 } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
@@ -14,17 +16,29 @@ import { StyleSheet } from "react-native-unistyles";
  */
 const MAX_CONTENT_WIDTH = 640;
 
+/**
+ * Returns the actual top inset for the current screen.
+ *
+ * Why the fallback: when React Navigation presents a screen with
+ * `presentation: "modal"` on Android, it opens a separate activity window
+ * that draws behind the status bar. Unistyles' runtime reports insets from
+ * the root activity, which comes back as 0 in that window — so we fall back
+ * to the OS-level StatusBar.currentHeight, which is always correct.
+ */
+function resolveTopInset(rtTop: number): number {
+  if (Platform.OS !== "android") return rtTop;
+  const systemTop = StatusBar.currentHeight ?? 0;
+  return Math.max(rtTop, systemTop);
+}
+
+/** Bottom inset needs no fallback — Unistyles reports it correctly everywhere. */
+function resolveBottomInset(rtBottom: number): number {
+  return rtBottom;
+}
+
 interface ScreenProps extends ViewProps {
   children: React.ReactNode;
-  /**
-   * When true (default), applies horizontal screen padding and centers the
-   * content within MAX_CONTENT_WIDTH. Set false for edge-to-edge layouts.
-   */
   padded?: boolean;
-  /**
-   * When true, applies top padding to clear the safe area and the back
-   * button row. Defaults to true for screens without a native header.
-   */
   safeTop?: boolean;
 }
 
@@ -54,6 +68,12 @@ interface ScrollScreenProps extends ScrollViewProps {
   children: React.ReactNode;
   padded?: boolean;
   safeTop?: boolean;
+  /**
+   * Optional header rendered above the scroll area. It's fixed — doesn't
+   * scroll with the content — and automatically respects the top safe area,
+   * including inside Android modals.
+   */
+  header?: React.ReactNode;
 }
 
 export function ScrollScreen({
@@ -62,60 +82,91 @@ export function ScrollScreen({
   contentContainerStyle,
   padded = true,
   safeTop = true,
+  header,
   keyboardShouldPersistTaps = "handled",
   ...rest
 }: ScrollScreenProps) {
+  const hasHeader = header !== undefined && header !== null;
+
   return (
-    <ScrollView
-      style={[styles.root, style]}
-      contentContainerStyle={[
-        styles.scrollContent,
-        padded && styles.paddedRoot,
-        safeTop && styles.scrollContentWithSafeTop,
-        styles.scrollContentWithSafeBottom,
-        contentContainerStyle,
-      ]}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps={keyboardShouldPersistTaps}
-      {...rest}
-    >
-      <View style={styles.content}>{children}</View>
-    </ScrollView>
+    <View style={styles.root}>
+      {hasHeader && (
+        <View style={styles.headerOuter}>
+          <View style={styles.headerInner}>{header}</View>
+        </View>
+      )}
+
+      <ScrollView
+        style={[styles.root, style]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          padded && styles.paddedRoot,
+          !hasHeader && safeTop && styles.scrollContentWithSafeTop,
+          hasHeader && styles.scrollContentWithHeader,
+          styles.scrollContentWithSafeBottom,
+          contentContainerStyle,
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+        {...rest}
+      >
+        <View style={styles.content}>{children}</View>
+      </ScrollView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create((theme, rt) => ({
-  root: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
+const styles = StyleSheet.create((theme, rt) => {
+  const topInset = resolveTopInset(rt.insets.top);
+  const bottomInset = resolveBottomInset(rt.insets.bottom);
 
-  paddedRoot: {
-    paddingHorizontal: theme.layout.screenPaddingH,
-  },
+  return {
+    root: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    paddedRoot: {
+      paddingHorizontal: theme.layout.screenPaddingH,
+    },
 
-  // ScrollView content container
-  scrollContent: {
-    flexGrow: 1,
-  },
-  scrollContentWithSafeTop: {
-    paddingTop: rt.insets.top + theme.spacing.lg,
-  },
-  scrollContentWithSafeBottom: {
-    paddingBottom: rt.insets.bottom + theme.spacing.giant,
-  },
+    // Fixed header — sits above the ScrollView and clears the status bar
+    headerOuter: {
+      paddingHorizontal: theme.layout.screenPaddingH,
+      paddingTop: topInset + theme.spacing.md,
+      paddingBottom: theme.spacing.sm,
+    },
+    headerInner: {
+      width: "100%",
+      maxWidth: MAX_CONTENT_WIDTH,
+      alignSelf: "center",
+    },
 
-  // Inner content wrapper — centers on wide screens
-  content: {
-    width: "100%",
-    maxWidth: MAX_CONTENT_WIDTH,
-    alignSelf: "center",
-    gap: theme.spacing.lg,
-  },
-  contentWithSafeTop: {
-    paddingTop: rt.insets.top + theme.spacing.lg,
-  },
-  contentWithSafeBottom: {
-    paddingBottom: rt.insets.bottom + theme.spacing.giant,
-  },
-}));
+    // ScrollView content container
+    scrollContent: {
+      flexGrow: 1,
+    },
+    scrollContentWithSafeTop: {
+      paddingTop: topInset + theme.spacing.lg,
+    },
+    scrollContentWithHeader: {
+      paddingTop: theme.spacing.lg,
+    },
+    scrollContentWithSafeBottom: {
+      paddingBottom: bottomInset + theme.spacing.giant,
+    },
+
+    // Inner content wrapper — centers on wide screens
+    content: {
+      width: "100%",
+      maxWidth: MAX_CONTENT_WIDTH,
+      alignSelf: "center",
+      gap: theme.spacing.lg,
+    },
+    contentWithSafeTop: {
+      paddingTop: topInset + theme.spacing.lg,
+    },
+    contentWithSafeBottom: {
+      paddingBottom: bottomInset + theme.spacing.giant,
+    },
+  };
+});

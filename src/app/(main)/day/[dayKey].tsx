@@ -1,16 +1,12 @@
 import { ScrollScreen } from "@/components/screen";
+import { ScreenHeader } from "@/components/screen-header";
 import Text from "@/components/text";
-import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { MutedIcon } from "@/components/themed";
+import { useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  useWindowDimensions,
-  View,
-} from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { ActivityIndicator, useWindowDimensions, View } from "react-native";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 interface RecordRow {
   id: string;
@@ -22,7 +18,6 @@ interface RecordRow {
 }
 
 export default function DayDetailScreen() {
-  const { theme } = useUnistyles();
   const db = useSQLiteContext();
   const { dayKey } = useLocalSearchParams<{ dayKey: string }>();
   const { width } = useWindowDimensions();
@@ -56,7 +51,6 @@ export default function DayDetailScreen() {
     })();
   }, [db, dayKey]);
 
-  // ── Derived stats ────────────────────────────────────────
   const firstStart = records
     .map((r) => r.started_at)
     .filter((v): v is number => v !== null)
@@ -80,8 +74,6 @@ export default function DayDetailScreen() {
       : null;
 
   const hasStartTimes = records.some((r) => r.started_at !== null);
-
-  // Three cards look cramped on very narrow phones — drop to two.
   const stackCards = width < 380;
 
   const dateLabel = (() => {
@@ -102,31 +94,25 @@ export default function DayDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color={theme.colors.primary} size="large" />
+        <ActivityIndicator
+          color={UnistylesRuntime.getTheme().colors.primary}
+          size="large"
+        />
       </View>
     );
   }
 
   return (
-    <ScrollScreen>
-      {/* ── Header ─────────────────────────────────────── */}
-      <View style={styles.header}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text variant="h2" color="onBackground">
-            {dateLabel}
-          </Text>
-          <Text variant="caption" color="mutedText">
-            {records.length} exercise{records.length === 1 ? "" : "s"} completed
-          </Text>
-        </View>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text variant="subhead" color="primary">
-            Close
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* ── Session summary ────────────────────────────── */}
+    <ScrollScreen
+      header={
+        <ScreenHeader
+          title={dateLabel}
+          subtitle={`${records.length} exercise${
+            records.length === 1 ? "" : "s"
+          } completed`}
+        />
+      }
+    >
       <View style={styles.section}>
         <Text variant="subheadBold" color="onSurface">
           Session summary
@@ -153,17 +139,12 @@ export default function DayDetailScreen() {
         {hasStartTimes && firstStart && lastCompletion && (
           <View style={styles.timeRangeRow}>
             <TimePill label="Started" ms={firstStart} />
-            <Ionicons
-              name="arrow-forward"
-              size={14}
-              color={theme.colors.mutedText}
-            />
+            <MutedIcon name="arrow-forward" size={14} />
             <TimePill label="Finished" ms={lastCompletion} />
           </View>
         )}
       </View>
 
-      {/* ── Per-exercise breakdown ─────────────────────── */}
       <View style={styles.section}>
         <Text variant="subheadBold" color="onSurface">
           Per-exercise breakdown
@@ -223,15 +204,12 @@ function TimePill({ label, ms }: { label: string; ms: number }) {
 }
 
 function RecordRow({ record, index }: { record: RecordRow; index: number }) {
-  const { theme } = useUnistyles();
   const duration =
     record.started_at !== null ? record.completed_at - record.started_at : null;
 
   return (
     <View style={styles.recordCard}>
-      <View
-        style={[styles.indexCircle, { backgroundColor: theme.colors.primary }]}
-      >
+      <View style={styles.indexCircle}>
         <Text variant="caption" color="onPrimary">
           {index}
         </Text>
@@ -300,20 +278,9 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     backgroundColor: theme.colors.background,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: theme.spacing.md,
-  },
   section: { gap: theme.spacing.sm },
-  summaryRow: {
-    flexDirection: "row",
-    gap: theme.spacing.sm,
-  },
-  summaryRowStack: {
-    flexDirection: "column",
-  },
+  summaryRow: { flexDirection: "row", gap: theme.spacing.sm },
+  summaryRowStack: { flexDirection: "column" },
   summaryCard: {
     flex: 1,
     gap: 2,
@@ -356,6 +323,7 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: theme.colors.primary,
   },
   recordBody: { flex: 1, gap: 2, minWidth: 0 },
   recordTitleRow: {

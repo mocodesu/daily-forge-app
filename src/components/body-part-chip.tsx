@@ -3,9 +3,8 @@ import type { BodyPart } from "@/types/dailyforge";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 
-/** SF Material icon per body part. Falls back to a generic dumbbell. */
 const ICONS: Record<BodyPart, keyof typeof Ionicons.glyphMap> = {
   Chest: "fitness-outline",
   Back: "body-outline",
@@ -27,26 +26,16 @@ export function BodyPartChip({
   selected: boolean;
   onPress: () => void;
 }) {
-  const { theme } = useUnistyles();
-
   return (
     <Pressable
       onPress={onPress}
-      style={[
-        styles.chip,
-        {
-          backgroundColor: selected ? theme.colors.primary : theme.colors.panel,
-          borderColor: selected
-            ? theme.colors.primary
-            : theme.colors.panelBorder,
-        },
-      ]}
       hitSlop={6}
+      style={[styles.chip, selected ? styles.chipSelected : styles.chipIdle]}
     >
       <Ionicons
         name={selected ? "checkmark" : ICONS[part]}
         size={14}
-        color={selected ? theme.colors.onPrimary : theme.colors.mutedText}
+        style={selected ? styles.iconSelected : styles.iconIdle}
       />
       <Text variant="subhead" color={selected ? "onPrimary" : "onSurface"}>
         {part}
@@ -65,4 +54,14 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.radii.full,
     borderWidth: theme.borderWidth.thin,
   },
+  chipSelected: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  chipIdle: {
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.panelBorder,
+  },
+  iconSelected: { color: theme.colors.onPrimary },
+  iconIdle: { color: theme.colors.mutedText },
 }));

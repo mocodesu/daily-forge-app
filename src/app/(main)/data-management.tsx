@@ -1,6 +1,8 @@
 import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
+import { ScreenHeader } from "@/components/screen-header";
 import Text from "@/components/text";
+import { MutedIcon, PrimaryIcon } from "@/components/themed";
 import {
   DataManagementRepo,
   type TableCounts,
@@ -18,10 +20,9 @@ import * as Sharing from "expo-sharing";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 export default function DataManagementScreen() {
-  const { theme } = useUnistyles();
   const db = useSQLiteContext();
 
   const [counts, setCounts] = useState<TableCounts | null>(null);
@@ -199,30 +200,16 @@ export default function DataManagementScreen() {
   };
 
   return (
-    <ScrollScreen>
-      <View style={styles.header}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text variant="h1" color="onBackground">
-            Data
-          </Text>
-          <Text variant="subhead" color="mutedText">
-            Everything stays on your device.
-          </Text>
-        </View>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text variant="subhead" color="primary">
-            Close
-          </Text>
-        </Pressable>
-      </View>
-
+    <ScrollScreen header={<ScreenHeader title="Data" />}>
       <View style={styles.section}>
         <Text variant="subheadBold" color="onSurface">
           Storage
         </Text>
 
         {counts === null ? (
-          <ActivityIndicator color={theme.colors.primary} />
+          <ActivityIndicator
+            color={UnistylesRuntime.getTheme().colors.primary}
+          />
         ) : (
           <View style={styles.grid}>
             <StatTile label="Exercises" value={counts.exercises} />
@@ -271,13 +258,9 @@ export default function DataManagementScreen() {
           haptic="heavy"
           onPress={handleWipe}
           disabled={busy !== null}
-          style={[styles.dangerButton, { borderColor: theme.colors.primary }]}
+          style={styles.dangerButton}
         >
-          <Ionicons
-            name="trash-outline"
-            size={18}
-            color={theme.colors.primary}
-          />
+          <PrimaryIcon name="trash-outline" size={18} />
           <Text variant="subheadBold" color="primary">
             {busy === "wipe" ? "Wiping…" : "Wipe All Data"}
           </Text>
@@ -320,20 +303,20 @@ function ActionRow({
   busy: boolean;
   disabled: boolean;
 }) {
-  const { theme } = useUnistyles();
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[styles.actionRow, { opacity: disabled && !busy ? 0.5 : 1 }]}
+      style={[styles.actionRow, disabled && !busy && styles.actionDisabled]}
     >
-      <View
-        style={[styles.actionIcon, { backgroundColor: theme.colors.panel }]}
-      >
+      <View style={styles.actionIcon}>
         {busy ? (
-          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <ActivityIndicator
+            size="small"
+            color={UnistylesRuntime.getTheme().colors.primary}
+          />
         ) : (
-          <Ionicons name={icon} size={20} color={theme.colors.primary} />
+          <PrimaryIcon name={icon} size={20} />
         )}
       </View>
       <View style={styles.actionBody}>
@@ -344,22 +327,12 @@ function ActionRow({
           {subtitle}
         </Text>
       </View>
-      <Ionicons
-        name="chevron-forward"
-        size={18}
-        color={theme.colors.mutedText}
-      />
+      <MutedIcon name="chevron-forward" size={18} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create((theme) => ({
-  header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: theme.spacing.md,
-  },
   section: { gap: theme.spacing.sm },
   grid: {
     flexDirection: "row",
@@ -388,12 +361,14 @@ const styles = StyleSheet.create((theme) => ({
     borderColor: theme.colors.panelBorder,
     minHeight: 68,
   },
+  actionDisabled: { opacity: 0.5 },
   actionIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: theme.colors.panel,
   },
   actionBody: { flex: 1, gap: 2, minWidth: 0 },
   dangerButton: {
@@ -405,6 +380,7 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thick,
     borderStyle: "dashed",
+    borderColor: theme.colors.primary,
     minHeight: 52,
   },
   dangerHint: { textAlign: "center" },

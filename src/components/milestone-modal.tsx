@@ -1,5 +1,6 @@
 import { HapticPressable } from "@/components/haptic-pressable";
 import Text from "@/components/text";
+import { PrimaryIcon } from "@/components/themed";
 import { useUnitSystem } from "@/hooks/use-unit-system";
 import type { Milestone, UserProfile } from "@/types/dailyforge";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,7 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 export function MilestoneModal({
   visible,
@@ -32,8 +33,7 @@ export function MilestoneModal({
     userNotes: string;
   }) => void;
 }) {
-  const { theme } = useUnistyles();
-  const { system, kgToDisplay, displayToKg, formatWeight, weightUnit } =
+  const { kgToDisplay, displayToKg, formatWeight, weightUnit } =
     useUnitSystem();
 
   const [weightText, setWeightText] = useState("");
@@ -71,7 +71,6 @@ export function MilestoneModal({
   const startWeight = profile?.initialWeightKg ?? null;
   const goalWeight = profile?.goalWeightKg ?? null;
 
-  // Live delta preview
   const deltaKg = (() => {
     if (!startWeight) return null;
     const trimmed = weightText.trim();
@@ -84,10 +83,12 @@ export function MilestoneModal({
   const deltaLabel = (() => {
     if (deltaKg === null) return null;
     const abs = Math.abs(deltaKg);
-    const direction =
+    const direction: "lost" | "gained" | "maintained" =
       deltaKg < 0 ? "lost" : deltaKg > 0 ? "gained" : "maintained";
     return { direction, amount: kgToDisplay(abs) };
   })();
+
+  const placeholderColor = UnistylesRuntime.getTheme().colors.mutedText;
 
   return (
     <Modal
@@ -101,27 +102,14 @@ export function MilestoneModal({
         style={styles.flex}
       >
         <View style={styles.backdrop}>
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.panelBorder,
-              },
-            ]}
-          >
+          <View style={styles.card}>
             <ScrollView
               contentContainerStyle={styles.scrollContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              {/* ── HEADER ──────────────────────────────── */}
               <View style={styles.header}>
-                <Ionicons
-                  name="trophy"
-                  size={32}
-                  color={theme.colors.primary}
-                />
+                <PrimaryIcon name="trophy" size={32} />
                 <Text variant="h2" color="onSurface">
                   {milestone.day}-Day Milestone
                 </Text>
@@ -134,25 +122,16 @@ export function MilestoneModal({
                 </Text>
               </View>
 
-              {/* ── WEIGHT COMPARISON ──────────────────── */}
               <View style={styles.section}>
                 <Text variant="caption" color="mutedText">
                   Weight
                 </Text>
 
-                <View
-                  style={[
-                    styles.weightCard,
-                    {
-                      backgroundColor: theme.colors.panel,
-                      borderColor: theme.colors.panelBorder,
-                    },
-                  ]}
-                >
+                <View style={styles.weightCard}>
                   <WeightRow
                     label="Started at"
                     value={
-                      startWeight
+                      startWeight !== null
                         ? `${formatWeight(startWeight)} ${weightUnit}`
                         : "—"
                     }
@@ -160,11 +139,12 @@ export function MilestoneModal({
                   <WeightRow
                     label="Goal"
                     value={
-                      goalWeight
+                      goalWeight !== null
                         ? `${formatWeight(goalWeight)} ${weightUnit}`
                         : "—"
                     }
                   />
+
                   <View style={styles.weightInputRow}>
                     <Text variant="subhead" color="mutedText">
                       Today
@@ -175,17 +155,10 @@ export function MilestoneModal({
                         onChangeText={(v) =>
                           setWeightText(v.replace(/[^0-9.]/g, ""))
                         }
-                        placeholder={`${weightUnit}`}
-                        placeholderTextColor={theme.colors.mutedText}
+                        placeholder={weightUnit}
+                        placeholderTextColor={placeholderColor}
                         keyboardType="decimal-pad"
-                        style={[
-                          styles.weightInput,
-                          {
-                            color: theme.colors.onSurface,
-                            borderColor: theme.colors.panelBorder,
-                            backgroundColor: theme.colors.surface,
-                          },
-                        ]}
+                        style={styles.weightInput}
                       />
                       <Text variant="subhead" color="mutedText">
                         {weightUnit}
@@ -195,7 +168,7 @@ export function MilestoneModal({
 
                   {deltaLabel && (
                     <View style={styles.deltaRow}>
-                      <Ionicons
+                      <PrimaryIcon
                         name={
                           deltaLabel.direction === "lost"
                             ? "trending-down"
@@ -204,19 +177,19 @@ export function MilestoneModal({
                               : "remove"
                         }
                         size={16}
-                        color={theme.colors.primary}
                       />
                       <Text variant="caption" color="primary">
                         {deltaLabel.direction === "maintained"
                           ? "Weight unchanged"
-                          : `You've ${deltaLabel.direction} ${deltaLabel.amount.toFixed(1)} ${weightUnit}`}
+                          : `You've ${deltaLabel.direction} ${deltaLabel.amount.toFixed(
+                              1,
+                            )} ${weightUnit}`}
                       </Text>
                     </View>
                   )}
                 </View>
               </View>
 
-              {/* ── NOTES ───────────────────────────────── */}
               <View style={styles.section}>
                 <Text variant="caption" color="mutedText">
                   How do you feel?
@@ -225,22 +198,14 @@ export function MilestoneModal({
                   value={notes}
                   onChangeText={setNotes}
                   placeholder="Notes about your progress…"
-                  placeholderTextColor={theme.colors.mutedText}
+                  placeholderTextColor={placeholderColor}
                   multiline
                   numberOfLines={4}
-                  style={[
-                    styles.notesInput,
-                    {
-                      color: theme.colors.onSurface,
-                      borderColor: theme.colors.panelBorder,
-                      backgroundColor: theme.colors.panel,
-                    },
-                  ]}
+                  style={styles.notesInput}
                 />
               </View>
             </ScrollView>
 
-            {/* ── ACTIONS ─────────────────────────────── */}
             <View style={styles.actions}>
               <Pressable onPress={onCancel} hitSlop={12}>
                 <Text variant="subhead" color="mutedText">
@@ -248,20 +213,17 @@ export function MilestoneModal({
                 </Text>
               </Pressable>
 
-              <View style={{ flex: 1 }} />
+              <View style={styles.flex} />
 
               <HapticPressable
                 haptic="medium"
                 onPress={handleSave}
-                style={[
-                  styles.primaryButton,
-                  { backgroundColor: theme.colors.primary },
-                ]}
+                style={styles.primaryButton}
               >
                 <Ionicons
                   name="checkmark"
                   size={16}
-                  color={theme.colors.onPrimary}
+                  color={UnistylesRuntime.getTheme().colors.onPrimary}
                 />
                 <Text variant="subheadBold" color="onPrimary">
                   Save Milestone
@@ -304,26 +266,22 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.radii.lg,
     borderWidth: theme.borderWidth.thin,
     overflow: "hidden",
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.panelBorder,
   },
   scrollContent: {
     padding: theme.spacing.xl,
     gap: theme.spacing.lg,
   },
-  header: {
-    alignItems: "center",
-    gap: theme.spacing.xs,
-  },
-  subtitle: {
-    textAlign: "center",
-    paddingHorizontal: theme.spacing.md,
-  },
-  section: {
-    gap: theme.spacing.xs,
-  },
+  header: { alignItems: "center", gap: theme.spacing.xs },
+  subtitle: { textAlign: "center", paddingHorizontal: theme.spacing.md },
+  section: { gap: theme.spacing.xs },
   weightCard: {
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
     borderWidth: theme.borderWidth.thin,
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.panelBorder,
     gap: theme.spacing.sm,
   },
   weightRow: {
@@ -351,6 +309,9 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: 17,
     textAlign: "right",
     minHeight: 40,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.panelBorder,
+    color: theme.colors.onSurface,
   },
   deltaRow: {
     flexDirection: "row",
@@ -366,6 +327,9 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: 15,
     minHeight: 100,
     textAlignVertical: "top",
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.panelBorder,
+    color: theme.colors.onSurface,
   },
   actions: {
     flexDirection: "row",
@@ -384,5 +348,6 @@ const styles = StyleSheet.create((theme) => ({
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.radii.md,
     minHeight: 44,
+    backgroundColor: theme.colors.primary,
   },
 }));
