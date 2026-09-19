@@ -22,8 +22,6 @@ import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 type Phase = "idle" | "recording" | "reviewing";
 
-const ANDROID_RECOGNIZER_PACKAGE = "com.google.android.as";
-
 export function SwearModal({
   visible,
   onCancel,
@@ -38,157 +36,531 @@ export function SwearModal({
   const [phase, setPhase] = useState<Phase>("idle");
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [preparing, setPreparing] = useState(false);
+  const [starting, setStarting] = useState(false);
 
-  /** Dev-only typed phrase. Kept separate from `transcript` so the
-   *  reviewing phase isn't triggered mid-typing. Committed only when
-   *  the user taps "Use Phrase" or submits the keyboard. */
+  /**
+   * Dev-only typed phrase.
+   *
+   * This is intentionally separate from the real speech transcript so
+   * typing doesn't immediately trigger the reviewing state.
+   */
   const [devTypedText, setDevTypedText] = useState("");
 
+  /**
+   * Keep the latest transcript outside React state.
+   *
+   * Speech recognition can emit several interim/final result events and
+   * the event callback may run independently from React renders.
+   */
   const transcriptRef = useRef("");
 
-  // ── Reset when the modal opens ────────────────────────────
+  /**
+   * Keep the latest phase available to event handlers without relying
+   * on a potentially stale closure.
+   */
+  const phaseRef = useRef<Phase>("idle");
+
+  /**
+   * Prevent multiple simultaneous calls to start().
+   */
+  const startingRef = useRef(false);
+
+  /**
+   * Tracks whether the native recognizer is actually active.
+   */
+  const recognitionActiveRef = useRef(false);
+
+  /**
+   * Prevent state updates after the component is unmounted.
+   */
+  const mountedRef = useRef(true);
+
   useEffect(() => {
-    if (visible) {
-      setPhase("idle");
-      setTranscript("");
-      setError(null);
-      setPreparing(false);
-      setDevTypedText("");
-      transcriptRef.current = "";
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+
+      try {
+        ExpoSpeechRecognitionModule.abort();
+      } catch {
+        // Ignore cleanup errors.
+      }
+    };
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────
+  // Keep phase ref synchronized with React state
+  // ─────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
+  // ─────────────────────────────────────────────────────────────
+  // Reset when modal opens
+  // ─────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!visible) return;
+
+    /**
+     * Make sure an old recognition session cannot leak into the
+     * newly opened modal.
+     */
+    try {
+      ExpoSpeechRecognitionModule.abort();
+    } catch {
+      // Ignore if no recognition session exists.
     }
+
+    phaseRef.current = "idle";
+    recognitionActiveRef.current = false;
+    startingRef.current = false;
+
+    setPhase("idle");
+    setTranscript("");
+    setError(null);
+    setStarting(false);
+    setDevTypedText("");
+
+    transcriptRef.current = "";
   }, [visible]);
 
-  // ── Speech recognition events ─────────────────────────────
-  useSpeechRecognitionEvent("result", (event) => {
-    const text = event.results?.[0]?.transcript ?? "";
-    transcriptRef.current = text;
-    if (phase === "recording") setTranscript(text);
+  // ─────────────────────────────────────────────────────────────
+  // Speech recognition: start
+  // ─────────────────────────────────────────────────────────────
+
+  useSpeechRecognitionEvent("start", () => {
+    console.log("[swear] speech recognition started");
+
+    recognitionActiveRef.current = true;
+    startingRef.current = false;
+
+    if (!mountedRef.current) return;
+
+    setStarting(false);
+    phaseRef.current = "recording";
+    setPhase("recording");
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   });
+
+  // ─────────────────────────────────────────────────────────────
+  // Speech recognition: speechstart
+  // ─────────────────────────────────────────────────────────────
+
+  useSpeechRecognitionEvent("speechstart", () => {
+    console.log("[swear] speech detected by recognizer");
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // Speech recognition: speechend
+  // ─────────────────────────────────────────────────────────────
+
+  useSpeechRecognitionEvent("speechend", () => {
+    console.log("[swear] speech ended");
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // Speech recognition: volume
+  // ─────────────────────────────────────────────────────────────
+
+  useSpeechRecognitionEvent("volumechange", (event) => {
+    console.log("[swear] microphone volume:", event.value);
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // Speech recognition: results
+  // ─────────────────────────────────────────────────────────────
+
+  useSpeechRecognitionEvent("result", (event) => {
+    const results = event.results ?? [];
+
+    /**
+     * Some Android recognizers return multiple alternatives/results.
+     *
+     * We use the first result from each event and preserve the latest
+     * useful transcript.
+     */
+    const pieces = results
+      .map((result) => result?.transcript?.trim())
+      .filter(Boolean);
+
+    const text = pieces.join(" ").replace(/\s+/g, " ").trim();
+
+    if (!text) return;
+
+    console.log("[swear] recognition result:", text);
+
+    transcriptRef.current = text;
+
+    if (!mountedRef.current) return;
+
+    if (phaseRef.current === "recording") {
+      setTranscript(text);
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // Speech recognition: end
+  // ─────────────────────────────────────────────────────────────
 
   useSpeechRecognitionEvent("end", () => {
+    console.log(
+      "[swear] recognition ended:",
+      transcriptRef.current.trim() || "(empty)",
+    );
+
+    recognitionActiveRef.current = false;
+    startingRef.current = false;
+
+    if (!mountedRef.current) return;
+
+    const finalTranscript = transcriptRef.current.trim();
+
+    setStarting(false);
+    setTranscript(finalTranscript);
+
+    phaseRef.current = "reviewing";
     setPhase("reviewing");
-    setTranscript(transcriptRef.current.trim());
   });
+
+  // ─────────────────────────────────────────────────────────────
+  // Speech recognition: error
+  // ─────────────────────────────────────────────────────────────
 
   useSpeechRecognitionEvent("error", (event) => {
-    console.warn("[swear] recognition error:", event);
+    console.warn("[swear] speech recognition error:", event);
+
+    recognitionActiveRef.current = false;
+    startingRef.current = false;
+
+    if (!mountedRef.current) return;
+
     const code = (event as { error?: string }).error;
+    const message = (event as { message?: string }).message;
+
+    const currentTranscript = transcriptRef.current.trim();
+
     if (code === "no-speech") {
-      setError("No speech was detected. Try again or use the dev input.");
+      /**
+       * Android can emit no-speech when it fails to produce a final
+       * recognition result. Keep any useful interim transcript rather
+       * than throwing it away.
+       */
+      setError(
+        currentTranscript
+          ? "I heard something but couldn't finalize the speech. Please try again."
+          : "No speech was detected. Speak clearly after the microphone starts.",
+      );
     } else if (code === "service-not-allowed") {
-      setError("Speech recognition service is unavailable on this device.");
-    } else if (code === "not-allowed" || code === "audio-capture") {
-      setError("Microphone access was denied. Enable it in Settings.");
+      setError(
+        "Speech recognition is unavailable on this device. Check that Google's speech service is enabled.",
+      );
+    } else if (code === "not-allowed") {
+      setError(
+        "Microphone or speech recognition permission was denied. Enable microphone access in Settings.",
+      );
+    } else if (code === "audio-capture") {
+      setError(
+        "The microphone could not be opened. Check microphone permissions and make sure another app isn't using the microphone.",
+      );
     } else if (code === "language-not-supported") {
       setError(
-        "The en-US speech model isn't installed. Tap Start to download it.",
+        "English (US) speech recognition isn't available on this device.",
       );
+    } else if (code === "aborted" || code === "interrupted") {
+      /**
+       * These are generally expected when the user closes/restarts
+       * recognition. Don't show a scary error for them.
+       */
+      setError(null);
     } else {
-      setError(
-        (event as { message?: string }).message ??
-          "Speech recognition failed. Try again.",
-      );
+      setError(message ?? "Speech recognition failed. Try again.");
     }
+
+    setStarting(false);
+    setTranscript(currentTranscript);
+
+    phaseRef.current = "reviewing";
     setPhase("reviewing");
-    setTranscript(transcriptRef.current.trim());
   });
 
-  // ── Handlers ──────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // Start recognition
+  // ─────────────────────────────────────────────────────────────
+
   const handleStart = useCallback(async () => {
+    if (startingRef.current || recognitionActiveRef.current) {
+      return;
+    }
+
+    startingRef.current = true;
+
     setError(null);
     setTranscript("");
     transcriptRef.current = "";
+    setStarting(true);
 
     try {
-      const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!perm.granted) {
-        setError("Microphone or speech recognition permission was denied.");
-        setPhase("reviewing");
-        return;
+      // Make sure the device supports speech recognition.
+      const available = ExpoSpeechRecognitionModule.isRecognitionAvailable();
+
+      console.log("[swear] recognition available:", available);
+
+      if (!available) {
+        throw new Error("Speech recognition is not available on this device.");
       }
 
+      // Request microphone + speech recognition permissions.
+      const permission =
+        await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+
+      console.log("[swear] permissions:", permission);
+
+      if (!permission.granted) {
+        throw new Error(
+          "Microphone or speech recognition permission was denied.",
+        );
+      }
+
+      // Android diagnostics.
       if (Platform.OS === "android") {
-        setPreparing(true);
         try {
-          await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({
-            locale: "en-US",
-          });
+          const services =
+            ExpoSpeechRecognitionModule.getSpeechRecognitionServices();
+
+          console.log("[swear] available speech services:", services);
         } catch (err) {
-          console.warn("[swear] model download failed:", err);
+          console.warn("[swear] could not inspect speech services:", err);
         }
-        setPreparing(false);
+
+        try {
+          const defaultService =
+            ExpoSpeechRecognitionModule.getDefaultRecognitionService();
+
+          console.log("[swear] default speech service:", defaultService);
+        } catch (err) {
+          console.warn(
+            "[swear] could not inspect default speech service:",
+            err,
+          );
+        }
       }
 
+      /**
+       * IMPORTANT:
+       *
+       * We intentionally DO NOT:
+       *
+       * - force com.google.android.as
+       * - download an offline model
+       * - require on-device recognition
+       *
+       * This allows Android to use its normal configured speech
+       * recognition service.
+       */
       ExpoSpeechRecognitionModule.start({
         lang: "en-US",
+
+        // Show partial/interim recognition while speaking.
         interimResults: true,
+
+        // One utterance. Android ends after it receives a final result.
         continuous: false,
+
+        // Use the normal recognition service/network when necessary.
+        requiresOnDeviceRecognition: false,
+
+        // We only ask for punctuation where supported.
         addsPunctuation: Platform.OS === "ios",
+
+        // Bias recognition toward the oath phrase.
+        contextualStrings: phrase ? [phrase] : [],
+
+        maxAlternatives: 1,
+
         ...(Platform.OS === "android"
           ? {
-              androidRecognitionServicePackage: ANDROID_RECOGNIZER_PACKAGE,
               androidIntentOptions: {
-                EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 1500,
-                EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 1500,
+                /**
+                 * "web_search" is useful for short spoken phrases
+                 * and tends to work better for this type of input.
+                 */
+                EXTRA_LANGUAGE_MODEL: "web_search",
+
+                /**
+                 * Give Android enough time to decide that the user
+                 * has finished speaking.
+                 */
+                EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 5000,
+
+                EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS: 5000,
+
+                /**
+                 * IMPORTANT for an oath that may contain swear words.
+                 *
+                 * Android speech services can mask offensive words.
+                 * We explicitly disable that behavior.
+                 */
+                EXTRA_MASK_OFFENSIVE_WORDS: false,
               },
             }
           : {}),
       });
 
-      setPhase("recording");
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      /**
+       * Don't set "recording" here.
+       *
+       * The native "start" event is the authoritative indication that
+       * recognition has actually started.
+       */
     } catch (err) {
       console.error("[swear] start failed:", err);
-      setError("Could not start recording.");
+
+      startingRef.current = false;
+      recognitionActiveRef.current = false;
+
+      if (!mountedRef.current) return;
+
+      setStarting(false);
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Could not start speech recognition.";
+
+      setError(message);
+
+      phaseRef.current = "reviewing";
       setPhase("reviewing");
-      setPreparing(false);
     }
-  }, []);
+  }, [phrase]);
+
+  // ─────────────────────────────────────────────────────────────
+  // Stop recognition
+  // ─────────────────────────────────────────────────────────────
 
   const handleStop = useCallback(() => {
-    ExpoSpeechRecognitionModule.stop();
+    if (!recognitionActiveRef.current) {
+      return;
+    }
+
+    console.log("[swear] stopping recognition");
+
+    try {
+      /**
+       * stop() asks the native recognizer to finish and return its
+       * final result.
+       *
+       * Do NOT use abort() here because abort intentionally discards
+       * the final recognition result.
+       */
+      ExpoSpeechRecognitionModule.stop();
+    } catch (err) {
+      console.warn("[swear] stop failed:", err);
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
+  // ─────────────────────────────────────────────────────────────
+  // Retry
+  // ─────────────────────────────────────────────────────────────
+
   const handleRetry = useCallback(() => {
+    try {
+      if (recognitionActiveRef.current) {
+        ExpoSpeechRecognitionModule.abort();
+      }
+    } catch {
+      // Ignore cleanup errors.
+    }
+
+    recognitionActiveRef.current = false;
+    startingRef.current = false;
+
+    transcriptRef.current = "";
+
     setError(null);
     setTranscript("");
     setDevTypedText("");
-    transcriptRef.current = "";
+    setStarting(false);
+
+    phaseRef.current = "idle";
     setPhase("idle");
   }, []);
 
+  // ─────────────────────────────────────────────────────────────
+  // Confirm
+  // ─────────────────────────────────────────────────────────────
+
   const handleConfirm = useCallback(() => {
-    if (!transcript.trim()) return;
+    const trimmed = transcript.trim();
+
+    if (!trimmed) return;
+
+    /**
+     * Always perform the match again immediately before confirming.
+     *
+     * The button is disabled when there is no match, but this protects
+     * the actual submission path as well.
+     */
+    const result = matchSwear(trimmed, phrase);
+
+    if (!result.matched) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onSworn({ transcript: transcript.trim(), matchedPhrase: phrase });
+
+    onSworn({
+      transcript: trimmed,
+      matchedPhrase: phrase,
+    });
   }, [transcript, phrase, onSworn]);
 
-  /**
-   * Dev-only: commit the typed phrase to the transcript and move to the
-   * reviewing phase. Called from the "Use Phrase" button or the keyboard
-   * submit action — never on every keystroke.
-   */
+  // ─────────────────────────────────────────────────────────────
+  // Dev typed fallback
+  // ─────────────────────────────────────────────────────────────
+
   const handleCommitDevTyped = useCallback(() => {
     const trimmed = devTypedText.trim();
+
     if (!trimmed) return;
+
     transcriptRef.current = trimmed;
+
     setTranscript(trimmed);
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    phaseRef.current = "reviewing";
     setPhase("reviewing");
   }, [devTypedText]);
 
-  const handleRequestClose = () => {
+  // ─────────────────────────────────────────────────────────────
+  // Close behavior
+  // ─────────────────────────────────────────────────────────────
+
+  const handleRequestClose = useCallback(() => {
     if (phase === "recording") {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       return;
     }
-    if (phase === "idle") onCancel();
-  };
+
+    if (phase === "idle") {
+      onCancel();
+    }
+  }, [phase, onCancel]);
 
   const match = phase === "reviewing" ? matchSwear(transcript, phrase) : null;
+
   const placeholderColor = UnistylesRuntime.getTheme().colors.mutedText;
+
+  const theme = UnistylesRuntime.getTheme();
 
   return (
     <Modal
@@ -200,37 +572,58 @@ export function SwearModal({
     >
       <View style={styles.backdrop}>
         <View style={styles.card}>
+          {/* ─────────────────────────────────────────────────── */}
+          {/* Header */}
+          {/* ─────────────────────────────────────────────────── */}
+
           <View style={styles.header}>
             <PrimaryIcon name="checkmark-circle" size={28} />
+
             <Text variant="h2" color="onSurface">
               Seal the Day
             </Text>
+
             <Text variant="caption" color="mutedText" style={styles.subtitle}>
               You finished your exercises. Swear to it out loud.
             </Text>
           </View>
 
+          {/* ─────────────────────────────────────────────────── */}
+          {/* Phrase */}
+          {/* ─────────────────────────────────────────────────── */}
+
           <View style={styles.phraseCard}>
             <Text variant="caption" color="mutedText">
               Say this phrase:
             </Text>
+
             <Text variant="callout" color="onSurface" style={styles.phraseText}>
               "{loading ? "…" : phrase}"
             </Text>
           </View>
 
-          {phase === "idle" && <IdleStage busy={preparing} />}
+          {/* ─────────────────────────────────────────────────── */}
+          {/* Speech stages */}
+          {/* ─────────────────────────────────────────────────── */}
+
+          {phase === "idle" && <IdleStage busy={starting} />}
+
           {phase === "recording" && <RecordingStage transcript={transcript} />}
+
           {phase === "reviewing" && (
             <ReviewStage transcript={transcript} match={match} />
           )}
 
-          {/* ── DEV FALLBACK: type the phrase ─────────────────── */}
-          {__DEV__ && phase === "idle" && (
+          {/* ─────────────────────────────────────────────────── */}
+          {/* DEV fallback */}
+          {/* ─────────────────────────────────────────────────── */}
+
+          {__DEV__ && phase === "idle" && !starting && (
             <View style={styles.devBlock}>
               <Text variant="caption" color="mutedText">
                 [dev] Or type the full phrase
               </Text>
+
               <TextInput
                 value={devTypedText}
                 onChangeText={setDevTypedText}
@@ -244,6 +637,7 @@ export function SwearModal({
                 blurOnSubmit
                 onSubmitEditing={handleCommitDevTyped}
               />
+
               <Pressable
                 onPress={handleCommitDevTyped}
                 disabled={devTypedText.trim().length === 0}
@@ -266,17 +660,27 @@ export function SwearModal({
             </View>
           )}
 
+          {/* ─────────────────────────────────────────────────── */}
+          {/* Error */}
+          {/* ─────────────────────────────────────────────────── */}
+
           {error && (
             <View style={styles.errorRow}>
               <PrimaryIcon name="alert-circle-outline" size={16} />
+
               <Text variant="caption" color="onSurface" style={styles.flex}>
                 {error}
               </Text>
             </View>
           )}
 
+          {/* ─────────────────────────────────────────────────── */}
+          {/* Actions */}
+          {/* ─────────────────────────────────────────────────── */}
+
           <View style={styles.actions}>
-            {phase === "idle" && !preparing && (
+            {/* Cancel */}
+            {phase === "idle" && !starting && (
               <Pressable onPress={onCancel} hitSlop={12}>
                 <Text variant="subhead" color="mutedText">
                   Cancel
@@ -284,6 +688,7 @@ export function SwearModal({
               </Pressable>
             )}
 
+            {/* Recording lock */}
             {phase === "recording" && (
               <Text
                 variant="caption"
@@ -294,6 +699,7 @@ export function SwearModal({
               </Text>
             )}
 
+            {/* Retry */}
             {phase === "reviewing" && (
               <Pressable onPress={handleRetry} hitSlop={12}>
                 <Text variant="subhead" color="onSurface">
@@ -304,21 +710,23 @@ export function SwearModal({
 
             <View style={styles.flex} />
 
+            {/* Start */}
             {phase === "idle" && (
               <HapticPressable
                 haptic="medium"
                 onPress={handleStart}
-                disabled={preparing}
+                disabled={starting}
                 style={[
                   styles.primaryButton,
-                  preparing ? styles.btnDisabled : styles.btnPrimary,
+                  starting ? styles.btnDisabled : styles.btnPrimary,
                 ]}
               >
-                {preparing ? (
+                {starting ? (
                   <>
                     <ActivityIndicator size="small" color={placeholderColor} />
+
                     <Text variant="subheadBold" color="mutedText">
-                      Preparing…
+                      Starting…
                     </Text>
                   </>
                 ) : (
@@ -326,8 +734,9 @@ export function SwearModal({
                     <Ionicons
                       name="mic"
                       size={16}
-                      color={UnistylesRuntime.getTheme().colors.onPrimary}
+                      color={theme.colors.onPrimary}
                     />
+
                     <Text variant="subheadBold" color="onPrimary">
                       Start
                     </Text>
@@ -336,6 +745,7 @@ export function SwearModal({
               </HapticPressable>
             )}
 
+            {/* Stop */}
             {phase === "recording" && (
               <HapticPressable
                 haptic="medium"
@@ -345,14 +755,16 @@ export function SwearModal({
                 <Ionicons
                   name="stop"
                   size={16}
-                  color={UnistylesRuntime.getTheme().colors.onPrimary}
+                  color={theme.colors.onPrimary}
                 />
+
                 <Text variant="subheadBold" color="onPrimary">
                   Stop
                 </Text>
               </HapticPressable>
             )}
 
+            {/* Confirm */}
             {phase === "reviewing" && (
               <HapticPressable
                 haptic="medium"
@@ -370,6 +782,7 @@ export function SwearModal({
                     match?.matched ? styles.iconOnPrimary : styles.iconMuted
                   }
                 />
+
                 <Text
                   variant="subheadBold"
                   color={match?.matched ? "onPrimary" : "mutedText"}
@@ -385,6 +798,10 @@ export function SwearModal({
   );
 }
 
+// ───────────────────────────────────────────────────────────────
+// Idle stage
+// ───────────────────────────────────────────────────────────────
+
 function IdleStage({ busy }: { busy: boolean }) {
   return (
     <View style={styles.stage}>
@@ -395,14 +812,19 @@ function IdleStage({ busy }: { busy: boolean }) {
           style={busy ? styles.iconMuted : styles.iconPrimary}
         />
       </View>
+
       <Text variant="caption" color="mutedText" style={styles.stageHint}>
         {busy
-          ? "Preparing the on-device speech model…"
-          : "Press Start. Speak the phrase. Press Stop when you're done."}
+          ? "Starting speech recognition…"
+          : "Press Start, speak the phrase, then press Stop when you're done."}
       </Text>
     </View>
   );
 }
+
+// ───────────────────────────────────────────────────────────────
+// Recording stage
+// ───────────────────────────────────────────────────────────────
 
 function RecordingStage({ transcript }: { transcript: string }) {
   return (
@@ -410,9 +832,11 @@ function RecordingStage({ transcript }: { transcript: string }) {
       <View style={[styles.micCircle, styles.micCircleRecording]}>
         <PrimaryIcon name="mic" size={36} />
       </View>
+
       <Text variant="subheadBold" color="onSurface" style={styles.stageHint}>
         Speak now…
       </Text>
+
       {transcript.length > 0 && (
         <Text
           variant="caption"
@@ -426,6 +850,10 @@ function RecordingStage({ transcript }: { transcript: string }) {
     </View>
   );
 }
+
+// ───────────────────────────────────────────────────────────────
+// Review stage
+// ───────────────────────────────────────────────────────────────
 
 function ReviewStage({
   transcript,
@@ -442,6 +870,7 @@ function ReviewStage({
         <Text variant="caption" color="mutedText">
           This is what we heard:
         </Text>
+
         <Text variant="callout" color="onSurface" numberOfLines={4}>
           {isEmpty ? "(no speech detected)" : transcript}
         </Text>
@@ -454,6 +883,7 @@ function ReviewStage({
             size={18}
             style={match.matched ? styles.iconPrimary : styles.iconMuted}
           />
+
           <Text variant="caption" color="mutedText">
             {match.matched
               ? "Phrase recognized."
@@ -465,8 +895,15 @@ function ReviewStage({
   );
 }
 
+// ───────────────────────────────────────────────────────────────
+// Styles
+// ───────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create((theme) => ({
-  flex: { flex: 1 },
+  flex: {
+    flex: 1,
+  },
+
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.45)",
@@ -474,6 +911,7 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     paddingHorizontal: theme.layout.screenPaddingH,
   },
+
   card: {
     width: "100%",
     maxWidth: 440,
@@ -484,8 +922,16 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.panelBorder,
   },
-  header: { alignItems: "center", gap: theme.spacing.xs },
-  subtitle: { textAlign: "center" },
+
+  header: {
+    alignItems: "center",
+    gap: theme.spacing.xs,
+  },
+
+  subtitle: {
+    textAlign: "center",
+  },
+
   phraseCard: {
     padding: theme.spacing.md,
     borderRadius: theme.radii.md,
@@ -494,12 +940,17 @@ const styles = StyleSheet.create((theme) => ({
     borderColor: theme.colors.panelBorder,
     gap: theme.spacing.xs,
   },
-  phraseText: { fontStyle: "italic" },
+
+  phraseText: {
+    fontStyle: "italic",
+  },
+
   stage: {
     alignItems: "center",
     gap: theme.spacing.sm,
     paddingVertical: theme.spacing.md,
   },
+
   micCircle: {
     width: 88,
     height: 88,
@@ -508,11 +959,17 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     backgroundColor: theme.colors.panel,
   },
+
   micCircleRecording: {
     borderWidth: 3,
     borderColor: theme.colors.primary,
   },
-  stageHint: { textAlign: "center", paddingHorizontal: theme.spacing.md },
+
+  stageHint: {
+    textAlign: "center",
+    paddingHorizontal: theme.spacing.md,
+  },
+
   transcriptCard: {
     width: "100%",
     padding: theme.spacing.md,
@@ -522,12 +979,17 @@ const styles = StyleSheet.create((theme) => ({
     borderColor: theme.colors.panelBorder,
     gap: theme.spacing.xs,
   },
+
   matchRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.xs,
   },
-  devBlock: { gap: theme.spacing.xs },
+
+  devBlock: {
+    gap: theme.spacing.xs,
+  },
+
   devInput: {
     borderRadius: theme.radii.sm,
     borderWidth: theme.borderWidth.thin,
@@ -540,6 +1002,7 @@ const styles = StyleSheet.create((theme) => ({
     borderColor: theme.colors.panelBorder,
     color: theme.colors.onSurface,
   },
+
   devCommit: {
     alignItems: "center",
     justifyContent: "center",
@@ -547,20 +1010,32 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.radii.sm,
     minHeight: 40,
   },
-  devCommitEnabled: { backgroundColor: theme.colors.primary },
-  devCommitDisabled: { backgroundColor: theme.colors.panelBorder },
+
+  devCommitEnabled: {
+    backgroundColor: theme.colors.primary,
+  },
+
+  devCommitDisabled: {
+    backgroundColor: theme.colors.panelBorder,
+  },
+
   errorRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.xs,
     paddingHorizontal: theme.spacing.xs,
   },
+
   actions: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.md,
   },
-  lockedHint: { flex: 1 },
+
+  lockedHint: {
+    flex: 1,
+  },
+
   primaryButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -571,9 +1046,24 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.radii.md,
     minHeight: 44,
   },
-  btnPrimary: { backgroundColor: theme.colors.primary },
-  btnDisabled: { backgroundColor: theme.colors.panelBorder },
-  iconPrimary: { color: theme.colors.primary },
-  iconMuted: { color: theme.colors.mutedText },
-  iconOnPrimary: { color: theme.colors.onPrimary },
+
+  btnPrimary: {
+    backgroundColor: theme.colors.primary,
+  },
+
+  btnDisabled: {
+    backgroundColor: theme.colors.panelBorder,
+  },
+
+  iconPrimary: {
+    color: theme.colors.primary,
+  },
+
+  iconMuted: {
+    color: theme.colors.mutedText,
+  },
+
+  iconOnPrimary: {
+    color: theme.colors.onPrimary,
+  },
 }));

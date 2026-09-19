@@ -253,8 +253,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         {
           microphonePermission:
             "DailyForge needs the microphone for your voice oath.",
+
           speechRecognitionPermission:
             "DailyForge uses speech recognition to verify your oath.",
+
           androidSpeechServicePackages: [
             "com.google.android.as",
             "com.google.android.googlequicksearchbox",
