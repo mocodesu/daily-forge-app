@@ -136,6 +136,13 @@ const RootLayout = () => {
               }}
             />
             <Stack.Screen
+              name="(main)/legal/[document]"
+              options={{
+                presentation: "modal",
+                animation: "slide_from_right",
+              }}
+            />
+            <Stack.Screen
               name="(main)/dev/confetti-lab"
               options={{
                 presentation: "modal",

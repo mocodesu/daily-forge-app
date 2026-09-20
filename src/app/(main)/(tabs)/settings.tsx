@@ -22,7 +22,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Application from "expo-application";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Linking, Pressable, TextInput, View } from "react-native";
+import { Pressable, TextInput, View } from "react-native";
 import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
 const THEME_MODES: {
@@ -440,17 +440,8 @@ export default function SettingsScreen() {
             </Text>
           </View>
 
-          <View style={styles.aboutRow}>
-            <Text variant="subhead" color="mutedText">
-              Made with ❤️ by
-            </Text>
-            <Text variant="subheadBold" color="onSurface">
-              Mocodesu
-            </Text>
-          </View>
-
           <Pressable
-            onPress={() => Linking.openURL("https://example.com/privacy")}
+            onPress={() => router.push("/(main)/legal/privacy")}
             hitSlop={8}
             style={({ pressed }) => [
               styles.aboutLink,
@@ -464,7 +455,7 @@ export default function SettingsScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => Linking.openURL("https://example.com/terms")}
+            onPress={() => router.push("/(main)/legal/terms")}
             hitSlop={8}
             style={({ pressed }) => [
               styles.aboutLink,

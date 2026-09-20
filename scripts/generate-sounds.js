@@ -5,7 +5,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const SAMPLE_RATE = 22050;
+const SAMPLE_RATE = 44100;
 const CHANNELS = 1;
 const BITS = 16;
 const TWO_PI = Math.PI * 2;
@@ -76,11 +76,13 @@ function addNote(
     ],
     decay = 4,
     attackMs = 8,
+    releaseMs = 42,
   },
 ) {
   const start = samplesFor(startMs);
   const length = samplesFor(durationMs);
   const attackLen = samplesFor(attackMs);
+  const releaseLen = Math.max(1, samplesFor(releaseMs));
 
   for (let i = 0; i < length; i++) {
     const idx = start + i;
@@ -88,8 +90,13 @@ function addNote(
     const t = i / SAMPLE_RATE;
 
     // Envelope: fast attack, exponential release
-    const attack = i < attackLen ? i / attackLen : 1;
-    const release = Math.exp(-decay * t);
+    const attack =
+      i < attackLen ? Math.sin((i / attackLen) * Math.PI * 0.5) : 1;
+    const tail =
+      i > length - releaseLen
+        ? Math.sin(((length - i) / releaseLen) * Math.PI * 0.5)
+        : 1;
+    const release = Math.exp(-decay * t) * tail;
 
     let sample = 0;
     for (const [mult, gain] of harmonics) {
@@ -97,6 +104,76 @@ function addNote(
     }
 
     buffer[idx] += sample * volume * attack * release;
+  }
+}
+
+/** Adds a pitched sweep for a clear upward reward contour. */
+function addSweep(
+  buffer,
+  {
+    startMs,
+    durationMs,
+    startFreq,
+    endFreq,
+    volume = 0.25,
+    decay = 5,
+    releaseMs = 30,
+    harmonics = [
+      [1, 1],
+      [2, 0.18],
+    ],
+  },
+) {
+  const start = samplesFor(startMs);
+  const length = samplesFor(durationMs);
+  const attackLen = Math.max(1, samplesFor(3));
+  const releaseLen = Math.max(1, samplesFor(releaseMs));
+  let phase = 0;
+
+  for (let i = 0; i < length; i++) {
+    const idx = start + i;
+    if (idx >= buffer.length) break;
+
+    const progress = i / Math.max(1, length - 1);
+    const freq = startFreq * Math.pow(endFreq / startFreq, progress);
+    const attack = Math.sin(Math.min(1, i / attackLen) * Math.PI * 0.5);
+    const tail =
+      i > length - releaseLen
+        ? Math.sin(((length - i) / releaseLen) * Math.PI * 0.5)
+        : 1;
+    const release = Math.exp(-decay * (i / SAMPLE_RATE)) * tail;
+    let sample = 0;
+
+    for (const [mult, gain] of harmonics) {
+      sample += Math.sin(phase * mult) * gain;
+    }
+
+    buffer[idx] += sample * volume * attack * release;
+    phase += (TWO_PI * freq) / SAMPLE_RATE;
+  }
+}
+
+/** Adds a short filtered noise transient to make feedback feel immediate. */
+function addTransient(buffer, { startMs, durationMs, volume = 0.1 }) {
+  const start = samplesFor(startMs);
+  const length = samplesFor(durationMs);
+  let previous = 0;
+  let seed = 417;
+  const random = () => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
+
+  for (let i = 0; i < length; i++) {
+    const idx = start + i;
+    if (idx >= buffer.length) break;
+
+    const white = random() * 2 - 1;
+    const filtered = white - previous * 0.82;
+    previous = white;
+    const attack = Math.min(1, i / Math.max(1, samplesFor(1)));
+    const envelope = attack * Math.exp(-24 * (i / SAMPLE_RATE));
+    buffer[idx] += filtered * volume * envelope;
   }
 }
 
@@ -111,6 +188,11 @@ function addApplause(
   const start = samplesFor(startMs);
   const length = samplesFor(durationMs);
   let prev = 0;
+  let seed = 1301;
+  const random = () => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
 
   for (let i = 0; i < length; i++) {
     const idx = start + i;
@@ -121,7 +203,7 @@ function addApplause(
     const env = Math.sin(Math.PI * t) ** 2;
 
     // White noise, low-passed via simple exponential smoothing
-    const white = Math.random() * 2 - 1;
+    const white = random() * 2 - 1;
     prev = prev + cutoff * (white - prev);
 
     buffer[idx] += prev * volume * env;
@@ -135,19 +217,30 @@ function addSparkles(buffer, { startMs, durationMs, volume = 0.08 }) {
   const start = samplesFor(startMs);
   const length = samplesFor(durationMs);
 
-  // Random clusters of high-frequency short notes
+  // Seeded clusters keep generated assets reproducible between runs.
+  let seed = 731;
+  const random = () => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
+
   const clusterCount = 14;
   for (let c = 0; c < clusterCount; c++) {
-    const clusterOffset = Math.floor(Math.random() * (length - samplesFor(60)));
-    const freq = 1500 + Math.random() * 2000;
-    const t = 0;
-    const noteLen = samplesFor(40 + Math.random() * 80);
+    const clusterOffset = Math.floor(random() * (length - samplesFor(60)));
+    const freq = 1500 + random() * 2000;
+    const noteLen = samplesFor(40 + random() * 80);
 
     for (let i = 0; i < noteLen; i++) {
       const idx = start + clusterOffset + i;
       if (idx >= buffer.length) break;
       const dt = i / SAMPLE_RATE;
-      const env = Math.exp(-12 * dt);
+      const attack = Math.min(1, i / Math.max(1, samplesFor(3)));
+      const tail = Math.sin(
+        Math.min(1, (noteLen - i) / Math.max(1, samplesFor(24))) *
+          Math.PI *
+          0.5,
+      );
+      const env = attack * tail * Math.exp(-12 * dt);
       buffer[idx] += Math.sin(TWO_PI * freq * dt) * volume * env;
     }
   }
@@ -160,6 +253,24 @@ function limit(buffer, threshold = 0.95) {
     if (v > threshold) buffer[i] = threshold - (v - threshold) * 0.3;
     else if (v < -threshold) buffer[i] = -threshold - (v + threshold) * 0.3;
   }
+}
+
+/** Masters each cue to a consistent, clean peak and removes tail clicks. */
+function finish(buffer, targetPeak = 0.84) {
+  let peak = 0;
+  for (const sample of buffer) peak = Math.max(peak, Math.abs(sample));
+
+  if (peak > 0) {
+    const gain = targetPeak / peak;
+    for (let i = 0; i < buffer.length; i++) buffer[i] *= gain;
+  }
+
+  const fadeLength = Math.min(samplesFor(24), buffer.length);
+  for (let i = 0; i < fadeLength; i++) {
+    const index = buffer.length - fadeLength + i;
+    buffer[index] *= 1 - i / fadeLength;
+  }
+  return buffer;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -180,6 +291,97 @@ function generateTone(freqHz, toneMs, totalMs, volume) {
   return buffer;
 }
 
+function generateSessionStart() {
+  const buffer = silence(1000);
+  addTransient(buffer, { startMs: 0, durationMs: 42, volume: 0.11 });
+  addSweep(buffer, {
+    startMs: 0,
+    durationMs: 105,
+    startFreq: 360,
+    endFreq: 760,
+    volume: 0.28,
+    decay: 10,
+  });
+  addNote(buffer, {
+    freq: 1046.5,
+    startMs: 32,
+    durationMs: 170,
+    volume: 0.16,
+    harmonics: [
+      [1, 1],
+      [2, 0.2],
+      [3, 0.08],
+    ],
+    decay: 14,
+    attackMs: 2,
+  });
+  limit(buffer);
+  return finish(buffer, 0.76);
+}
+
+function generateTick() {
+  const buffer = silence(1000);
+  addTransient(buffer, { startMs: 0, durationMs: 24, volume: 0.045 });
+  addNote(buffer, {
+    freq: 1320,
+    startMs: 0,
+    durationMs: 42,
+    volume: 0.12,
+    harmonics: [
+      [1, 1],
+      [2, 0.1],
+    ],
+    decay: 28,
+    attackMs: 1,
+  });
+  limit(buffer);
+  return finish(buffer, 0.5);
+}
+
+function generateCompletion() {
+  const buffer = silence(1000);
+  addTransient(buffer, { startMs: 0, durationMs: 55, volume: 0.13 });
+  addSweep(buffer, {
+    startMs: 0,
+    durationMs: 170,
+    startFreq: 440,
+    endFreq: 880,
+    volume: 0.24,
+    decay: 8,
+  });
+  addNote(buffer, {
+    freq: 659.25,
+    startMs: 75,
+    durationMs: 360,
+    volume: 0.25,
+    harmonics: [
+      [1, 1],
+      [2, 0.32],
+      [3, 0.12],
+      [4, 0.05],
+    ],
+    decay: 7,
+    attackMs: 3,
+  });
+  addNote(buffer, {
+    freq: 1046.5,
+    startMs: 135,
+    durationMs: 600,
+    volume: 0.3,
+    harmonics: [
+      [1, 1],
+      [2, 0.3],
+      [3, 0.12],
+      [4, 0.05],
+    ],
+    decay: 4.5,
+    attackMs: 4,
+  });
+  addSparkles(buffer, { startMs: 130, durationMs: 420, volume: 0.035 });
+  limit(buffer);
+  return finish(buffer, 0.84);
+}
+
 // ─────────────────────────────────────────────────────────────
 // Celebration sounds
 // ─────────────────────────────────────────────────────────────
@@ -191,12 +393,14 @@ function generateTone(freqHz, toneMs, totalMs, volume) {
 function generateDayComplete() {
   const buffer = silence(1600);
 
-  // Note 1: C5
+  addTransient(buffer, { startMs: 0, durationMs: 55, volume: 0.12 });
+
+  // Fast major arpeggio: C5, E5, G5, C6.
   addNote(buffer, {
     freq: 523.25,
     startMs: 0,
-    durationMs: 500,
-    volume: 0.42,
+    durationMs: 420,
+    volume: 0.34,
     harmonics: [
       [1, 1],
       [2, 0.4],
@@ -206,12 +410,11 @@ function generateDayComplete() {
     decay: 5,
   });
 
-  // Note 2: E5, overlapping
   addNote(buffer, {
     freq: 659.25,
-    startMs: 220,
-    durationMs: 1200,
-    volume: 0.45,
+    startMs: 150,
+    durationMs: 760,
+    volume: 0.34,
     harmonics: [
       [1, 1],
       [2, 0.42],
@@ -220,12 +423,38 @@ function generateDayComplete() {
     ],
     decay: 3.2,
   });
+  addNote(buffer, {
+    freq: 783.99,
+    startMs: 300,
+    durationMs: 900,
+    volume: 0.32,
+    harmonics: [
+      [1, 1],
+      [2, 0.38],
+      [3, 0.16],
+      [4.2, 0.08],
+    ],
+    decay: 2.6,
+  });
+  addNote(buffer, {
+    freq: 1046.5,
+    startMs: 470,
+    durationMs: 1050,
+    volume: 0.38,
+    harmonics: [
+      [1, 1],
+      [2, 0.42],
+      [3, 0.2],
+      [4.2, 0.1],
+    ],
+    decay: 2.1,
+  });
 
   // Subtle high shimmer on top
   addSparkles(buffer, { startMs: 250, durationMs: 1000, volume: 0.05 });
 
   limit(buffer);
-  return buffer;
+  return finish(buffer, 0.84);
 }
 
 /**
@@ -235,6 +464,20 @@ function generateDayComplete() {
  */
 function generateTargetReached() {
   const buffer = silence(4200);
+
+  addTransient(buffer, { startMs: 0, durationMs: 70, volume: 0.14 });
+  addSweep(buffer, {
+    startMs: 0,
+    durationMs: 760,
+    startFreq: 180,
+    endFreq: 920,
+    volume: 0.13,
+    decay: 1.8,
+    harmonics: [
+      [1, 1],
+      [2, 0.12],
+    ],
+  });
 
   // ── Ascending arpeggio ────────────────────────────────
   addNote(buffer, {
@@ -308,7 +551,7 @@ function generateTargetReached() {
   addSparkles(buffer, { startMs: 900, durationMs: 2600, volume: 0.07 });
 
   limit(buffer);
-  return buffer;
+  return finish(buffer, 0.86);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -319,9 +562,9 @@ const outDir = path.join(__dirname, "..", "assets", "sounds");
 fs.mkdirSync(outDir, { recursive: true });
 
 // Timer sounds (existing)
-writeWav(generateTone(1150, 100, 1000, 0.35), path.join(outDir, "pop.wav"));
-writeWav(generateTone(880, 50, 1000, 0.28), path.join(outDir, "tick.wav"));
-writeWav(generateTone(1500, 300, 1000, 0.32), path.join(outDir, "glass.wav"));
+writeWav(generateSessionStart(), path.join(outDir, "pop.wav"));
+writeWav(generateTick(), path.join(outDir, "tick.wav"));
+writeWav(generateCompletion(), path.join(outDir, "glass.wav"));
 
 // Celebration sounds (new)
 writeWav(generateDayComplete(), path.join(outDir, "day-complete.wav"));
