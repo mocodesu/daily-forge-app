@@ -316,7 +316,7 @@ export default function SessionScreen() {
             strokeLinecap="round"
             stroke="url(#timerRingGradient)"
             fill="none"
-            strokeDasharray={ringCircumference}
+            strokeDasharray={[ringCircumference, ringCircumference]}
             strokeDashoffset={ringCircumference}
             animatedProps={ringAnimatedProps}
             transform={`rotate(-90 ${ringCenter} ${ringCenter})`}
@@ -329,7 +329,7 @@ export default function SessionScreen() {
             strokeWidth={ringStroke}
             strokeLinecap="round"
             fill="none"
-            strokeDasharray={ringCircumference}
+            strokeDasharray={[ringCircumference, ringCircumference]}
             strokeDashoffset={ringCircumference}
             animatedProps={completionRingAnimatedProps}
             transform={`rotate(-90 ${ringCenter} ${ringCenter})`}
