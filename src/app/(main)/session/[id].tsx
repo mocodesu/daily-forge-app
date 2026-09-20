@@ -39,9 +39,7 @@ import {
 
 // ─────────────────────────────────────────────────────────────
 // Ring geometry
-//
-// Sizes are chosen per breakpoint in the component body and captured
-// by the memoized ProgressRing below. Numbers must be serializable.
+// ─────────────────────────────────────────────────────────────
 const RING_SIZE_PHONE = 280;
 const RING_SIZE_TABLET = 380;
 const RING_STROKE_PHONE = 16;
@@ -50,34 +48,17 @@ const RING_STROKE_TABLET = 22;
 // ─────────────────────────────────────────────────────────────
 // ProgressRing — memoized Skia canvas
 //
-// Extracted into its own React.memo component for a specific reason:
-// the session screen's `remaining` state updates ~5×/second, which
-// re-renders the parent. If the <Canvas> lived inline, the entire
-// Skia JS tree would re-evaluate on every tick — the single biggest
-// source of frame drops on low-end Android.
+// Extracted into its own React.memo component so the session
+// screen's ~5 Hz `remaining` state tick doesn't re-evaluate the
+// Skia JS tree. With React.memo + stable Reanimated SharedValue
+// references + memoized color arrays, the Canvas subtree is
+// evaluated once at mount and animated entirely on the UI thread.
 //
-// With React.memo, the Canvas subtree re-evaluates only when one of
-// its props changes. `progress` and `completion` are Reanimated
-// shared values (stable references), `path` is memoized upstream,
-// and the colour strings are primitives. So the Canvas re-renders
-// essentially never after mount — the animation lives entirely on
-// the UI thread via Skia's Reanimated integration.
-//
-// macOS-style sweep gradient:
-//
-// A linear gradient is anchored to the canvas, so it only colours
-// one diagonal slice of the arc at a time — the leading edge
-// changes colour as the arc grows. A sweep gradient is anchored
-// to the ring itself: the colour bands are baked into ring-space,
-// and growing the arc *reveals* more of them. That's exactly how
-// Activity rings behave.
-//
-// Five stops — primary → illum → primary → illum → primary — put
+// macOS-style sweep gradient: colors are baked into ring-space,
+// so growing the arc *reveals* more of them. The five stops put
 // bright bands at the top and bottom of the ring and darker bands
-// at the sides, so the highlight is always near the leading edge
-// regardless of where the arc starts or stops.
+// at the sides, so the leading edge is always near a highlight.
 // ─────────────────────────────────────────────────────────────
-
 interface ProgressRingProps {
   progress: SharedValue<number>;
   completion: SharedValue<number>;
@@ -104,9 +85,6 @@ const ProgressRing = React.memo(function ProgressRing({
   const canvasStyle = useMemo(() => ({ width: size, height: size }), [size]);
   const center = useMemo(() => vec(size / 2, size / 2), [size]);
 
-  // Symmetric sweep gradient — two bright bands, two dark bands.
-  // Memoized so the array reference stays stable across parent
-  // re-renders and React.memo can actually short-circuit.
   const sweepColors = useMemo(
     () => [
       primaryColor,
@@ -121,7 +99,6 @@ const ProgressRing = React.memo(function ProgressRing({
 
   return (
     <Canvas style={canvasStyle}>
-      {/* Background track — static, never animated. */}
       <Path
         path={path}
         style="stroke"
@@ -129,9 +106,6 @@ const ProgressRing = React.memo(function ProgressRing({
         color={trackColor}
       />
 
-      {/* Animated gradient arc. `progress` is a SharedValue, so the
-          arc's `end` prop is updated on the UI thread by Skia's
-          Reanimated integration — no JS frames. */}
       <Path
         path={path}
         style="stroke"
@@ -147,10 +121,6 @@ const ProgressRing = React.memo(function ProgressRing({
         />
       </Path>
 
-      {/* Success overlay — green sweep that fades in at completion.
-          Shares `path` and `progress` with the arc above, so it stays
-          perfectly aligned. Opacity is 0 for the entire countdown and
-          flips to 1 in one spring, so this is essentially free. */}
       <Path
         path={path}
         style="stroke"
@@ -170,7 +140,6 @@ export default function SessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { rt } = useUnistyles();
 
-  // Per-breakpoint ring geometry. Captured by the memoized canvas.
   const isTablet =
     rt.breakpoint === "tablet" || rt.breakpoint === "largeTablet";
   const ringSize = isTablet ? RING_SIZE_TABLET : RING_SIZE_PHONE;
@@ -201,19 +170,15 @@ export default function SessionScreen() {
   const mountedRef = useRef(true);
   const ringAnimationStartedRef = useRef(false);
 
-  // ── Reanimated shared values ──────────────────────────────
   const progress = useSharedValue(0);
   const completion = useSharedValue(0);
 
-  // Colours read once. Primitive strings, so they're stable across
-  // renders and won't break ProgressRing's memo comparison.
   const theme = UnistylesRuntime.getTheme();
   const primaryColor = theme.colors.primary;
   const primaryIllumination = theme.colors.primaryIllumination;
   const trackColor = theme.colors.panel;
   const successColor = theme.colors.active;
 
-  // ── Lifecycle guards ──────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -230,7 +195,6 @@ export default function SessionScreen() {
     );
   });
 
-  // ── Load exercise metadata (does NOT start the ring) ──────
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
@@ -252,12 +216,6 @@ export default function SessionScreen() {
     })();
   }, [db, id]);
 
-  // ── Start the ring animation AFTER the Canvas has mounted ──
-  //
-  // This effect runs the first time `loading` flips to false and
-  // `exercise` is set — which is exactly when <ProgressRing> enters
-  // the tree. Starting the animation here guarantees the shared
-  // value has a subscriber from frame one.
   useEffect(() => {
     if (loading || !exercise) return;
     if (ringAnimationStartedRef.current) return;
@@ -272,7 +230,6 @@ export default function SessionScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, exercise]);
 
-  // ── Countdown ticker ──────────────────────────────────────
   useEffect(() => {
     if (loading || !exercise) return;
 
@@ -288,9 +245,6 @@ export default function SessionScreen() {
         Math.ceil((endDateRef.current - Date.now()) / 1000),
       );
 
-      // Timer hit zero. Self-clear so we stop waking the JS thread
-      // 5×/second for the rest of the session. The completion effect
-      // below handles the checkmark + sound + button reveal.
       if (r === 0) {
         clearInterval(interval);
       }
@@ -309,7 +263,6 @@ export default function SessionScreen() {
     return () => clearInterval(interval);
   }, [loading, exercise]);
 
-  // ── Completion ────────────────────────────────────────────
   useEffect(() => {
     if (loading || !exercise) return;
     if (remaining === 0 && !finished) {
@@ -320,7 +273,6 @@ export default function SessionScreen() {
     }
   }, [loading, exercise, remaining, finished, completion]);
 
-  // ── Handlers ──────────────────────────────────────────────
   const handleMarkDone = async () => {
     if (!exercise || saving) return;
     setSaving(true);
@@ -371,7 +323,6 @@ export default function SessionScreen() {
     transform: [{ translateY: (1 - completion.value) * 24 }],
   }));
 
-  // ── Render ────────────────────────────────────────────────
   if (loading || !exercise) {
     return (
       <View style={styles.loading}>
@@ -461,6 +412,7 @@ export default function SessionScreen() {
         {finished ? (
           <Animated.View style={[styles.buttonWrap, buttonStyle]}>
             <HapticPressable
+              testID="session-mark-done"
               haptic="medium"
               onPress={handleMarkDone}
               disabled={saving}
@@ -500,10 +452,6 @@ export default function SessionScreen() {
     </View>
   );
 }
-
-// ─────────────────────────────────────────────────────────────
-// Styles (unchanged)
-// ─────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create((theme, rt) => ({
   screen: {

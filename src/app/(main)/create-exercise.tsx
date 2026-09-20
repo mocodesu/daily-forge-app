@@ -44,13 +44,10 @@ export default function CreateExerciseScreen() {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** How many exercises have been saved in this session. Shown briefly
-   *  after a "Save & Add Another" so the user sees confirmation. */
   const [savedCount, setSavedCount] = useState(0);
 
   const placeholderColor = UnistylesRuntime.getTheme().colors.mutedText;
 
-  // ── Form mutators ────────────────────────────────────────
   function togglePart(part: BodyPart) {
     setSelectedParts((prev) => {
       const next = new Set(prev);
@@ -81,8 +78,6 @@ export default function CreateExerciseScreen() {
     setPickerVisible(false);
   }
 
-  /** Clears the form back to defaults. Keeps `isDaily` so bulk entry of
-   *  similar exercises stays fast. Does NOT reset `savedCount`. */
   function resetForm() {
     setName("");
     setSelectedParts(new Set());
@@ -96,7 +91,6 @@ export default function CreateExerciseScreen() {
     setError(null);
   }
 
-  // ── Save ─────────────────────────────────────────────────
   async function handleSave(stayOpen: boolean) {
     setError(null);
 
@@ -190,6 +184,8 @@ export default function CreateExerciseScreen() {
         )}
 
         <Pressable
+          testID="create-exercise-quick-start"
+          accessibilityRole="button"
           onPress={() => setPickerVisible(true)}
           style={styles.quickStartCard}
         >
@@ -213,6 +209,7 @@ export default function CreateExerciseScreen() {
 
         <Field label="Name">
           <TextInput
+            testID="create-exercise-name"
             value={name}
             onChangeText={setName}
             placeholder="e.g. Push-ups"
@@ -230,6 +227,8 @@ export default function CreateExerciseScreen() {
               return (
                 <Pressable
                   key={type}
+                  testID={`create-exercise-type-${type}`}
+                  accessibilityRole="button"
                   onPress={() => setExerciseType(type)}
                   style={[
                     styles.segment,
@@ -266,6 +265,7 @@ export default function CreateExerciseScreen() {
               </Text>
             </View>
             <Switch
+              testID="create-exercise-is-daily"
               value={isDaily}
               onValueChange={setIsDaily}
               trackColor={{
@@ -349,6 +349,7 @@ export default function CreateExerciseScreen() {
 
         <Field label="Notes (optional)">
           <TextInput
+            testID="create-exercise-notes"
             value={notes}
             onChangeText={setNotes}
             placeholder="Form cues, reminders…"
@@ -360,6 +361,9 @@ export default function CreateExerciseScreen() {
         </Field>
 
         <Pressable
+          testID="create-exercise-confirm-lock"
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: confirmLock }}
           onPress={() => setConfirmLock((v) => !v)}
           style={styles.confirmRow}
         >
@@ -391,9 +395,9 @@ export default function CreateExerciseScreen() {
           </View>
         )}
 
-        {/* ── ACTIONS ───────────────────────────────────── */}
         <View style={styles.actionsRow}>
           <HapticPressable
+            testID="create-exercise-save-and-add"
             haptic="light"
             onPress={() => handleSave(true)}
             disabled={!canSave}
@@ -417,6 +421,7 @@ export default function CreateExerciseScreen() {
           </HapticPressable>
 
           <HapticPressable
+            testID="create-exercise-save"
             haptic="medium"
             onPress={() => handleSave(false)}
             disabled={!canSave}
@@ -443,10 +448,6 @@ export default function CreateExerciseScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-// ─────────────────────────────────────────────────────────────
-// Sub-components
-// ─────────────────────────────────────────────────────────────
 
 function Field({
   label,
@@ -501,10 +502,6 @@ function QuickButton({
     </Pressable>
   );
 }
-
-// ─────────────────────────────────────────────────────────────
-// Styles
-// ─────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create((theme, rt) => ({
   screen: {
@@ -579,7 +576,6 @@ const styles = StyleSheet.create((theme, rt) => ({
   iconPrimary: { color: theme.colors.primary },
 
   card: {
-    // Tablets get more internal breathing room.
     padding: {
       phone: theme.spacing.md,
       tablet: theme.spacing.lg,
@@ -672,7 +668,6 @@ const styles = StyleSheet.create((theme, rt) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.md,
-    // Tablets get more internal breathing room.
     padding: {
       phone: theme.spacing.md,
       tablet: theme.spacing.lg,

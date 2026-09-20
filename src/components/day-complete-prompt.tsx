@@ -2,7 +2,12 @@ import { HapticPressable } from "@/components/haptic-pressable";
 import Text from "@/components/text";
 import { PrimaryIcon } from "@/components/themed";
 import React from "react";
-import { Modal, Pressable, View } from "react-native";
+import {
+  Modal,
+  Pressable,
+  StyleSheet as RNStyleSheet,
+  View,
+} from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 
 export function DayCompletePrompt({
@@ -23,8 +28,29 @@ export function DayCompletePrompt({
       animationType="fade"
       onRequestClose={onAddMore}
     >
-      <Pressable style={styles.backdrop} onPress={onAddMore}>
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+      <View style={styles.backdrop}>
+        {/*
+         * Tap-outside-to-dismiss layer.
+         *
+         * This is a plain absolutely-positioned Pressable, deliberately
+         * NOT a wrapper around the card. Wrapping the card in an outer
+         * Pressable caused Android's UiAutomator to treat that outer
+         * node as the accessible element and hide the testIDs of the
+         * buttons inside — which broke Maestro's ability to find and
+         * tap them, even though they were visibly rendered.
+         *
+         * `accessible={false}` + `importantForAccessibility="no"`
+         * ensure this layer never becomes an accessibility node on
+         * either platform.
+         */}
+        <Pressable
+          style={RNStyleSheet.absoluteFill}
+          onPress={onAddMore}
+          accessible={false}
+          importantForAccessibility="no"
+        />
+
+        <View style={styles.card}>
           <PrimaryIcon name="checkmark-circle" size={56} />
 
           <Text variant="h2" color="onSurface" style={styles.title}>
@@ -41,13 +67,20 @@ export function DayCompletePrompt({
           </Text>
 
           <View style={styles.actions}>
-            <Pressable onPress={onAddMore} style={styles.secondary}>
+            <Pressable
+              testID="day-prompt-add-more"
+              accessible={true}
+              accessibilityRole="button"
+              onPress={onAddMore}
+              style={styles.secondary}
+            >
               <Text variant="subheadBold" color="onSurface">
                 Add more
               </Text>
             </Pressable>
 
             <HapticPressable
+              testID="day-prompt-done"
               haptic="medium"
               onPress={onDone}
               style={styles.primary}
@@ -57,8 +90,8 @@ export function DayCompletePrompt({
               </Text>
             </HapticPressable>
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

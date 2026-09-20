@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────────
+# Shared onboarding subflow.
+#
+# Runs from the Welcome screen (i.e. after `launch.yaml`) and
+# lands on Today with a fresh profile. Every future daily or
+# settings flow starts by running this, so onboarding is
+# exercised on every run.
+#
+# Uses metric units, skips the notification permission prompt.
+# ─────────────────────────────────────────────────────────────
+appId: com.mocodesu.dailyforge.dev
+---
+- runFlow: launch.yaml
+
+- tapOn:
+    id: "onboarding-continue"
+
+- tapOn:
+    id: "onboarding-name-input"
+- inputText: "Test User"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+
+- tapOn:
+    id: "units-metric"
+- tapOn:
+    id: "onboarding-continue"
+
+- tapOn:
+    id: "onboarding-height-cm"
+- inputText: "175"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+
+- tapOn:
+    id: "onboarding-weight"
+- inputText: "75"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-goal"
+- inputText: "70"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+
+- tapOn:
+    id: "onboarding-continue"
+
+- extendedWaitUntil:
+    visible: "Welcome, Test User"
+    timeout: 10000
+- tapOn:
+    id: "celebration-continue"
+    retryTapIfNoChange: true
+
+- extendedWaitUntil:
+    visible:
+      id: "today-greeting"
+    timeout: 15000

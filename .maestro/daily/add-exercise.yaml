@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────────────────────
+# Add Exercise — full round-trip
+#
+# Today → Create Exercise → Quick Start → pick Push-ups →
+# confirm → save → back on Today → card renders.
+#
+# Uses the Quick Start path because it exercises the catalog
+# picker AND the form auto-fill in a single flow. Manual entry
+# (typing a name, selecting body parts, setting sets/reps) is a
+# separate flow, planned for Phase 5.3.
+#
+# `scrollUntilVisible` is needed twice because the confirm
+# checkbox and the save buttons live below the fold on a phone
+# viewport.
+# ─────────────────────────────────────────────────────────────
+appId: com.mocodesu.dailyforge.dev
+---
+- runFlow: ../shared/onboard.yaml
+
+# Today → Create Exercise
+- tapOn:
+    id: "today-add-exercise"
+- extendedWaitUntil:
+    visible: "New Exercise"
+    timeout: 5000
+
+# Quick Start → catalog modal
+- tapOn:
+    id: "create-exercise-quick-start"
+- extendedWaitUntil:
+    visible: "Choose Exercise"
+    timeout: 5000
+- tapOn:
+    id: "catalog-item-push-ups"
+
+# Back on the create form with Push-ups prefilled.
+# Verify the name field got auto-populated.
+- extendedWaitUntil:
+    visible: "Push-ups"
+    timeout: 5000
+
+# Scroll to the confirm-lock checkbox and tap it.
+- scrollUntilVisible:
+    element:
+      id: "create-exercise-confirm-lock"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "create-exercise-confirm-lock"
+
+# Scroll to the save button and tap it.
+- scrollUntilVisible:
+    element:
+      id: "create-exercise-save"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "create-exercise-save"
+
+# Back on Today — card must render.
+- extendedWaitUntil:
+    visible:
+      id: "today-greeting"
+    timeout: 10000
+- assertVisible:
+    id: "exercise-card-0"

@@ -14,13 +14,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { StyleSheet } from "react-native-unistyles";
 
-/** Width of the revealed delete action, in points. */
 const ACTION_WIDTH = 92;
-/** Stagger gap between cards, in ms. */
 const STAGGER_STEP = 45;
-/** Cap so a long list doesn't leave the last card waiting too long. */
 const STAGGER_CAP = 12;
-/** Duration of each card's entry, in ms. */
 const ENTRY_DURATION = 400;
 
 export function SwipeableExerciseCard({
@@ -104,7 +100,6 @@ export function SwipeableExerciseCard({
     confirmAndDelete();
   }, [confirmAndDelete]);
 
-  // Stagger delay based on index, capped so long lists don't drag.
   const staggerDelay = Math.min(index, STAGGER_CAP) * STAGGER_STEP;
 
   return (
@@ -114,6 +109,7 @@ export function SwipeableExerciseCard({
       <View style={styles.container}>
         <Animated.View style={[styles.actionLayer, actionStyle]}>
           <Pressable
+            testID={`exercise-delete-${index}`}
             onPress={handleDeletePress}
             style={styles.deleteButton}
             accessibilityRole="button"
@@ -129,6 +125,7 @@ export function SwipeableExerciseCard({
         <GestureDetector gesture={pan}>
           <Animated.View style={[styles.cardLayer, cardStyle]}>
             <ExerciseCard
+              testID={`exercise-card-${index}`}
               exercise={exercise}
               isDone={isDone}
               onPress={onPress}

@@ -1,0 +1,57 @@
+# ─────────────────────────────────────────────────────────────
+# Onboarding — validation edge cases
+#
+# Covers every way a user can try to advance with invalid input.
+# The check is structural: tap Continue on an invalid step, then
+# assert we're still on that step.
+# ─────────────────────────────────────────────────────────────
+appId: com.mocodesu.dailyforge.dev
+---
+- runFlow: ../shared/launch.yaml
+
+- tapOn:
+    id: "onboarding-continue"
+
+# Name — tap Continue with empty input. Still on Name.
+- tapOn:
+    id: "onboarding-continue"
+- assertVisible: "What should we call you?"
+
+# Type a valid name.
+- tapOn:
+    id: "onboarding-name-input"
+- inputText: "Ada"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+
+# Units — advance.
+- tapOn:
+    id: "onboarding-continue"
+
+# Height — out of range. Still on Height.
+- tapOn:
+    id: "onboarding-height-cm"
+- inputText: "99"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+- assertVisible: "How tall are you?"
+
+# Valid height clears the block.
+- tapOn:
+    id: "onboarding-height-cm"
+- eraseText
+- inputText: "175"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+
+# Weight — only first field filled. Still on Weight.
+- tapOn:
+    id: "onboarding-weight"
+- inputText: "75"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+- assertVisible: "Your weight"

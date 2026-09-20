@@ -1,0 +1,109 @@
+# ─────────────────────────────────────────────────────────────
+# Seal Day — real user path, no DevTools
+#
+# Every step below corresponds to an action a real user performs
+# on a Release build:
+#   1. Open Settings, change Daily Minimum to 1.
+#   2. Return to Today, tap Add Exercise.
+#   3. Use Quick Start to pick Push-ups (a catalog preset).
+#   4. Confirm the immutability checkbox and save.
+#   5. Tap the exercise card, start the workout, wait out the
+#      real 60-second session timer, tap Mark Done.
+#   6. Today detects all-done and shows the completion prompt.
+#   7. Tap "I'm done for today" to open the swear modal.
+#
+# STOPS at the swear modal. The voice step cannot be driven by
+# Maestro — the OS microphone can't be fed synthetic audio.
+#
+# Notification permission is granted inside `shared/launch.yaml`,
+# so no explicit grant is needed here.
+# ─────────────────────────────────────────────────────────────
+appId: com.mocodesu.dailyforge.dev
+---
+- runFlow: ../shared/onboard.yaml
+
+# ── Settings — lower the daily minimum to 1 ────────────────
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "Daily Minimum"
+    timeout: 8000
+- scrollUntilVisible:
+    element:
+      id: "min-exercises-1"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "min-exercises-1"
+
+# ── Today — add one exercise ───────────────────────────────
+- tapOn: "Today"
+- extendedWaitUntil:
+    visible:
+      id: "today-add-exercise"
+    timeout: 8000
+- tapOn:
+    id: "today-add-exercise"
+
+# ── Create — Quick Start → Push-ups ────────────────────────
+- extendedWaitUntil:
+    visible: "New Exercise"
+    timeout: 5000
+- tapOn:
+    id: "create-exercise-quick-start"
+- extendedWaitUntil:
+    visible: "Choose Exercise"
+    timeout: 5000
+- tapOn:
+    id: "catalog-item-push-ups"
+
+# ── Confirm + save ─────────────────────────────────────────
+- scrollUntilVisible:
+    element:
+      id: "create-exercise-confirm-lock"
+    direction: DOWN
+    timeout: 8000
+- tapOn:
+    id: "create-exercise-confirm-lock"
+- scrollUntilVisible:
+    element:
+      id: "create-exercise-save"
+    direction: DOWN
+    timeout: 8000
+- tapOn:
+    id: "create-exercise-save"
+
+# ── Today — exercise card is present ───────────────────────
+- extendedWaitUntil:
+    visible:
+      id: "exercise-card-0"
+    timeout: 10000
+- tapOn:
+    id: "exercise-card-0"
+
+# ── Detail screen — start the workout ──────────────────────
+- extendedWaitUntil:
+    visible:
+      id: "exercise-start-workout"
+    timeout: 5000
+- tapOn:
+    id: "exercise-start-workout"
+
+# ── Session — wait out the real 60-second timer ────────────
+- extendedWaitUntil:
+    visible:
+      id: "session-mark-done"
+    timeout: 75000
+- tapOn:
+    id: "session-mark-done"
+
+# ── Today — completion prompt appears ──────────────────────
+- extendedWaitUntil:
+    visible: "Day complete!"
+    timeout: 10000
+- tapOn:
+    id: "day-prompt-done"
+
+# ── Swear modal opens — flow ends here ─────────────────────
+- extendedWaitUntil:
+    visible: "Seal the Day"
+    timeout: 8000

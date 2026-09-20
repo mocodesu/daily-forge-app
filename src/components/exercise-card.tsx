@@ -20,48 +20,42 @@ export function ExerciseCard({
   exercise,
   isDone,
   onPress,
+  testID = "exercise-card",
 }: {
   exercise: Exercise;
   isDone: boolean;
   onPress: () => void;
+  testID?: string;
 }) {
-  // The Unistyles theme is read once, outside of any worklet. Only the
-  // color strings we actually need inside the animation are captured.
   const theme = UnistylesRuntime.getTheme();
   const panelColor = theme.colors.panel;
   const primaryColor = theme.colors.primary;
   const onPrimaryColor = theme.colors.onPrimary;
 
-  // ── Shared values ─────────────────────────────────────────
   const pressScale = useSharedValue(1);
   const cardOpacity = useSharedValue(isDone ? 0.6 : 1);
   const doneProgress = useSharedValue(isDone ? 1 : 0);
   const doneCheckScale = useSharedValue(isDone ? 1 : 0);
 
-  // ── Animate on `isDone` transition ────────────────────────
   useEffect(() => {
     if (isDone) {
-      // Ring fills in and checkmark springs in
       doneProgress.value = withTiming(1, { duration: 350 });
       doneCheckScale.value = withSpring(1, {
         damping: 10,
         stiffness: 220,
       });
-      // Whole card fades slightly, then does a small "pop" and settles
       cardOpacity.value = withTiming(0.6, { duration: 400 });
       pressScale.value = withSequence(
         withTiming(1.02, { duration: 150 }),
         withSpring(1, { damping: 14, stiffness: 200 }),
       );
     } else {
-      // Reset instantly when going back to active
       doneProgress.value = withTiming(0, { duration: 200 });
       doneCheckScale.value = 0;
       cardOpacity.value = withTiming(1, { duration: 200 });
     }
   }, [isDone, cardOpacity, doneProgress, doneCheckScale, pressScale]);
 
-  // ── Press handlers ────────────────────────────────────────
   const handlePressIn = () => {
     pressScale.value = withSpring(0.97, {
       damping: 18,
@@ -76,7 +70,6 @@ export function ExerciseCard({
     });
   };
 
-  // ── Animated styles ───────────────────────────────────────
   const containerStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pressScale.value }],
     opacity: cardOpacity.value,
@@ -94,7 +87,6 @@ export function ExerciseCard({
     transform: [{ scale: doneCheckScale.value }],
   }));
 
-  // ── Content ───────────────────────────────────────────────
   const iconName =
     exercise.exerciseType === "timer" ? "timer-outline" : "barbell-outline";
   const summary =
@@ -105,6 +97,7 @@ export function ExerciseCard({
   return (
     <Animated.View style={containerStyle}>
       <HapticPressable
+        testID={testID}
         haptic="selection"
         onPress={onPress}
         onPressIn={handlePressIn}

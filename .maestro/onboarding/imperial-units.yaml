@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────
+# Onboarding — imperial units path
+#
+# Exercises the two-column ft/in layout, which is the one step
+# most likely to break on a real device because it splits a
+# single logical input across two TextInputs.
+#
+# The `waitForAnimationToEnd` after the imperial tap is
+# critical: setSystem writes React state and fires an async DB
+# write. Without it, the next screen may render before React
+# has committed the mode change, so the Height step stays in
+# metric mode and `onboarding-height-ft` never mounts.
+# ─────────────────────────────────────────────────────────────
+appId: com.mocodesu.dailyforge.dev
+---
+- runFlow: ../shared/launch.yaml
+
+# Welcome → Name
+- tapOn:
+    id: "onboarding-continue"
+- tapOn:
+    id: "onboarding-name-input"
+- inputText: "Ada"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+
+# Units — imperial, wait for the state flush
+- tapOn:
+    id: "units-imperial"
+- waitForAnimationToEnd
+- tapOn:
+    id: "onboarding-continue"
+- waitForAnimationToEnd
+
+# Height — two-column ft/in
+- tapOn:
+    id: "onboarding-height-ft"
+- inputText: "5"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-height-in"
+- inputText: "9"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+
+# Weight — lb
+- tapOn:
+    id: "onboarding-weight"
+- inputText: "165"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-goal"
+- inputText: "155"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+
+# Notifications — skip
+- tapOn:
+    id: "onboarding-continue"
+
+# Celebration
+- extendedWaitUntil:
+    visible: "Welcome, Ada"
+    timeout: 10000
+- tapOn:
+    id: "celebration-continue"
+    retryTapIfNoChange: true
+
+# Today
+- extendedWaitUntil:
+    visible:
+      id: "today-greeting"
+    timeout: 15000

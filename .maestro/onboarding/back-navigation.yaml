@@ -1,0 +1,44 @@
+# ─────────────────────────────────────────────────────────────
+# Onboarding — Back preserves input and stays responsive
+#
+# A real user changes their mind. This flow ensures moving
+# backward never loses data and never leaves the app in a state
+# where Continue is disabled.
+# ─────────────────────────────────────────────────────────────
+appId: com.mocodesu.dailyforge.dev
+---
+- runFlow: ../shared/launch.yaml
+
+# Welcome → Name, enter a value
+- tapOn:
+    id: "onboarding-continue"
+- tapOn:
+    id: "onboarding-name-input"
+- inputText: "Ada"
+- hideKeyboard
+
+# Back to Welcome
+- tapOn:
+    id: "onboarding-back"
+- extendedWaitUntil:
+    visible: "Welcome to DailyForge"
+    timeout: 5000
+
+# Forward again — name must still be "Ada"
+- tapOn:
+    id: "onboarding-continue"
+- extendedWaitUntil:
+    visible: "Ada"
+    timeout: 5000
+
+# Units, then back, then forward — same data survives
+- tapOn:
+    id: "onboarding-continue"
+- extendedWaitUntil:
+    visible: "Which units do you use?"
+    timeout: 5000
+- tapOn:
+    id: "onboarding-back"
+- extendedWaitUntil:
+    visible: "Ada"
+    timeout: 5000

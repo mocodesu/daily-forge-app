@@ -332,6 +332,7 @@ function TodayContent({
 
   const addButtonContent = !day.isLocked ? (
     <HapticPressable
+      testID="today-add-exercise"
       haptic="medium"
       onPress={() => router.push("/(main)/create-exercise")}
       style={styles.addButton}
@@ -405,7 +406,11 @@ function TodayContent({
                 <Text variant="h2" color="onBackground">
                   {dateLabel}
                 </Text>
-                <Text variant="subhead" color="mutedText">
+                <Text
+                  testID="today-greeting"
+                  variant="subhead"
+                  color="mutedText"
+                >
                   {`Hi ${profile.displayName} — `}
                   {day.progress.total === 0
                     ? "No exercises yet"

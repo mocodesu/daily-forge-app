@@ -8,7 +8,16 @@ type HapticPressableProps = PressableProps & {
 export function HapticPressable({
   haptic = "selection",
   onPress,
+  accessibilityRole = "button",
+  accessible = true,
   ...props
 }: HapticPressableProps) {
-  return <Pressable {...props} onPress={withHaptic(onPress, haptic)} />;
+  return (
+    <Pressable
+      {...props}
+      accessible={accessible}
+      accessibilityRole={accessibilityRole}
+      onPress={withHaptic(onPress, haptic)}
+    />
+  );
 }

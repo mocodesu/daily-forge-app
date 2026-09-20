@@ -1,0 +1,59 @@
+# ─────────────────────────────────────────────────────────────
+# Onboarding — Continue while keyboard is up
+#
+# A real user doesn't hide the keyboard before tapping Continue.
+# This flow never calls `hideKeyboard` — every Continue tap
+# happens with the keyboard still visible. It exercises the
+# `Keyboard.dismiss()` call in handleNext, which is what makes
+# the app behave correctly for real users even though Maestro
+# normally sidesteps the issue.
+# ─────────────────────────────────────────────────────────────
+appId: com.mocodesu.dailyforge.dev
+---
+- runFlow: ../shared/launch.yaml
+
+# Name — type and DON'T hide keyboard
+- tapOn:
+    id: "onboarding-continue"
+- tapOn:
+    id: "onboarding-name-input"
+- inputText: "Ada"
+- tapOn:
+    id: "onboarding-continue"
+
+# Units — no input, no keyboard. Advance.
+- tapOn:
+    id: "onboarding-continue"
+
+# Height — type and don't hide keyboard
+- tapOn:
+    id: "onboarding-height-cm"
+- inputText: "175"
+- tapOn:
+    id: "onboarding-continue"
+
+# Weight — two inputs, no hideKeyboard between
+- tapOn:
+    id: "onboarding-weight"
+- inputText: "75"
+- tapOn:
+    id: "onboarding-goal"
+- inputText: "70"
+- tapOn:
+    id: "onboarding-continue"
+
+# Notifications → Celebration
+- tapOn:
+    id: "onboarding-continue"
+- extendedWaitUntil:
+    visible: "Welcome, Ada"
+    timeout: 10000
+- tapOn:
+    id: "celebration-continue"
+    retryTapIfNoChange: true
+
+# Today
+- extendedWaitUntil:
+    visible:
+      id: "today-greeting"
+    timeout: 15000

@@ -1,0 +1,191 @@
+# ─────────────────────────────────────────────────────────────
+# Multi-exercise — partial progress + Add more + banner seal
+#
+# Two exercises, completed sequentially. This is the most common
+# real scenario: the default minimum is 5, and users routinely
+# have more than one exercise per day.
+#
+# What this flow verifies that no other flow does:
+#   • Two exercise cards render simultaneously.
+#   • The header's progress counter updates after each completion
+#     ("1 of 2 done today" then all-done).
+#   • The completion prompt fires only when ALL exercises are done,
+#     not when the minimum is met (min is 1 here; allDone still
+#     requires allExercisesCompleted).
+#   • The prompt's "Add more" button dismisses the prompt without
+#     opening the swear modal.
+#   • The AllDoneBanner appears after the prompt is dismissed and
+#     its "Seal the day" button opens the swear modal — a distinct
+#     path from the prompt's "I'm done for today".
+#
+# STOPS at the swear modal. Voice input is not automatable.
+# ─────────────────────────────────────────────────────────────
+appId: com.mocodesu.dailyforge.dev
+---
+- runFlow: ../shared/onboard.yaml
+
+# ── Settings — set minimum to 1 ────────────────────────────
+- tapOn: "Settings"
+- extendedWaitUntil:
+    visible: "Daily Minimum"
+    timeout: 8000
+- scrollUntilVisible:
+    element:
+      id: "min-exercises-1"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "min-exercises-1"
+
+# ── Today — add first exercise ─────────────────────────────
+- tapOn: "Today"
+- extendedWaitUntil:
+    visible:
+      id: "today-add-exercise"
+    timeout: 8000
+- tapOn:
+    id: "today-add-exercise"
+- extendedWaitUntil:
+    visible: "New Exercise"
+    timeout: 5000
+- tapOn:
+    id: "create-exercise-quick-start"
+- extendedWaitUntil:
+    visible: "Choose Exercise"
+    timeout: 5000
+- tapOn:
+    id: "catalog-item-push-ups"
+- scrollUntilVisible:
+    element:
+      id: "create-exercise-confirm-lock"
+    direction: DOWN
+    timeout: 8000
+- tapOn:
+    id: "create-exercise-confirm-lock"
+- scrollUntilVisible:
+    element:
+      id: "create-exercise-save"
+    direction: DOWN
+    timeout: 8000
+- tapOn:
+    id: "create-exercise-save"
+
+# First card renders — and only the first card.
+- extendedWaitUntil:
+    visible:
+      id: "exercise-card-0"
+    timeout: 10000
+- assertNotVisible:
+    id: "exercise-card-1"
+
+# ── Today — add second exercise ────────────────────────────
+- tapOn:
+    id: "today-add-exercise"
+- extendedWaitUntil:
+    visible: "New Exercise"
+    timeout: 5000
+- tapOn:
+    id: "create-exercise-quick-start"
+- extendedWaitUntil:
+    visible: "Choose Exercise"
+    timeout: 5000
+
+# Squats is in the Legs section, which sits below the fold
+# inside the picker's ScrollView. On Android, off-screen children
+# of a scroll container are not in the accessibility tree, so we
+# must scroll the picker before the tap.
+- scrollUntilVisible:
+    element:
+      id: "catalog-item-squats"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    id: "catalog-item-squats"
+
+- scrollUntilVisible:
+    element:
+      id: "create-exercise-confirm-lock"
+    direction: DOWN
+    timeout: 8000
+- tapOn:
+    id: "create-exercise-confirm-lock"
+- scrollUntilVisible:
+    element:
+      id: "create-exercise-save"
+    direction: DOWN
+    timeout: 8000
+- tapOn:
+    id: "create-exercise-save"
+
+# Both cards now render.
+- extendedWaitUntil:
+    visible:
+      id: "exercise-card-0"
+    timeout: 10000
+- assertVisible:
+    id: "exercise-card-1"
+
+# ── Complete the first exercise ────────────────────────────
+- tapOn:
+    id: "exercise-card-0"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-start-workout"
+    timeout: 5000
+- tapOn:
+    id: "exercise-start-workout"
+- extendedWaitUntil:
+    visible:
+      id: "session-mark-done"
+    timeout: 75000
+- tapOn:
+    id: "session-mark-done"
+
+# ── Back on Today — partial progress, no prompt ────────────
+- extendedWaitUntil:
+    visible: ".*1 of 2 done today.*"
+    timeout: 10000
+- assertNotVisible: "Day complete!"
+
+# ── Complete the second exercise ───────────────────────────
+- tapOn:
+    id: "exercise-card-1"
+- extendedWaitUntil:
+    visible:
+      id: "exercise-start-workout"
+    timeout: 5000
+- tapOn:
+    id: "exercise-start-workout"
+- extendedWaitUntil:
+    visible:
+      id: "session-mark-done"
+    timeout: 75000
+- tapOn:
+    id: "session-mark-done"
+
+# ── Prompt fires — all done ────────────────────────────────
+- extendedWaitUntil:
+    visible: "Day complete!"
+    timeout: 10000
+
+# ── Dismiss via "Add more" ─────────────────────────────────
+- tapOn:
+    id: "day-prompt-add-more"
+
+# ── AllDoneBanner appears with its own seal button ─────────
+- extendedWaitUntil:
+    visible:
+      id: "all-done-banner"
+    timeout: 5000
+- assertVisible:
+    id: "all-done-seal"
+
+# ── Seal from the banner — a different code path from the
+#    prompt's "I'm done for today" ─────────────────────────
+- tapOn:
+    id: "all-done-seal"
+
+# ── Swear modal opens — flow ends here ─────────────────────
+- extendedWaitUntil:
+    visible: "Seal the Day"
+    timeout: 8000

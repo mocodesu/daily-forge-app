@@ -18,7 +18,7 @@ export function MinimumNotMetBanner({
   const noun = remaining === 1 ? "exercise" : "exercises";
 
   return (
-    <View style={styles.banner}>
+    <View testID="minimum-not-met-banner" style={styles.banner}>
       <PrimaryIcon name="lock-closed-outline" size={22} />
 
       <View style={styles.body}>
@@ -31,7 +31,12 @@ export function MinimumNotMetBanner({
         </Text>
       </View>
 
-      <HapticPressable haptic="medium" onPress={onAdd} style={styles.action}>
+      <HapticPressable
+        testID="minimum-not-met-add"
+        haptic="medium"
+        onPress={onAdd}
+        style={styles.action}
+      >
         <Text variant="caption" color="onPrimary">
           Add {remaining}
         </Text>
@@ -42,7 +47,7 @@ export function MinimumNotMetBanner({
 
 export function AllDoneBanner({ onLock }: { onLock: () => void }) {
   return (
-    <View style={styles.banner}>
+    <View testID="all-done-banner" style={styles.banner}>
       <PrimaryIcon name="checkmark-circle" size={22} />
 
       <View style={styles.body}>
@@ -54,7 +59,12 @@ export function AllDoneBanner({ onLock }: { onLock: () => void }) {
         </Text>
       </View>
 
-      <HapticPressable haptic="medium" onPress={onLock} style={styles.action}>
+      <HapticPressable
+        testID="all-done-seal"
+        haptic="medium"
+        onPress={onLock}
+        style={styles.action}
+      >
         <Text variant="caption" color="onPrimary">
           Seal the day
         </Text>

@@ -214,26 +214,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ],
 
       [
-        "expo-dev-client",
-        {
-          launchMode: "most-recent",
-
-          /**
-           * Development client launch URLs.
-           *
-           * localhost works when the development client is running on the
-           * same machine/context. Android emulator uses 10.0.2.2 to reach
-           * the host machine.
-           */
-          defaultLaunchURL: "http://localhost:8081",
-
-          android: {
-            defaultLaunchURL: "http://10.0.2.2:8081",
-          },
-        },
-      ],
-
-      [
         "react-native-edge-to-edge",
         {
           android: {

@@ -1,0 +1,17 @@
+appId: com.mocodesu.dailyforge.dev
+
+flows:
+  - "onboarding/*"
+  - "daily/*"
+
+executionOrder:
+  continueOnFailure: true
+  flowsOrder:
+    - onboarding/full-happy-path
+    - onboarding/back-navigation
+    - onboarding/validation
+    - onboarding/imperial-units
+    - onboarding/keyboard-visible
+    - daily/add-exercise
+    - daily/seal-day
+    - daily/multi-exercise

@@ -21,6 +21,21 @@ const CATEGORY_ICONS: Record<CatalogCategory, keyof typeof Ionicons.glyphMap> =
     Cardio: "heart-outline",
   };
 
+/**
+ * Convert a catalog item's name into a stable, Maestro-friendly
+ * testID slug: lowercase, spaces → dashes, non-alphanumerics dropped.
+ *
+ *   "Push-ups" → "push-ups"
+ *   "Jump Rope" → "jump-rope"
+ *   "Bird Dog" → "bird-dog"
+ */
+function catalogSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export function CatalogPickerSheet({
   visible,
   onClose,
@@ -100,7 +115,12 @@ function CatalogRow({
         )}`;
 
   return (
-    <Pressable onPress={onPress} style={styles.row}>
+    <Pressable
+      testID={`catalog-item-${catalogSlug(item.name)}`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={styles.row}
+    >
       <View style={styles.rowBody}>
         <Text variant="subheadBold" color="onSurface">
           {item.name}
@@ -125,8 +145,6 @@ const styles = StyleSheet.create((theme, rt) => ({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: theme.layout.screenPaddingH,
-    // Clears the Android status bar. On iOS pageSheet, rt.insets.top is 0
-    // inside the modal, so nothing is double-padded.
     paddingTop: rt.insets.top + theme.spacing.md,
     paddingBottom: theme.spacing.md,
     borderBottomWidth: theme.borderWidth.hairline,
@@ -136,7 +154,6 @@ const styles = StyleSheet.create((theme, rt) => ({
   content: {
     paddingHorizontal: theme.layout.screenPaddingH,
     paddingTop: theme.spacing.lg,
-    // Clears the Android nav bar / iOS home indicator at the bottom.
     paddingBottom: rt.insets.bottom + theme.spacing.xxl,
     gap: theme.spacing.xl,
   },

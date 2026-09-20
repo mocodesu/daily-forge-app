@@ -227,6 +227,7 @@ export function CelebrationBurst({
           <Animated.View
             style={[styles.footer, buttonAnimatedStyle]}
             pointerEvents="none"
+            testID="celebration-continue"
           >
             <View style={styles.button}>
               <Text variant="subheadBold" color="onPrimary">

@@ -1,0 +1,32 @@
+# ─────────────────────────────────────────────────────────────
+# Shared launch subflow.
+#
+# On Android dev clients, `clearState: true` alone doesn't reliably
+# kill a running process. `stopApp` first forces the shutdown, then
+# `launchApp` with `clearState` does a full container wipe.
+#
+# Permissions are granted at launch time. `grantPermissions` is a
+# property of `launchApp` — it cannot be called as a standalone
+# command. Granting POST_NOTIFICATIONS here means no flow that
+# uses this subflow will ever hit the OS permission dialog.
+#
+# The welcome text renders before the footer button on Android —
+# the footer is one or two frames behind. Both waits are needed.
+# ─────────────────────────────────────────────────────────────
+appId: com.mocodesu.dailyforge.dev
+---
+- stopApp
+
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    permissions:
+      android.permission.POST_NOTIFICATIONS: allow
+
+- extendedWaitUntil:
+    visible: "Welcome to DailyForge"
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-continue"
+    timeout: 10000

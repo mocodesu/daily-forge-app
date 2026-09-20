@@ -40,6 +40,9 @@ export function UnitSystemPicker() {
           return (
             <Pressable
               key={opt.key}
+              testID={`units-${opt.key}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
               onPress={() => setSystem(opt.key)}
               style={[
                 styles.option,

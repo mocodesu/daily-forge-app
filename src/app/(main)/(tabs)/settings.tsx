@@ -96,6 +96,7 @@ export default function SettingsScreen() {
                 return (
                   <Pressable
                     key={scheme.id}
+                    testID={`accent-${scheme.id}`}
                     style={styles.accentSwatchWrapper}
                     onPress={() => selectScheme(scheme.id as AppColorSchemeId)}
                     accessibilityRole="button"
@@ -134,6 +135,7 @@ export default function SettingsScreen() {
                 return (
                   <Pressable
                     key={m.key}
+                    testID={`theme-mode-${m.key}`}
                     style={[
                       styles.themeOption,
                       selected && styles.themeOptionSelected,
@@ -188,6 +190,9 @@ export default function SettingsScreen() {
                 return (
                   <Pressable
                     key={n}
+                    testID={`target-days-${n}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
                     onPress={() => {
                       setShowCustomTarget(false);
                       setTargetDays(n);
@@ -208,6 +213,9 @@ export default function SettingsScreen() {
               })}
 
               <Pressable
+                testID="target-days-custom"
+                accessibilityRole="button"
+                accessibilityState={{ selected: showCustomTarget }}
                 onPress={() => setShowCustomTarget((v) => !v)}
                 style={[
                   styles.pill,
@@ -288,6 +296,9 @@ export default function SettingsScreen() {
                 return (
                   <Pressable
                     key={n}
+                    testID={`min-exercises-${n}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
                     onPress={() => {
                       setShowCustomMin(false);
                       setMinimumExercises(n);
@@ -308,6 +319,9 @@ export default function SettingsScreen() {
               })}
 
               <Pressable
+                testID="min-exercises-custom"
+                accessibilityRole="button"
+                accessibilityState={{ selected: showCustomMin }}
                 onPress={() => setShowCustomMin((v) => !v)}
                 style={[
                   styles.pill,
@@ -398,6 +412,7 @@ export default function SettingsScreen() {
           </Text>
 
           <Pressable
+            testID="settings-data-management"
             onPress={() => router.push("/(main)/data-management")}
             style={({ pressed }) => [styles.dataRow, pressed && styles.pressed]}
           >
@@ -477,10 +492,6 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create((theme) => ({
-  // Card grid. On phone each card fills the row; on tablet two
-  // cards share a row with even spacing. `space-between` handles
-  // the horizontal gap so we don't need calc(). rowGap keeps rows
-  // visually separated on tablet.
   cardGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -496,7 +507,6 @@ const styles = StyleSheet.create((theme) => ({
       phone: "100%",
       tablet: "48%",
     },
-    // Cards get a bit more internal breathing room on tablet.
     padding: {
       phone: theme.spacing.md,
       tablet: theme.spacing.lg,

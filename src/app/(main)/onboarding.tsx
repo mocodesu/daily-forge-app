@@ -18,6 +18,7 @@ import { router } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -46,14 +47,6 @@ export default function OnboardingScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // ── Hydrate the notification step from the OS ─────────────
-  //
-  // If the user already answered the permission prompt in a prior
-  // session (or on a reinstall where the OS remembers), reflect that
-  // here instead of showing "Enable Notifications" as if they'd never
-  // been asked. We only promote to "denied" when the OS won't let us
-  // ask again — otherwise we leave the button enabled so re-prompting
-  // from within the flow still works.
   useEffect(() => {
     (async () => {
       try {
@@ -64,7 +57,6 @@ export default function OnboardingScreen() {
         } else if (status === "denied" && !canAskAgain) {
           setNotifStatus("denied");
         }
-        // Otherwise: leave "idle" so the user can tap Enable.
       } catch (err) {
         console.warn("[onboarding] notification status read failed", err);
       }
@@ -152,16 +144,6 @@ export default function OnboardingScreen() {
 
       await UserProfileRepo.insert(db, profile);
 
-      // Persist the user's notification decision from step 6.
-      // Onboarding is the only place a fresh install answers this —
-      // the Settings editor reads whatever we write here.
-      //
-      //   granted → "1"  (they opted in)
-      //   denied  → "0"  (they said no)
-      //   idle    → "0"  (they skipped — treat as no)
-      //
-      // Writing "0" on skip prevents the Settings toggle from
-      // silently showing ON while no OS permission exists.
       const optedIn = notifStatus === "granted";
       try {
         await PreferencesRepo.set(db, KEY_ENABLED, optedIn ? "1" : "0");
@@ -169,10 +151,6 @@ export default function OnboardingScreen() {
         console.warn("[onboarding] persist reminder.enabled failed:", err);
       }
 
-      // If they opted in, arm the schedule now — the bootstrapper
-      // already ran before this screen mounted, and won't re-arm
-      // until the next cold launch. Without this, today's window
-      // would be skipped entirely.
       if (optedIn) {
         try {
           const settings = await readSettingsFromPrefs(db);
@@ -182,13 +160,7 @@ export default function OnboardingScreen() {
         }
       }
 
-      // Profile is persisted. Release the button so the celebration
-      // modal (or a retry if the modal fails) is never blocked by a
-      // stuck "Saving…" state.
       setSaving(false);
-
-      // Show the welcome celebration. Navigation to Today happens after
-      // the user dismisses it.
       setShowWelcome(true);
     } catch (err) {
       console.error("[onboarding] save failed", err);
@@ -215,6 +187,10 @@ export default function OnboardingScreen() {
   }, []);
 
   const handleNext = useCallback(() => {
+    // Real users tap Continue while the keyboard is still up.
+    // Dismiss it here so the next step renders cleanly and the
+    // footer never sits under the keyboard.
+    Keyboard.dismiss();
     if (step < TOTAL_STEPS - 1) {
       setStep(step + 1);
       setError(null);
@@ -295,9 +271,10 @@ export default function OnboardingScreen() {
         </View>
       </ScrollScreen>
 
-      <View style={styles.footer}>
+      <View testID="onboarding-footer" style={styles.footer}>
         {step > 0 && (
           <Pressable
+            testID="onboarding-back"
             onPress={handleBack}
             hitSlop={12}
             style={styles.backButton}
@@ -309,6 +286,8 @@ export default function OnboardingScreen() {
         )}
         <View style={styles.flex} />
         <HapticPressable
+          testID="onboarding-continue"
+          accessibilityState={{ disabled: !canContinue || saving }}
           haptic="medium"
           onPress={handleNext}
           disabled={!canContinue || saving}
@@ -337,7 +316,6 @@ export default function OnboardingScreen() {
         </HapticPressable>
       </View>
 
-      {/* ── Welcome celebration ────────────────────────── */}
       <CelebrationBurst
         visible={showWelcome}
         streak={0}
@@ -385,6 +363,7 @@ function NameStep({
         What should we call you?
       </Text>
       <TextInput
+        testID="onboarding-name-input"
         value={value}
         onChangeText={onChange}
         placeholder="Your name"
@@ -441,26 +420,27 @@ function HeightStep({
 
       {system === "metric" ? (
         <TextInput
+          testID="onboarding-height-cm"
           value={cm}
           onChangeText={(v) => onCmChange(v.replace(/[^0-9.]/g, ""))}
           placeholder="Height in cm (e.g. 175)"
           placeholderTextColor={placeholderColor}
           keyboardType="decimal-pad"
-          autoFocus
           style={styles.input}
         />
       ) : (
         <View style={styles.twoCol}>
           <TextInput
+            testID="onboarding-height-ft"
             value={feet}
             onChangeText={(v) => onFeetChange(v.replace(/[^0-9]/g, ""))}
             placeholder="ft"
             placeholderTextColor={placeholderColor}
             keyboardType="number-pad"
-            autoFocus
             style={[styles.input, styles.flex]}
           />
           <TextInput
+            testID="onboarding-height-in"
             value={inches}
             onChangeText={(v) => onInchesChange(v.replace(/[^0-9.]/g, ""))}
             placeholder="in"
@@ -507,12 +487,12 @@ function WeightStep({
             Starting weight ({unit})
           </Text>
           <TextInput
+            testID="onboarding-weight"
             value={weight}
             onChangeText={(v) => onWeightChange(v.replace(/[^0-9.]/g, ""))}
             placeholder={`e.g. ${unit === "kg" ? "75" : "165"}`}
             placeholderTextColor={placeholderColor}
             keyboardType="decimal-pad"
-            autoFocus
             style={styles.input}
           />
         </View>
@@ -522,6 +502,7 @@ function WeightStep({
             Goal weight ({unit})
           </Text>
           <TextInput
+            testID="onboarding-goal"
             value={goal}
             onChangeText={(v) => onGoalChange(v.replace(/[^0-9.]/g, ""))}
             placeholder={`e.g. ${unit === "kg" ? "70" : "155"}`}
@@ -580,6 +561,7 @@ function NotificationsStep({
 
       {status === "idle" ? (
         <HapticPressable
+          testID="onboarding-notif-enable"
           haptic="medium"
           onPress={onRequest}
           style={styles.notifButton}

@@ -40,3 +40,8 @@ app-example
 android
 ios
 coverage
+
+# Maestro
+.maestro/debug/
+maestro-debug-*.yaml
+*.maestro.log

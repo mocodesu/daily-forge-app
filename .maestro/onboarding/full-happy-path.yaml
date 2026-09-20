@@ -1,0 +1,73 @@
+# ─────────────────────────────────────────────────────────────
+# Onboarding — full happy path
+#
+# Design principle: assert only what matters, interact with
+# everything else. Every interaction proves its target exists,
+# so we skip redundant asserts on top.
+#
+# Exactly three visible-text assertions:
+#   1. The celebration rendered (proves the save succeeded).
+#   2. Today's greeting rendered (proves the router transition).
+#   3. Today's empty state (proves the day-state query ran).
+# Everything else is tap + input.
+# ─────────────────────────────────────────────────────────────
+appId: com.mocodesu.dailyforge.dev
+---
+- runFlow: ../shared/launch.yaml
+
+# Welcome → Name
+- tapOn:
+    id: "onboarding-continue"
+
+# Name → Units
+- tapOn:
+    id: "onboarding-name-input"
+- inputText: "Test User"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+
+# Units → Height
+- tapOn:
+    id: "units-metric"
+- tapOn:
+    id: "onboarding-continue"
+
+# Height → Weight
+- tapOn:
+    id: "onboarding-height-cm"
+- inputText: "175"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+
+# Weight → Notifications
+- tapOn:
+    id: "onboarding-weight"
+- inputText: "75"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-goal"
+- inputText: "70"
+- hideKeyboard
+- tapOn:
+    id: "onboarding-continue"
+
+# Notifications → Celebration (skip permission prompt)
+- tapOn:
+    id: "onboarding-continue"
+
+# Celebration → Today
+- extendedWaitUntil:
+    visible: "Welcome, Test User"
+    timeout: 10000
+- tapOn:
+    id: "celebration-continue"
+    retryTapIfNoChange: true
+
+# Today
+- extendedWaitUntil:
+    visible:
+      id: "today-greeting"
+    timeout: 15000
+- assertVisible: "No exercises today"
