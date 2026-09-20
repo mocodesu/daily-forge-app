@@ -21,9 +21,6 @@ export function matchSwear(input: string, phrase: string): SwearMatchResult {
 
   const inputWords = new Set(normalizedInput.split(" "));
   const targetWords = normalizedTarget.split(" ");
-  if (targetWords.length === 0) {
-    return { matched: false, score: 0, presentCount: 0, totalCount: 0 };
-  }
 
   let present = 0;
   for (const word of targetWords) {

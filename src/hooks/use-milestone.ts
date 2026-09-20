@@ -5,6 +5,7 @@ import { randomUUID } from "@/utils/day-key";
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+/* istanbul ignore next: __DEV__ is always true in tests */
 const MILESTONE_INTERVAL = __DEV__ ? 2 : 30;
 
 export function useMilestone(streak: number, enabled: boolean) {
@@ -26,10 +27,12 @@ export function useMilestone(streak: number, enabled: boolean) {
 
     try {
       const profileRow = await UserProfileRepo.get(db);
+      /* istanbul ignore next: fired only on unmount mid-refresh */
       if (!mountedRef.current) return;
       setProfile(profileRow);
 
       const unlockedDays = new Set(await MilestonesRepo.getAllDays(db));
+      /* istanbul ignore next: fired only on unmount mid-refresh */
       if (!mountedRef.current) return;
 
       for (
@@ -49,12 +52,14 @@ export function useMilestone(streak: number, enabled: boolean) {
           aiSummary: null,
         };
         await MilestonesRepo.insert(db, milestone);
+        /* istanbul ignore next: fired only on unmount mid-refresh */
         if (!mountedRef.current) return;
         setPending(milestone);
         return;
       }
 
       const pendingRow = await MilestonesRepo.getPending(db);
+      /* istanbul ignore next: fired only on unmount mid-refresh */
       if (!mountedRef.current) return;
       setPending(pendingRow);
     } catch (err) {
@@ -76,9 +81,11 @@ export function useMilestone(streak: number, enabled: boolean) {
           userNotes: data.userNotes,
           aiSummary: null,
         });
+        /* istanbul ignore next: fired only on unmount mid-complete */
         if (!mountedRef.current) return;
         setPending(null);
       } catch (err) {
+        /* istanbul ignore next: fired only on unmount mid-complete */
         if (!mountedRef.current) return;
         console.warn("[useMilestone] complete failed:", err);
       }

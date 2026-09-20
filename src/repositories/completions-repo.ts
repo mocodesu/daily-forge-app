@@ -84,6 +84,7 @@ export const CompletionsRepo = {
     const row = await db.getFirstAsync<{ count: number }>(
       `SELECT COUNT(*) as count FROM completion_records`,
     );
+    /* istanbul ignore next: COUNT(*) always returns exactly one row */
     return row?.count ?? 0;
   },
 };

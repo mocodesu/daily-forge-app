@@ -83,6 +83,7 @@ export function useDayState(minimumExercises: number, enabled: boolean = true) {
           calculateStreak(db),
         ]);
 
+      /* istanbul ignore next: fired only on unmount mid-refresh */
       if (!mountedRef.current) return;
 
       const completedIds = new Set(records.map((r) => r.exerciseId));
@@ -114,6 +115,7 @@ export function useDayState(minimumExercises: number, enabled: boolean = true) {
         freezeBalance: streakResult.freezeBalance,
       });
     } catch (err) {
+      /* istanbul ignore next: fired only on unmount mid-refresh */
       if (!mountedRef.current) return;
       console.warn("[useDayState] refresh failed:", err);
       setState((s) => ({

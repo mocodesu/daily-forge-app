@@ -17,7 +17,10 @@ interface FrozenDayRow {
 const toFrozenDay = (row: FrozenDayRow): FrozenDay => ({
   dayKey: row.day_key,
   frozenAt: row.frozen_at,
-  reason: (row.reason as FreezeReason) ?? "auto-missed",
+  // Schema: `reason TEXT NOT NULL DEFAULT 'auto-missed'` — the cast
+  // is safe and no `??` fallback is needed. Removing it also removes
+  // an unreachable branch.
+  reason: row.reason as FreezeReason,
 });
 
 export const FrozenDaysRepo = {
@@ -60,6 +63,7 @@ export const FrozenDaysRepo = {
       `SELECT COUNT(*) AS c FROM frozen_days WHERE day_key LIKE ?`,
       prefix,
     );
+    /* istanbul ignore next: COUNT(*) always returns exactly one row */
     return row?.c ?? 0;
   },
 

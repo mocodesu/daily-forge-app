@@ -11,10 +11,11 @@ import { playSound } from "@/utils/sounds";
 import { Ionicons } from "@expo/vector-icons";
 import {
   Canvas,
-  LinearGradient,
   Path,
   Skia,
+  SweepGradient,
   vec,
+  type SkPath,
 } from "@shopify/react-native-skia";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
@@ -28,6 +29,7 @@ import Animated, {
   useSharedValue,
   withSpring,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
 import {
   StyleSheet,
@@ -39,22 +41,141 @@ import {
 // Ring geometry
 //
 // Sizes are chosen per breakpoint in the component body and captured
-// by the animated worklet below. Numbers must be serializable.
+// by the memoized ProgressRing below. Numbers must be serializable.
 const RING_SIZE_PHONE = 280;
 const RING_SIZE_TABLET = 380;
 const RING_STROKE_PHONE = 16;
 const RING_STROKE_TABLET = 22;
+
+// ─────────────────────────────────────────────────────────────
+// ProgressRing — memoized Skia canvas
+//
+// Extracted into its own React.memo component for a specific reason:
+// the session screen's `remaining` state updates ~5×/second, which
+// re-renders the parent. If the <Canvas> lived inline, the entire
+// Skia JS tree would re-evaluate on every tick — the single biggest
+// source of frame drops on low-end Android.
+//
+// With React.memo, the Canvas subtree re-evaluates only when one of
+// its props changes. `progress` and `completion` are Reanimated
+// shared values (stable references), `path` is memoized upstream,
+// and the colour strings are primitives. So the Canvas re-renders
+// essentially never after mount — the animation lives entirely on
+// the UI thread via Skia's Reanimated integration.
+//
+// macOS-style sweep gradient:
+//
+// A linear gradient is anchored to the canvas, so it only colours
+// one diagonal slice of the arc at a time — the leading edge
+// changes colour as the arc grows. A sweep gradient is anchored
+// to the ring itself: the colour bands are baked into ring-space,
+// and growing the arc *reveals* more of them. That's exactly how
+// Activity rings behave.
+//
+// Five stops — primary → illum → primary → illum → primary — put
+// bright bands at the top and bottom of the ring and darker bands
+// at the sides, so the highlight is always near the leading edge
+// regardless of where the arc starts or stops.
+// ─────────────────────────────────────────────────────────────
+
+interface ProgressRingProps {
+  progress: SharedValue<number>;
+  completion: SharedValue<number>;
+  size: number;
+  stroke: number;
+  path: SkPath;
+  primaryColor: string;
+  primaryIllumination: string;
+  trackColor: string;
+  successColor: string;
+}
+
+const ProgressRing = React.memo(function ProgressRing({
+  progress,
+  completion,
+  size,
+  stroke,
+  path,
+  primaryColor,
+  primaryIllumination,
+  trackColor,
+  successColor,
+}: ProgressRingProps) {
+  const canvasStyle = useMemo(() => ({ width: size, height: size }), [size]);
+  const center = useMemo(() => vec(size / 2, size / 2), [size]);
+
+  // Symmetric sweep gradient — two bright bands, two dark bands.
+  // Memoized so the array reference stays stable across parent
+  // re-renders and React.memo can actually short-circuit.
+  const sweepColors = useMemo(
+    () => [
+      primaryColor,
+      primaryIllumination,
+      primaryColor,
+      primaryIllumination,
+      primaryColor,
+    ],
+    [primaryColor, primaryIllumination],
+  );
+  const sweepPositions = useMemo(() => [0, 0.25, 0.5, 0.75, 1], []);
+
+  return (
+    <Canvas style={canvasStyle}>
+      {/* Background track — static, never animated. */}
+      <Path
+        path={path}
+        style="stroke"
+        strokeWidth={stroke}
+        color={trackColor}
+      />
+
+      {/* Animated gradient arc. `progress` is a SharedValue, so the
+          arc's `end` prop is updated on the UI thread by Skia's
+          Reanimated integration — no JS frames. */}
+      <Path
+        path={path}
+        style="stroke"
+        strokeWidth={stroke}
+        strokeCap="round"
+        start={0}
+        end={progress}
+      >
+        <SweepGradient
+          c={center}
+          colors={sweepColors}
+          positions={sweepPositions}
+        />
+      </Path>
+
+      {/* Success overlay — green sweep that fades in at completion.
+          Shares `path` and `progress` with the arc above, so it stays
+          perfectly aligned. Opacity is 0 for the entire countdown and
+          flips to 1 in one spring, so this is essentially free. */}
+      <Path
+        path={path}
+        style="stroke"
+        strokeWidth={stroke}
+        strokeCap="round"
+        color={successColor}
+        opacity={completion}
+        start={0}
+        end={progress}
+      />
+    </Canvas>
+  );
+});
 
 export default function SessionScreen() {
   const db = useSQLiteContext();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { rt } = useUnistyles();
 
-  // Per-breakpoint ring geometry. Captured by the worklet below.
+  // Per-breakpoint ring geometry. Captured by the memoized canvas.
   const isTablet =
     rt.breakpoint === "tablet" || rt.breakpoint === "largeTablet";
   const ringSize = isTablet ? RING_SIZE_TABLET : RING_SIZE_PHONE;
   const ringStroke = isTablet ? RING_STROKE_TABLET : RING_STROKE_PHONE;
+
   const ringPath = useMemo(() => {
     return Skia.PathBuilder.Make()
       .addOval({
@@ -84,7 +205,8 @@ export default function SessionScreen() {
   const progress = useSharedValue(0);
   const completion = useSharedValue(0);
 
-  // Colors read once, captured by the worklet below.
+  // Colours read once. Primitive strings, so they're stable across
+  // renders and won't break ProgressRing's memo comparison.
   const theme = UnistylesRuntime.getTheme();
   const primaryColor = theme.colors.primary;
   const primaryIllumination = theme.colors.primaryIllumination;
@@ -133,9 +255,9 @@ export default function SessionScreen() {
   // ── Start the ring animation AFTER the Canvas has mounted ──
   //
   // This effect runs the first time `loading` flips to false and
-  // `exercise` is set — which is exactly when the <AnimatedCircle>
-  // enters the tree. Starting the animation here guarantees the
-  // shared value has a subscriber from frame one.
+  // `exercise` is set — which is exactly when <ProgressRing> enters
+  // the tree. Starting the animation here guarantees the shared
+  // value has a subscriber from frame one.
   useEffect(() => {
     if (loading || !exercise) return;
     if (ringAnimationStartedRef.current) return;
@@ -283,38 +405,17 @@ export default function SessionScreen() {
       <View
         style={[styles.ringContainer, { width: ringSize, height: ringSize }]}
       >
-        <Canvas style={{ width: ringSize, height: ringSize }}>
-          <Path
-            path={ringPath}
-            style="stroke"
-            strokeWidth={ringStroke}
-            color={trackColor}
-          />
-          <Path
-            path={ringPath}
-            style="stroke"
-            strokeWidth={ringStroke}
-            strokeCap="round"
-            start={0}
-            end={progress}
-          >
-            <LinearGradient
-              start={vec(0, 0)}
-              end={vec(ringSize, ringSize)}
-              colors={[primaryColor, primaryIllumination]}
-            />
-          </Path>
-          <Path
-            path={ringPath}
-            style="stroke"
-            strokeWidth={ringStroke}
-            strokeCap="round"
-            color={successColor}
-            opacity={completion}
-            start={0}
-            end={progress}
-          />
-        </Canvas>
+        <ProgressRing
+          progress={progress}
+          completion={completion}
+          size={ringSize}
+          stroke={ringStroke}
+          path={ringPath}
+          primaryColor={primaryColor}
+          primaryIllumination={primaryIllumination}
+          trackColor={trackColor}
+          successColor={successColor}
+        />
 
         <View style={styles.ringCenter} pointerEvents="none">
           <Animated.View style={[styles.countdownWrap, countdownStyle]}>
@@ -401,7 +502,7 @@ export default function SessionScreen() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Styles
+// Styles (unchanged)
 // ─────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create((theme, rt) => ({
@@ -428,7 +529,6 @@ const styles = StyleSheet.create((theme, rt) => ({
   ringContainer: {
     alignItems: "center",
     justifyContent: "center",
-    // width/height are set inline per breakpoint.
   },
   ringCenter: {
     ...StyleSheet.absoluteFillObject,

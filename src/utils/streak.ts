@@ -161,6 +161,9 @@ async function applyPendingFreezes(
       });
       applied++;
     } catch (err) {
+      // Defensive: INSERT OR IGNORE cannot fail once we've checked the
+      // day isn't already frozen. Kept for schema drift safety.
+      /* istanbul ignore next */
       console.warn("[freeze] insert failed:", err);
     }
   }

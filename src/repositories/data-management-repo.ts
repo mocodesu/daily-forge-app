@@ -219,5 +219,6 @@ async function count(db: SQLiteDatabase, table: string): Promise<number> {
   const row = await db.getFirstAsync<{ c: number }>(
     `SELECT COUNT(*) AS c FROM ${table}`,
   );
+  /* istanbul ignore next: COUNT(*) always returns exactly one row */
   return row?.c ?? 0;
 }

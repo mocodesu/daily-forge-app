@@ -118,6 +118,7 @@ export const ExercisesRepo = {
     const row = await db.getFirstAsync<{ count: number }>(
       `SELECT COUNT(*) as count FROM exercises`,
     );
+    /* istanbul ignore next: COUNT(*) always returns exactly one row */
     return row?.count ?? 0;
   },
 };
