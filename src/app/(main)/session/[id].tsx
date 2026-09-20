@@ -9,21 +9,26 @@ import { formatDuration, formatMMSS } from "@/utils/format";
 import { trackUserActivity } from "@/utils/retention-reminder";
 import { playSound } from "@/utils/sounds";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  Canvas,
+  LinearGradient,
+  Path,
+  Skia,
+  vec,
+} from "@shopify/react-native-skia";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { usePreventRemove } from "expo-router/build/react-navigation";
 import { useSQLiteContext } from "expo-sqlite";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import Animated, {
   Easing as ReanimatedEasing,
-  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import {
   StyleSheet,
   UnistylesRuntime,
@@ -40,8 +45,6 @@ const RING_SIZE_TABLET = 380;
 const RING_STROKE_PHONE = 16;
 const RING_STROKE_TABLET = 22;
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
 export default function SessionScreen() {
   const db = useSQLiteContext();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -52,9 +55,16 @@ export default function SessionScreen() {
     rt.breakpoint === "tablet" || rt.breakpoint === "largeTablet";
   const ringSize = isTablet ? RING_SIZE_TABLET : RING_SIZE_PHONE;
   const ringStroke = isTablet ? RING_STROKE_TABLET : RING_STROKE_PHONE;
-  const ringRadius = (ringSize - ringStroke) / 2;
-  const ringCircumference = 2 * Math.PI * ringRadius;
-  const ringCenter = ringSize / 2;
+  const ringPath = useMemo(() => {
+    return Skia.PathBuilder.Make()
+      .addOval({
+        x: ringStroke / 2,
+        y: ringStroke / 2,
+        width: ringSize - ringStroke,
+        height: ringSize - ringStroke,
+      })
+      .build();
+  }, [ringSize, ringStroke]);
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,7 +130,7 @@ export default function SessionScreen() {
     })();
   }, [db, id]);
 
-  // ── Start the ring animation AFTER the SVG has mounted ────
+  // ── Start the ring animation AFTER the Canvas has mounted ──
   //
   // This effect runs the first time `loading` flips to false and
   // `exercise` is set — which is exactly when the <AnimatedCircle>
@@ -216,16 +226,6 @@ export default function SessionScreen() {
     progress.value = withTiming(1, { duration: 200 });
   };
 
-  // ── Animated props ────────────────────────────────────────
-  const ringAnimatedProps = useAnimatedProps(() => ({
-    strokeDashoffset: ringCircumference * (1 - progress.value),
-  }));
-
-  const completionRingAnimatedProps = useAnimatedProps(() => ({
-    strokeDashoffset: ringCircumference * (1 - progress.value),
-    strokeOpacity: completion.value,
-  }));
-
   const countdownStyle = useAnimatedStyle(() => ({
     opacity: 1 - completion.value,
     transform: [{ scale: 1 - completion.value * 0.2 }],
@@ -283,58 +283,38 @@ export default function SessionScreen() {
       <View
         style={[styles.ringContainer, { width: ringSize, height: ringSize }]}
       >
-        <Svg
-          width={ringSize}
-          height={ringSize}
-          viewBox={`0 0 ${ringSize} ${ringSize}`}
-        >
-          <Defs>
+        <Canvas style={{ width: ringSize, height: ringSize }}>
+          <Path
+            path={ringPath}
+            style="stroke"
+            strokeWidth={ringStroke}
+            color={trackColor}
+          />
+          <Path
+            path={ringPath}
+            style="stroke"
+            strokeWidth={ringStroke}
+            strokeCap="round"
+            start={0}
+            end={progress}
+          >
             <LinearGradient
-              id="timerRingGradient"
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="100%"
-            >
-              <Stop offset="0%" stopColor={primaryColor} />
-              <Stop offset="100%" stopColor={primaryIllumination} />
-            </LinearGradient>
-          </Defs>
-          <Circle
-            cx={ringCenter}
-            cy={ringCenter}
-            r={ringRadius}
-            stroke={trackColor}
+              start={vec(0, 0)}
+              end={vec(ringSize, ringSize)}
+              colors={[primaryColor, primaryIllumination]}
+            />
+          </Path>
+          <Path
+            path={ringPath}
+            style="stroke"
             strokeWidth={ringStroke}
-            fill="none"
+            strokeCap="round"
+            color={successColor}
+            opacity={completion}
+            start={0}
+            end={progress}
           />
-          <AnimatedCircle
-            cx={ringCenter}
-            cy={ringCenter}
-            r={ringRadius}
-            strokeWidth={ringStroke}
-            strokeLinecap="round"
-            stroke="url(#timerRingGradient)"
-            fill="none"
-            strokeDasharray={[ringCircumference, ringCircumference]}
-            strokeDashoffset={ringCircumference}
-            animatedProps={ringAnimatedProps}
-            transform={`rotate(-90 ${ringCenter} ${ringCenter})`}
-          />
-          <AnimatedCircle
-            cx={ringCenter}
-            cy={ringCenter}
-            r={ringRadius}
-            stroke={successColor}
-            strokeWidth={ringStroke}
-            strokeLinecap="round"
-            fill="none"
-            strokeDasharray={[ringCircumference, ringCircumference]}
-            strokeDashoffset={ringCircumference}
-            animatedProps={completionRingAnimatedProps}
-            transform={`rotate(-90 ${ringCenter} ${ringCenter})`}
-          />
-        </Svg>
+        </Canvas>
 
         <View style={styles.ringCenter} pointerEvents="none">
           <Animated.View style={[styles.countdownWrap, countdownStyle]}>
