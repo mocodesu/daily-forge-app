@@ -1,7 +1,8 @@
 import Text from "@/components/text";
-import { MutedIcon, PrimaryIcon } from "@/components/themed";
+import { PrimaryIcon } from "@/components/themed";
+import { Asset } from "expo-asset";
 import React, { useEffect, useRef } from "react";
-import { View } from "react-native";
+import { Image, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -11,6 +12,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+
+const FLAME_ASSET = Asset.fromModule(require("@/assets/images/flame.png"));
 
 export function StreakBadge({
   streak,
@@ -61,11 +64,12 @@ export function StreakBadge({
     <Animated.View style={[styles.badge, pillStyle]}>
       <View style={styles.segment}>
         <Animated.View style={flameStyle}>
-          {isActive ? (
-            <PrimaryIcon name="flame" size={18} />
-          ) : (
-            <MutedIcon name="flame" size={18} />
-          )}
+          <Image
+            source={{ uri: FLAME_ASSET.uri }}
+            style={styles.flame}
+            resizeMode="contain"
+            tintColor={isActive ? "orange" : theme.colors.mutedText}
+          />
         </Animated.View>
         <Text variant="title" color={isActive ? "onSurface" : "mutedText"}>
           {streak}
@@ -104,6 +108,10 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.xs,
+  },
+  flame: {
+    width: 18,
+    height: 18,
   },
   divider: {
     width: 1,

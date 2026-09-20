@@ -17,14 +17,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import Animated, {
   Easing as ReanimatedEasing,
-  interpolateColor,
   useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import Svg, { Circle } from "react-native-svg";
+import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import {
   StyleSheet,
   UnistylesRuntime,
@@ -36,8 +35,6 @@ import {
 //
 // Sizes are chosen per breakpoint in the component body and captured
 // by the animated worklet below. Numbers must be serializable.
-// ─────────────────────────────────────────────────────────────
-
 const RING_SIZE_PHONE = 280;
 const RING_SIZE_TABLET = 380;
 const RING_STROKE_PHONE = 16;
@@ -80,6 +77,7 @@ export default function SessionScreen() {
   // Colors read once, captured by the worklet below.
   const theme = UnistylesRuntime.getTheme();
   const primaryColor = theme.colors.primary;
+  const primaryIllumination = theme.colors.primaryIllumination;
   const trackColor = theme.colors.panel;
   const successColor = theme.colors.active;
 
@@ -221,11 +219,11 @@ export default function SessionScreen() {
   // ── Animated props ────────────────────────────────────────
   const ringAnimatedProps = useAnimatedProps(() => ({
     strokeDashoffset: ringCircumference * (1 - progress.value),
-    stroke: interpolateColor(
-      completion.value,
-      [0, 1],
-      [primaryColor, successColor],
-    ),
+  }));
+
+  const completionRingAnimatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: ringCircumference * (1 - progress.value),
+    strokeOpacity: completion.value,
   }));
 
   const countdownStyle = useAnimatedStyle(() => ({
@@ -290,6 +288,18 @@ export default function SessionScreen() {
           height={ringSize}
           viewBox={`0 0 ${ringSize} ${ringSize}`}
         >
+          <Defs>
+            <LinearGradient
+              id="timerRingGradient"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <Stop offset="0%" stopColor={primaryColor} />
+              <Stop offset="100%" stopColor={primaryIllumination} />
+            </LinearGradient>
+          </Defs>
           <Circle
             cx={ringCenter}
             cy={ringCenter}
@@ -304,10 +314,24 @@ export default function SessionScreen() {
             r={ringRadius}
             strokeWidth={ringStroke}
             strokeLinecap="round"
+            stroke="url(#timerRingGradient)"
             fill="none"
             strokeDasharray={ringCircumference}
             strokeDashoffset={ringCircumference}
             animatedProps={ringAnimatedProps}
+            transform={`rotate(-90 ${ringCenter} ${ringCenter})`}
+          />
+          <AnimatedCircle
+            cx={ringCenter}
+            cy={ringCenter}
+            r={ringRadius}
+            stroke={successColor}
+            strokeWidth={ringStroke}
+            strokeLinecap="round"
+            fill="none"
+            strokeDasharray={ringCircumference}
+            strokeDashoffset={ringCircumference}
+            animatedProps={completionRingAnimatedProps}
             transform={`rotate(-90 ${ringCenter} ${ringCenter})`}
           />
         </Svg>
