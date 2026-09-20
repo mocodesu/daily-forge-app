@@ -1,4 +1,4 @@
-import { ConfigContext, ExpoConfig } from "expo/config";
+import type { ConfigContext, ExpoConfig } from "expo/config";
 import {
   DEFAULT_DARK_BACKGROUND_COLOR,
   DEFAULT_LIGHT_BACKGROUND_COLOR,
@@ -106,8 +106,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const appEnv = getAppEnvironment();
   const environment = ENVIRONMENTS[appEnv];
 
-  const isDevelopment = appEnv === "development";
   const isProduction = appEnv === "production";
+  const isPreview = appEnv === "preview";
 
   console.log(`⚙️ Building app for environment: ${appEnv}`);
 
@@ -163,7 +163,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
      * Production receives OTA updates.
      * Development/preview builds do not use EAS Update.
      */
-    ...(isProduction
+    ...(isProduction || isPreview
       ? {
           updates: {
             enabled: true,
@@ -272,6 +272,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       "expo-sharing",
       "expo-audio",
       "expo-asset",
+      [
+        "@sentry/react-native/expo",
+        {
+          organization: process.env.SENTRY_ORG,
+          project: process.env.SENTRY_PROJECT,
+          url: "https://sentry.io/",
+        },
+      ],
     ],
 
     /**
