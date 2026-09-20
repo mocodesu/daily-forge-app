@@ -39,10 +39,10 @@ const SCHEME = PROJECT_SLUG;
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-const ICON = "./assets/images/icon.jpeg";
+const ICON = "./assets/images/android-icon-foreground.png";
 
 const ADAPTIVE_ICON = {
-  backgroundColor: DEFAULT_PRIMARY_COLOR,
+  backgroundColor: "#FFFFFF",
   foregroundImage: ICON,
 };
 
@@ -61,7 +61,7 @@ const ENVIRONMENTS = {
   },
 
   preview: {
-    name: `${APP_NAME} Preview`,
+    name: `${APP_NAME}`,
     bundleIdentifier: `${BUNDLE_IDENTIFIER}.preview`,
     packageName: `${PACKAGE_NAME}.preview`,
     scheme: `${SCHEME}-preview`,
@@ -202,12 +202,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       [
         "expo-splash-screen",
         {
-          image: ICON,
+          image: "./assets/images/splash-icon.png",
           imageWidth: 76,
           backgroundColor: DEFAULT_LIGHT_BACKGROUND_COLOR,
 
           dark: {
-            image: ICON,
+            image: "./assets/images/splash-icon.png",
             backgroundColor: DEFAULT_DARK_BACKGROUND_COLOR,
           },
         },
