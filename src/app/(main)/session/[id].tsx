@@ -19,8 +19,8 @@ import {
   type SkPath,
 } from "@shopify/react-native-skia";
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
-import { usePreventRemove } from "expo-router/build/react-navigation";
+import { router, useLocalSearchParams, usePreventRemove } from "expo-router";
+
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";

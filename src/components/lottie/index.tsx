@@ -23,7 +23,7 @@
 // ─────────────────────────────────────────────────────────────
 import LottieView, { type LottieViewProps } from "lottie-react-native";
 import React, { useEffect, useMemo, useRef } from "react";
-import { StyleSheet, View, type ViewStyle } from "react-native";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import Reanimated, {
   Easing,
   useAnimatedProps,
@@ -108,7 +108,7 @@ interface AppLottieProps {
    */
   colorFilterKeypaths?: string[];
 
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function AppLottie({
@@ -188,7 +188,7 @@ interface ProgressLottieProps {
   /** @deprecated Prefer `colorFilters`. */
   colorFilterKeypaths?: string[];
 
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function ProgressLottie({

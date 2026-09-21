@@ -1,6 +1,3 @@
-// ─────────────────────────────────────────────────────────────
-// Widget data cache
-// ─────────────────────────────────────────────────────────────
 import { storage } from "@/store/storage";
 import { DEFAULT_WIDGET_DATA, type WidgetData } from "./widget-types";
 
@@ -23,12 +20,16 @@ export function readCachedWidgetData(): WidgetData {
     const theme = parsed.theme ?? DEFAULT_WIDGET_DATA.theme;
 
     return {
+      dayKey: typeof parsed.dayKey === "string" ? parsed.dayKey : "",
       streak: typeof parsed.streak === "number" ? parsed.streak : 0,
       completed: typeof parsed.completed === "number" ? parsed.completed : 0,
       total: typeof parsed.total === "number" ? parsed.total : 0,
       isSealed: parsed.isSealed === true,
+      canSeal: parsed.canSeal === true,
       displayName:
         typeof parsed.displayName === "string" ? parsed.displayName : "",
+      deepLinkScheme:
+        typeof parsed.deepLinkScheme === "string" ? parsed.deepLinkScheme : "",
       theme: {
         surface: theme.surface ?? DEFAULT_WIDGET_DATA.theme.surface,
         text: theme.text ?? DEFAULT_WIDGET_DATA.theme.text,
@@ -36,6 +37,7 @@ export function readCachedWidgetData(): WidgetData {
         primary: theme.primary ?? DEFAULT_WIDGET_DATA.theme.primary,
         active: theme.active ?? DEFAULT_WIDGET_DATA.theme.active,
         track: theme.track ?? DEFAULT_WIDGET_DATA.theme.track,
+        onPrimary: theme.onPrimary ?? DEFAULT_WIDGET_DATA.theme.onPrimary,
       },
     };
   } catch (err) {

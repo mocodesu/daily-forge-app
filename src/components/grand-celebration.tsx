@@ -114,7 +114,7 @@ export function GrandCelebration({
               gravity={1}
               drag={4.5}
               sprayDuration={4000}
-              colors={palette}
+              colors={[...palette]}
               containerStyle={RNStyleSheet.absoluteFill}
             >
               <CannonConfetti.Origin

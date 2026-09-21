@@ -30,7 +30,12 @@ import { dayKey, randomUUID } from "@/utils/day-key";
 import { trackUserActivity } from "@/utils/retention-reminder";
 import { calculateStreak } from "@/utils/streak";
 import { refreshDailyWidget } from "@/widgets/update-widget";
-import { Redirect, router, useFocusEffect } from "expo-router";
+import {
+  Redirect,
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+} from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
@@ -106,6 +111,48 @@ function TodayContent({
   );
   const celebratingRef = useRef(false);
   const pendingStreakPulseRef = useRef(false);
+
+  // ── Deep link handling: ?seal=1 opens the swear modal ─────
+  //
+  // The medium widget's seal button links to
+  // `scheme://?seal=1`. When that URL resolves, this effect
+  // fires once, checks the day's state, and opens the modal if
+  // everything is ready.
+  //
+  // The ref guards against re-firing on subsequent state changes
+  // and re-firing if the user navigates back to Today with the
+  // param still in the URL.
+  const { seal } = useLocalSearchParams<{ seal?: string }>();
+  const sealTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (sealTriggeredRef.current) return;
+    if (seal !== "1") return;
+    if (day.loading) return;
+
+    // Mark handled regardless of outcome so a subsequent day-state
+    // change doesn't re-open the modal unexpectedly.
+    sealTriggeredRef.current = true;
+
+    // Conditions must match the widget's `canSeal` computation.
+    const canSeal =
+      !day.isLocked &&
+      day.exercises.length >= minimumExercises &&
+      day.exercises.length > 0 &&
+      day.allExercisesCompleted;
+
+    if (canSeal) {
+      setPromptVisible(false);
+      setSwearVisible(true);
+    }
+  }, [
+    seal,
+    day.loading,
+    day.isLocked,
+    day.exercises.length,
+    day.allExercisesCompleted,
+    minimumExercises,
+  ]);
 
   const remainingToday = Math.max(0, day.progress.total - day.progress.done);
   const badgeCount = day.isLocked ? 0 : remainingToday;

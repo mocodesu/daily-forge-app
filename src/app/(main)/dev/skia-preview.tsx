@@ -30,11 +30,13 @@ export default function SkiaPreviewScreen() {
 
       <Section title="Streak Demo Ring — Skia">
         <StreakDemoRing
-          size={160}
+          size={180}
           strokeWidth={14}
           trackColor={theme.colors.panelBorder}
           primaryColor={theme.colors.primary}
           illuminationColor={theme.colors.primaryIllumination}
+          outlineColor={theme.colors.mutedText}
+          completeColor={theme.colors.active}
         />
       </Section>
 

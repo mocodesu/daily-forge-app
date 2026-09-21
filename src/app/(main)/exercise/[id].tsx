@@ -104,7 +104,7 @@ export default function ExerciseDetailScreen() {
           ]}
         >
           <Ionicons
-            name={exercise.isDaily ? "repeat" : "1-circle-outline"}
+            name={exercise.isDaily ? "repeat" : "ellipse-outline"}
             size={13}
             style={exercise.isDaily ? styles.iconPrimary : styles.iconMuted}
           />

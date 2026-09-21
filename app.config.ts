@@ -250,12 +250,23 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           widgets: [
             {
               name: "DailyForge",
-              label: "Today",
+              label: "Today (Small)",
               description:
                 "Your daily exercise progress and streak at a glance.",
               minWidth: "110dp",
               minHeight: "110dp",
               targetCellWidth: 2,
+              targetCellHeight: 2,
+              updatePeriodMillis: 1800000,
+            },
+            {
+              name: "DailyForgeMedium",
+              label: "Today (Medium)",
+              description:
+                "Today's progress, current streak, and daily status.",
+              minWidth: "250dp",
+              minHeight: "110dp",
+              targetCellWidth: 4,
               targetCellHeight: 2,
               updatePeriodMillis: 1800000,
             },
