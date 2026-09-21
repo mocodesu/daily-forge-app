@@ -13,6 +13,7 @@ import {
 import { ThemePrefContext } from "@/hooks/use-theme-preference";
 import { getStoredValues, saveSecurely } from "@/store/storage";
 import { ThemeMode } from "@/types";
+import { syncWidgetTheme } from "@/widgets/update-widget";
 import React, {
   useCallback,
   useLayoutEffect,
@@ -114,6 +115,12 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.warn("[theme] persist scheme failed:", err);
       }
+      // Push the new accent color to the home screen widget.
+      // Fire-and-forget — a widget hiccup must never affect the
+      // theme change.
+      syncWidgetTheme().catch(() => {
+        // Already logged inside syncWidgetTheme.
+      });
     },
     [mode],
   );
@@ -127,6 +134,9 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.warn("[theme] persist mode failed:", err);
       }
+      syncWidgetTheme().catch(() => {
+        // Already logged inside syncWidgetTheme.
+      });
     },
     [schemeId],
   );

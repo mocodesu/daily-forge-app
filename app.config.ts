@@ -244,7 +244,24 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           ],
         },
       ],
-
+      [
+        "react-native-android-widget",
+        {
+          widgets: [
+            {
+              name: "DailyForge",
+              label: "Today",
+              description:
+                "Your daily exercise progress and streak at a glance.",
+              minWidth: "110dp",
+              minHeight: "110dp",
+              targetCellWidth: 2,
+              targetCellHeight: 2,
+              updatePeriodMillis: 1800000,
+            },
+          ],
+        },
+      ],
       "./plugins/scroll-bar-android",
       "expo-router",
       "expo-font",

@@ -13,6 +13,7 @@ import {
   type ExerciseType,
 } from "@/types/dailyforge";
 import { randomUUID } from "@/utils/day-key";
+import { refreshDailyWidget } from "@/widgets/update-widget";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
@@ -141,6 +142,12 @@ export default function CreateExerciseScreen() {
         notes: notes.trim(),
         createdAt: Date.now(),
         sortIndex: Date.now(),
+      });
+
+      // Today's total just changed. Refresh the widget so it
+      // reflects the new exercise count.
+      refreshDailyWidget(db).catch(() => {
+        // Non-fatal.
       });
 
       if (stayOpen) {

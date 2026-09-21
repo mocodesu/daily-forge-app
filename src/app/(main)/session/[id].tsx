@@ -8,6 +8,7 @@ import { dayKey, randomUUID } from "@/utils/day-key";
 import { formatDuration, formatMMSS } from "@/utils/format";
 import { trackUserActivity } from "@/utils/retention-reminder";
 import { playSound } from "@/utils/sounds";
+import { refreshDailyWidget } from "@/widgets/update-widget";
 import { Ionicons } from "@expo/vector-icons";
 import {
   Canvas,
@@ -47,17 +48,6 @@ const RING_STROKE_TABLET = 22;
 
 // ─────────────────────────────────────────────────────────────
 // ProgressRing — memoized Skia canvas
-//
-// Extracted into its own React.memo component so the session
-// screen's ~5 Hz `remaining` state tick doesn't re-evaluate the
-// Skia JS tree. With React.memo + stable Reanimated SharedValue
-// references + memoized color arrays, the Canvas subtree is
-// evaluated once at mount and animated entirely on the UI thread.
-//
-// macOS-style sweep gradient: colors are baked into ring-space,
-// so growing the arc *reveals* more of them. The five stops put
-// bright bands at the top and bottom of the ring and darker bands
-// at the sides, so the leading edge is always near a highlight.
 // ─────────────────────────────────────────────────────────────
 interface ProgressRingProps {
   progress: SharedValue<number>;
@@ -286,6 +276,14 @@ export default function SessionScreen() {
         completedAt: now,
       });
       await trackUserActivity();
+
+      // Push a fresh render to the home screen widget. Fire and
+      // forget — a widget hiccup must never block the return to
+      // Today.
+      refreshDailyWidget(db).catch(() => {
+        // Already logged inside refreshDailyWidget.
+      });
+
       router.back();
     } catch (err) {
       console.error("[session] mark-done failed:", err);

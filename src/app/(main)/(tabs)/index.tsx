@@ -29,6 +29,7 @@ import {
 import { dayKey, randomUUID } from "@/utils/day-key";
 import { trackUserActivity } from "@/utils/retention-reminder";
 import { calculateStreak } from "@/utils/streak";
+import { refreshDailyWidget } from "@/widgets/update-widget";
 import { Redirect, router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -85,8 +86,6 @@ function TodayContent({
   const { targetDays } = useTargetDays();
   const { rt } = useUnistyles();
 
-  // Two-column layout on wide tablet screens. Everything else keeps
-  // the phone layout — see the JSX below for both branches.
   const twoColumn = rt.breakpoint === "largeTablet";
 
   const [promptVisible, setPromptVisible] = useState(false);
@@ -108,7 +107,6 @@ function TodayContent({
   const celebratingRef = useRef(false);
   const pendingStreakPulseRef = useRef(false);
 
-  // App icon badge
   const remainingToday = Math.max(0, day.progress.total - day.progress.done);
   const badgeCount = day.isLocked ? 0 : remainingToday;
   useAppBadge(badgeCount);
@@ -139,15 +137,15 @@ function TodayContent({
   const handleDeleteExercise = useCallback(
     async (exercise: Exercise) => {
       try {
-        // Single transaction so a failure can't leave us with the
-        // exercise gone but completions orphaned (or vice versa).
-        // Foreign keys are ON and completion_records has
-        // ON DELETE CASCADE, so removing the exercise removes its
-        // completion rows too.
         await db.withTransactionAsync(async () => {
           await ExercisesRepo.delete(db, exercise.id);
         });
         await day.refresh();
+
+        // The day's totals just changed. Refresh the widget.
+        refreshDailyWidget(db).catch(() => {
+          // Non-fatal.
+        });
       } catch (err) {
         console.error("[today] delete exercise failed:", err);
       }
@@ -184,8 +182,6 @@ function TodayContent({
         lockedAt: now,
       });
 
-      // The user finished. They don't need today's reminder anymore.
-      // Fire-and-forget: a notification hiccup must never block the seal.
       cancelDailyReminderForToday().catch((err) => {
         console.warn("[today] cancel today's reminder failed:", err);
       });
@@ -209,6 +205,13 @@ function TodayContent({
 
       pendingStreakPulseRef.current = true;
       celebratingRef.current = true;
+
+      // The day is sealed. Push a fresh render to the widget so it
+      // shows "Sealed today" immediately instead of waiting up to
+      // 30 minutes for Android's next scheduled update.
+      refreshDailyWidget(db).catch(() => {
+        // Non-fatal — logged inside refreshDailyWidget.
+      });
 
       setTimeout(() => {
         setBurstStreak(newStreak);
@@ -286,12 +289,6 @@ function TodayContent({
     !day.isLocked && day.exercises.length > 0 && !day.meetsMinimum;
   const showAllDoneBanner = !day.isLocked && day.allDone && !day.sworeToday;
 
-  // ── Shared content blocks ─────────────────────────────────
-  //
-  // Extracted as plain variables so both the single-column and
-  // two-column branches can render them without duplicating JSX.
-  // No hooks live inside these — they're just JSX values.
-
   const bannersContent = (
     <>
       {showMinimumBanner && (
@@ -348,7 +345,6 @@ function TodayContent({
     <>
       <ScrollScreen wide={twoColumn}>
         {twoColumn ? (
-          // ── Tablet wide: two columns ─────────────────────
           <View style={styles.columns}>
             <View style={styles.primaryColumn}>
               {bannersContent}
@@ -399,7 +395,6 @@ function TodayContent({
             </View>
           </View>
         ) : (
-          // ── Phone / tablet portrait: single column ───────
           <>
             <View style={styles.header}>
               <View style={styles.headerLeft}>
@@ -543,7 +538,6 @@ const styles = StyleSheet.create((theme) => ({
   },
   stateText: { textAlign: "center", maxWidth: 320 },
 
-  // ── Two-column layout (tablet wide only) ─────────────────
   columns: {
     flexDirection: "row",
     alignItems: "flex-start",
