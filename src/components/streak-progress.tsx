@@ -1,14 +1,18 @@
 // ─────────────────────────────────────────────────────────────
 // StreakProgressCard — the History screen's hero visual
 //
-// The ring is two-tone:
-//   • Track        — theme.colors.panelBorder (subtle, always visible)
-//   • Progress arc — theme.colors.primary (the filled portion)
+// Three visual states:
+//   • In progress (streak < target)
+//       — two-tone ring, count-up number, /target fraction, percent pill
+//   • Just complete (streak >= target, on mount)
+//       — ring fills, then crossfades to a green check
+//   • Already complete (streak >= target on subsequent visits)
+//       — same crossfade, but the ring animation is instant
 //
-// The number counts up from 0 to `streak` in sync with the ring
-// fill. When streak >= targetDays, the ring crossfades to a
-// green check circle.
+// The center reads as a fraction: "12 / 30". The percent pill
+// below reinforces the same number the ring is drawing.
 // ─────────────────────────────────────────────────────────────
+import { StreakRing } from "@/components/skia";
 import Text from "@/components/text";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
@@ -24,13 +28,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-
-/**
- * Ring keypaths. See steps/streaks.tsx for the inspection script.
- * Swap the two colors below if the effect comes out inverted.
- */
-const RING_TRACK_KEYPATHS = ["White.Ellipse 1.Stroke 1"];
-const RING_PROGRESS_KEYPATHS = ["White.Ellipse 2.Stroke 1"];
 
 const RING_DURATION = 1200;
 const CHECK_DELAY = RING_DURATION + 80;
@@ -53,6 +50,9 @@ export function StreakProgressCard({
   const reached = streak >= targetDays;
   const remaining = Math.max(0, targetDays - streak);
   const progress = targetDays > 0 ? Math.min(streak / targetDays, 1) : 0;
+  const percent = Math.round(progress * 100);
+
+  const strokeWidth = size < 160 ? 10 : 14;
 
   // ── Count-up number ───────────────────────────────────────
   const animatedStreak = useSharedValue(0);
@@ -106,32 +106,73 @@ export function StreakProgressCard({
     transform: [{ scale: checkScale.value }],
   }));
 
-  const numberFontSize = Math.round(size * 0.32);
+  // Two sizes for the fraction: the streak is prominent, the
+  // "/ target" is intentionally smaller so the eye lands on the
+  // numerator first.
+  const streakFontSize = Math.round(size * 0.3);
+  const targetFontSize = Math.round(size * 0.14);
 
   return (
     <View testID="streak-progress-card" style={styles.card}>
       <View style={[styles.ringWrap, { width: size, height: size }]}>
-        {/* Ring layer — two-tone: dark track + primary arc */}
-        <Animated.View style={[styles.absoluteFill, ringStyle]}></Animated.View>
+        <Animated.View style={[styles.absoluteFill, ringStyle]}>
+          <StreakRing
+            size={size}
+            strokeWidth={strokeWidth}
+            trackColor={theme.colors.panelBorder}
+            primaryColor={theme.colors.primary}
+            illuminationColor={theme.colors.primaryIllumination}
+            value={progress}
+          />
+        </Animated.View>
 
-        {/* Count-up number */}
+        {/* Fraction overlay — numerator big, denominator small,
+            separated by a slash. Both sit on the same baseline so
+            the eye reads "12 / 30" as one number. */}
         <Animated.View style={[styles.center, ringStyle]} pointerEvents="none">
-          <Text
-            variant="display"
-            color="onSurface"
-            style={[
-              styles.number,
-              {
-                fontSize: numberFontSize,
-                lineHeight: numberFontSize * 1.1,
-              },
-            ]}
-          >
-            {displayStreak}
-          </Text>
-          <Text variant="caption" color="mutedText">
-            of {targetDays} days
-          </Text>
+          <View style={styles.fractionRow}>
+            <Text
+              variant="display"
+              color="onSurface"
+              style={[
+                styles.streakNumber,
+                {
+                  fontSize: streakFontSize,
+                  lineHeight: streakFontSize * 1.05,
+                },
+              ]}
+            >
+              {displayStreak}
+            </Text>
+            <View style={styles.denominatorBlock}>
+              <Text
+                variant="caption"
+                color="mutedText"
+                style={[
+                  styles.slash,
+                  {
+                    fontSize: targetFontSize * 1.4,
+                    lineHeight: targetFontSize * 1.3,
+                  },
+                ]}
+              >
+                /
+              </Text>
+              <Text
+                variant="subheadBold"
+                color="mutedText"
+                style={[
+                  styles.target,
+                  {
+                    fontSize: targetFontSize,
+                    lineHeight: targetFontSize * 1.2,
+                  },
+                ]}
+              >
+                {targetDays}
+              </Text>
+            </View>
+          </View>
         </Animated.View>
 
         {/* Completion check */}
@@ -155,6 +196,20 @@ export function StreakProgressCard({
           </View>
         </Animated.View>
       </View>
+
+      {/* Percent pill + status message. The pill makes the target
+          progress explicit without requiring the user to compute
+          anything from the fraction. Hidden on completion so the
+          footer reads clean. */}
+      {!reached && (
+        <View
+          style={[styles.percentPill, { borderColor: theme.colors.primary }]}
+        >
+          <Text variant="caption" color="primary">
+            {percent}% to target
+          </Text>
+        </View>
+      )}
 
       <Text
         variant={reached ? "subheadBold" : "subhead"}
@@ -197,15 +252,37 @@ const styles = StyleSheet.create((theme) => ({
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
+  },
+  fractionRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 2,
+  },
+  streakNumber: {
+    letterSpacing: -1.5,
+    fontVariant: ["tabular-nums"],
+  },
+  denominatorBlock: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginTop: 6,
+  },
+  slash: {
+    fontVariant: ["tabular-nums"],
+  },
+  target: {
+    fontVariant: ["tabular-nums"],
   },
   checkCircle: {
     alignItems: "center",
     justifyContent: "center",
   },
-  number: {
-    letterSpacing: -1,
-    fontVariant: ["tabular-nums"],
+  percentPill: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 5,
+    borderRadius: theme.radii.full,
+    borderWidth: theme.borderWidth.thin,
+    marginTop: -theme.spacing.xs,
   },
   footer: {
     textAlign: "center",

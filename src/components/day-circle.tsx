@@ -1,17 +1,44 @@
+// ─────────────────────────────────────────────────────────────
+// DayCircle — the History grid's per-day cell
+//
+// One ring per day. Four visual states, all built from the same
+// three primitives as the session timer ring:
+//
+//   1. Track ring   — subdued outline, always visible
+//   2. Fill arc     — accent gradient, fills to completion
+//   3. Center slot  — day number, checkmark, or snowflake
+//
+// States:
+//   in-progress  →  partial accent arc, day number in center
+//   complete     →  full green arc, green checkmark in center
+//   frozen       →  solid accent track, snowflake in center
+//   inactive     →  faded track, muted day number (no arc)
+//
+// The checkmark uses `theme.colors.active` — the same green as
+// the session timer's completion icon — so a sealed day and a
+// finished workout read as the same success moment.
+// ─────────────────────────────────────────────────────────────
 import Text from "@/components/text";
 import type { DayProgress } from "@/utils/history";
 import { Ionicons } from "@expo/vector-icons";
-import React from "react";
+import {
+  Canvas,
+  LinearGradient,
+  Path,
+  Skia,
+  vec,
+} from "@shopify/react-native-skia";
+import React, { useEffect, useMemo } from "react";
 import { Pressable, View } from "react-native";
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 export function DayCircle({
   day,
@@ -22,67 +49,69 @@ export function DayCircle({
   size: number;
   onPress: () => void;
 }) {
-  const theme = UnistylesRuntime.getTheme();
-
-  const progress = day.total > 0 ? day.completed / day.total : 0;
-  const dayNumber = String(day.date.getDate());
-  const percent = Math.round(progress * 100);
+  const { theme } = useUnistyles();
 
   const isFrozen = day.isFrozen;
   const isInactive = !isFrozen && day.total === 0;
-  const isComplete = !isFrozen && !isInactive && progress >= 1;
   const isSealed = day.isSealed;
 
-  const fontSize = Math.round(size * 0.34);
-  const borderWidth = isComplete ? 3 : 2;
+  const rawProgress =
+    day.total > 0 ? Math.min(day.completed / day.total, 1) : 0;
+  // A sealed day is always a full ring, regardless of what the raw
+  // completed/total ratio says.
+  const targetProgress = isSealed ? 1 : rawProgress;
+  const isComplete = !isInactive && !isFrozen && targetProgress >= 1;
 
+  const strokeWidth = Math.max(3, Math.round(size * 0.09));
+  const pad = strokeWidth / 2 + 1;
+
+  const ringPath = useMemo(
+    () =>
+      Skia.PathBuilder.Make()
+        .addOval({
+          x: pad,
+          y: pad,
+          width: size - pad * 2,
+          height: size - pad * 2,
+        })
+        .build(),
+    [size, pad],
+  );
+
+  const animatedProgress = useSharedValue(0);
   const pressScale = useSharedValue(1);
   const mountOpacity = useSharedValue(0);
-  const mountTranslateY = useSharedValue(8);
+  const mountTranslateY = useSharedValue(6);
 
-  React.useEffect(() => {
-    const staggerIndex = Math.min(
-      Math.abs(
-        Math.round(
-          (Date.now() - new Date(day.date).setHours(0, 0, 0, 0)) /
-            (24 * 60 * 60 * 1000),
-        ),
+  // Stagger on mount so the grid assembles top-left to bottom-right.
+  useEffect(() => {
+    const daysAgo = Math.abs(
+      Math.round(
+        (Date.now() - new Date(day.date).setHours(0, 0, 0, 0)) /
+          (24 * 60 * 60 * 1000),
       ),
-      12,
     );
-    const delay = staggerIndex * 30;
-
-    mountOpacity.value = withDelay(delay, withTiming(1, { duration: 320 }));
-    mountTranslateY.value = withDelay(delay, withTiming(0, { duration: 320 }));
+    const delay = Math.min(daysAgo, 12) * 30;
+    mountOpacity.value = withDelay(delay, withTiming(1, { duration: 300 }));
+    mountTranslateY.value = withDelay(delay, withTiming(0, { duration: 300 }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  React.useEffect(() => {
-    if (!isComplete) return;
-    const timer = setTimeout(() => {
-      pressScale.value = withSequence(
-        withTiming(1.06, { duration: 220 }),
-        withSpring(1, { damping: 14, stiffness: 200 }),
-      );
-    }, 500);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isComplete]);
+  useEffect(() => {
+    animatedProgress.value = withTiming(targetProgress, {
+      duration: 600,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [targetProgress, animatedProgress]);
 
   const handlePressIn = () => {
     if (isInactive) return;
-    pressScale.value = withSpring(0.92, {
-      damping: 16,
-      stiffness: 320,
-    });
+    pressScale.value = withSpring(0.94, { damping: 16, stiffness: 320 });
   };
 
   const handlePressOut = () => {
     if (isInactive) return;
-    pressScale.value = withSpring(1, {
-      damping: 16,
-      stiffness: 320,
-    });
+    pressScale.value = withSpring(1, { damping: 16, stiffness: 320 });
   };
 
   const containerStyle = useAnimatedStyle(() => ({
@@ -93,28 +122,50 @@ export function DayCircle({
     ],
   }));
 
-  // Ring color and background by state
-  const ringColor = isFrozen
-    ? theme.colors.primary
-    : isInactive
-      ? theme.colors.panelBorder
-      : theme.colors.primary;
+  // Track color / opacity per state.
+  const trackColor = isFrozen ? theme.colors.primary : theme.colors.panelBorder;
+  const trackOpacity = isInactive ? 0.3 : isFrozen ? 0.55 : 0.5;
 
-  const ringBackground = isComplete
-    ? theme.colors.primary
-    : isFrozen
-      ? theme.colors.panel
-      : theme.colors.surface;
+  // Arc gradient: green when complete, accent otherwise.
+  const arcColors: [string, string] = isComplete
+    ? [theme.colors.active, theme.colors.active]
+    : [theme.colors.primary, theme.colors.primaryIllumination];
 
-  // Caption. Sealed days get a distinct label so the grid matches the
-  // streak's definition (sealed = counted).
-  const caption = isFrozen
-    ? "freeze"
-    : isInactive
-      ? "rest"
-      : isSealed
-        ? "sealed"
-        : `${percent}% · ${day.completed}/${day.total}`;
+  // Center content — exactly one item per cell.
+  const centerContent = (() => {
+    if (isFrozen) {
+      return (
+        <Ionicons
+          name="snow"
+          size={Math.round(size * 0.42)}
+          color={theme.colors.primary}
+        />
+      );
+    }
+    if (isComplete) {
+      return (
+        <Ionicons
+          name="checkmark"
+          size={Math.round(size * 0.42)}
+          color={theme.colors.active}
+        />
+      );
+    }
+    return (
+      <Text
+        variant="title"
+        color={isInactive ? "mutedText" : "onSurface"}
+        style={{
+          fontSize: Math.round(size * 0.38),
+          lineHeight: Math.round(size * 0.44),
+          letterSpacing: -0.5,
+          fontVariant: ["tabular-nums"],
+        }}
+      >
+        {day.date.getDate()}
+      </Text>
+    );
+  })();
 
   return (
     <Pressable
@@ -124,114 +175,53 @@ export function DayCircle({
       disabled={isInactive}
       style={[styles.cell, { width: size }]}
     >
-      <Animated.View style={[styles.cellInner, containerStyle]}>
-        <View style={styles.ringWrap}>
-          <Animated.View
-            style={[
-              styles.ring,
-              {
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-                borderColor: ringColor,
-                borderWidth,
-                backgroundColor: ringBackground,
-              },
-              isInactive && styles.ringInactive,
-              isFrozen && styles.ringFrozen,
-            ]}
-          >
-            {isFrozen ? (
-              <Ionicons
-                name="snow"
-                size={Math.round(size * 0.42)}
-                color={theme.colors.primary}
-              />
-            ) : (
-              <Text
-                variant="title"
-                color={
-                  isComplete
-                    ? "onPrimary"
-                    : isInactive
-                      ? "mutedText"
-                      : "onSurface"
-                }
-                style={{ fontSize, lineHeight: fontSize * 1.15 }}
+      <Animated.View style={containerStyle}>
+        <View style={{ width: size, height: size }}>
+          <Canvas style={{ width: size, height: size }}>
+            {/* Track ring */}
+            <Path
+              path={ringPath}
+              style="stroke"
+              strokeWidth={strokeWidth}
+              color={trackColor}
+              opacity={trackOpacity}
+            />
+
+            {/* Progress arc — skipped for frozen and inactive days */}
+            {targetProgress > 0 && !isFrozen && (
+              <Path
+                path={ringPath}
+                style="stroke"
+                strokeWidth={strokeWidth}
+                strokeCap="round"
+                start={0}
+                end={animatedProgress}
               >
-                {dayNumber}
-              </Text>
+                <LinearGradient
+                  start={vec(0, 0)}
+                  end={vec(size, size)}
+                  colors={arcColors}
+                />
+              </Path>
             )}
-          </Animated.View>
+          </Canvas>
 
-          {isSealed && (
-            <View style={styles.sealedBadge}>
-              <Ionicons
-                name="checkmark"
-                size={12}
-                color={theme.colors.onPrimary}
-              />
-            </View>
-          )}
+          <View style={styles.centerOverlay} pointerEvents="none">
+            {centerContent}
+          </View>
         </View>
-
-        <Text
-          variant="caption"
-          color={isFrozen ? "primary" : "mutedText"}
-          style={[styles.caption, isInactive && styles.captionInactive]}
-          numberOfLines={1}
-        >
-          {caption}
-        </Text>
       </Animated.View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create((theme) => ({
+const styles = StyleSheet.create({
   cell: {
     alignItems: "center",
   },
-  cellInner: {
-    width: "100%",
+  centerOverlay: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
   },
-  ringWrap: {
-    position: "relative",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ring: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  ringInactive: {
-    opacity: 0.5,
-  },
-  ringFrozen: {
-    borderStyle: "dashed",
-    borderWidth: 2,
-  },
-  sealedBadge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.primary,
-    borderWidth: 2,
-    borderColor: theme.colors.background,
-  },
-  caption: {
-    textAlign: "center",
-    alignSelf: "stretch",
-  },
-  captionInactive: {
-    opacity: 0.5,
-  },
-}));
+});
