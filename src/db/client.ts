@@ -6,8 +6,11 @@ import type * as SQLite from "expo-sqlite";
 // Bump this whenever a migration is added to the MIGRATIONS array
 // below. Never bump without a matching migration — the migration
 // runner relies on them being in lockstep.
+//
+//   1 → base schema
+//   2 → user_profile.age
 // ─────────────────────────────────────────────────────────────
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 // ─────────────────────────────────────────────────────────────
 // Meta table
@@ -44,9 +47,14 @@ async function setSchemaVersion(
 // ─────────────────────────────────────────────────────────────
 // Base schema
 //
-// The full schema at version 1. Runs only on fresh installs (no
-// schema_meta row yet). Every statement is IF NOT EXISTS, so it's
-// also safe to re-run defensively.
+// The full schema at the current SCHEMA_VERSION. Runs only on
+// fresh installs (no schema_meta row yet). Every statement is
+// IF NOT EXISTS, so it's also safe to re-run defensively.
+//
+// IMPORTANT: this represents the *latest* shape. If a future
+// migration changes an existing table, update this block to
+// reflect the new shape — fresh installs should never need to
+// run migrations to reach the current version.
 // ─────────────────────────────────────────────────────────────
 async function runBaseSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync(`
@@ -59,6 +67,7 @@ async function runBaseSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE TABLE IF NOT EXISTS user_profile (
       id                      TEXT PRIMARY KEY NOT NULL,
       display_name            TEXT NOT NULL,
+      age                     INTEGER,
       start_date              INTEGER NOT NULL,
       initial_weight_kg       REAL NOT NULL,
       goal_weight_kg          REAL NOT NULL,
@@ -100,9 +109,6 @@ async function runBaseSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_completions_exercise
       ON completion_records (exercise_id);
 
-    -- Clean up duplicates before the unique index is applied. Harmless
-    -- on fresh installs (table is empty); rescues upgraded installs
-    -- that raced an insert at some point.
     DELETE FROM completion_records
      WHERE rowid NOT IN (
        SELECT MIN(rowid)
@@ -155,17 +161,6 @@ async function runBaseSchema(db: SQLite.SQLiteDatabase): Promise<void> {
 // entries at the END of the array; never reorder or delete existing
 // entries — an install somewhere in the wild may be sitting at any
 // version. Bump SCHEMA_VERSION to match the highest `to`.
-//
-// Example for a future v2 that adds a nullable column:
-//
-//   {
-//     to: 2,
-//     run: async (db) => {
-//       await db.execAsync(
-//         `ALTER TABLE user_profile ADD COLUMN notes TEXT`
-//       );
-//     },
-//   }
 // ─────────────────────────────────────────────────────────────
 interface Migration {
   to: number;
@@ -173,7 +168,16 @@ interface Migration {
 }
 
 const MIGRATIONS: Migration[] = [
-  // No migrations yet. v1 is the base schema.
+  {
+    to: 2,
+    run: async (db) => {
+      // Adds the nullable `age` column. Pre-existing profiles get
+      // NULL; the onboarding flow now requires an age for new
+      // profiles, so the practical shape is "null only on installs
+      // that predate v2 and never re-onboarded".
+      await db.execAsync(`ALTER TABLE user_profile ADD COLUMN age INTEGER`);
+    },
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -185,9 +189,6 @@ export async function initializeDatabase(
   await db.execAsync("PRAGMA journal_mode = WAL;");
   await db.execAsync("PRAGMA foreign_keys = ON;");
 
-  // Ensure the meta table exists before reading it. This has to run
-  // before anything else so a fresh install can't fail on a missing
-  // schema_meta.
   await db.execAsync(META_TABLE_SQL);
 
   const currentVersion = await getSchemaVersion(db);
@@ -211,6 +212,4 @@ export async function initializeDatabase(
 
   // currentVersion === SCHEMA_VERSION → nothing to do.
   // currentVersion > SCHEMA_VERSION → app downgrade; leave it alone.
-  // (A real production app would want to surface this, but for a
-  // local-first single-user app it's not worth crashing over.)
 }

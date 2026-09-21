@@ -7,6 +7,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 const PROFILE: UserProfile = {
   id: UserProfileRepo.defaultId,
   displayName: "Ada",
+  age: 30,
   startDate: 1_700_000_000_000,
   initialWeightKg: 70.5,
   goalWeightKg: 65,
@@ -55,6 +56,18 @@ describe("UserProfileRepo", () => {
     expect(loaded!.initialWeightKg).toBeCloseTo(82.35, 6);
     expect(loaded!.goalWeightKg).toBeCloseTo(78.9, 6);
     expect(loaded!.initialHeightCm).toBeCloseTo(182.6, 6);
+  });
+
+  it("round-trips a null age (pre-v2 installs)", async () => {
+    await UserProfileRepo.insert(db, { ...PROFILE, age: null });
+    const loaded = await UserProfileRepo.get(db);
+    expect(loaded?.age).toBeNull();
+  });
+
+  it("round-trips a numeric age", async () => {
+    await UserProfileRepo.insert(db, { ...PROFILE, age: 42 });
+    const loaded = await UserProfileRepo.get(db);
+    expect(loaded?.age).toBe(42);
   });
 
   it("only returns the row whose id matches the default", async () => {

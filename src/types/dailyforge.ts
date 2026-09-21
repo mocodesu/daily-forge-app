@@ -66,6 +66,17 @@ export interface DailySwear {
 export interface UserProfile {
   id: string;
   displayName: string;
+  /**
+   * User's age in years.
+   *
+   * Nullable because pre-v2 installs have no age — the schema
+   * migration adds the column as NULL for existing rows. New
+   * profiles created through onboarding always set a value.
+   *
+   * Age is used only to contextualize BMI on-device. It is never
+   * uploaded anywhere.
+   */
+  age: number | null;
   startDate: number;
   /** always stored in kg regardless of display unit */
   initialWeightKg: number;

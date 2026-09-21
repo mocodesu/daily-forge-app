@@ -29,6 +29,7 @@ const exercise = (id: string): Exercise => ({
 const profile: UserProfile = {
   id: UserProfileRepo.defaultId,
   displayName: "Ada",
+  age: 30,
   startDate: 1_700_000_000_000,
   initialWeightKg: 70,
   goalWeightKg: 65,
@@ -122,8 +123,6 @@ describe("writeBackupFile", () => {
 
   it("deletes an existing file before writing (second call in the same second)", () => {
     writeBackupFile('{"first":true}');
-    // Second call with the same frozen timestamp → same filename →
-    // hits the `if (file.exists)` branch.
     expect(() => writeBackupFile('{"second":true}')).not.toThrow();
   });
 });

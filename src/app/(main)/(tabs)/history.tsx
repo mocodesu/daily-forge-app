@@ -2,6 +2,7 @@ import { DayCircle } from "@/components/day-circle";
 import { ErrorState } from "@/components/error-state";
 import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
+import { StreakProgressCard } from "@/components/streak-progress";
 import Text from "@/components/text";
 import { PrimaryIcon } from "@/components/themed";
 import { HISTORY_WINDOW_DAYS } from "@/constants/dailyforge";
@@ -20,10 +21,7 @@ import {
   useUnistyles,
 } from "react-native-unistyles";
 
-// History-grid geometry. The horizontal padding and max content width
-// come from the theme (see `theme.layout`) so this screen can't drift
-// out of sync with the rest of the app. MIN/MAX are overridden per
-// breakpoint inside the component.
+// History-grid geometry.
 const CELL_GAP = 12;
 const MIN_CELL_PHONE = 64;
 const MAX_CELL_PHONE = 84;
@@ -63,9 +61,6 @@ export default function HistoryScreen() {
       ]);
       if (!mountedRef.current) return;
       setDays(result);
-      // calculateStreak returns a StreakResult object with
-      // `streak`, `frozenKeys`, `freezeBalance`, etc. Extract the
-      // number — otherwise <Text> tries to render the object.
       setStreak(streakResult.streak);
     } catch (err) {
       if (!mountedRef.current) return;
@@ -115,8 +110,6 @@ export default function HistoryScreen() {
     Math.min(width, contentMax) - theme.layout.screenPaddingH * 2;
 
   const columns = (() => {
-    // Try up to 10 columns on tablet — allow bigger grids before
-    // dropping to the next size down.
     const maxCols = isTablet ? 10 : 8;
     let best = 3;
     for (let cols = maxCols; cols >= 3; cols--) {
@@ -134,31 +127,20 @@ export default function HistoryScreen() {
     Math.floor((available - (columns - 1) * CELL_GAP) / columns),
   );
 
-  const remaining = Math.max(0, targetDays - streak);
-  const statusText =
-    streak === 0
-      ? `Target: ${targetDays} days. Start your streak today.`
-      : streak >= targetDays
-        ? `You've hit your ${targetDays}-day target. Well done.`
-        : `You have ${remaining} day${remaining === 1 ? "" : "s"} to go.`;
+  const ringSize = isTablet ? 180 : 140;
 
   return (
     <ScrollScreen>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text variant="caption" color="mutedText" numberOfLines={2}>
-            {statusText}
-          </Text>
-        </View>
-        <View style={styles.summaryBadge}>
-          <Text variant="title" color="onSurface">
-            {streak}/{targetDays}
-          </Text>
-        </View>
-      </View>
+      {/* ── Streak progress ring ──────────────────────── */}
+      <StreakProgressCard
+        streak={streak}
+        targetDays={targetDays}
+        size={ringSize}
+      />
 
       {/* ── Weekly recap entry point ──────────────────── */}
       <HapticPressable
+        testID="history-weekly-recap"
         haptic="light"
         onPress={() => router.push("/(main)/weekly-recap")}
         style={styles.recapButton}
@@ -209,34 +191,11 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     backgroundColor: theme.colors.background,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: theme.spacing.md,
-    minHeight: 40,
-  },
-  headerLeft: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  summaryBadge: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.radii.full,
-    backgroundColor: theme.colors.surface,
-    borderWidth: theme.borderWidth.thin,
-    borderColor: theme.colors.panelBorder,
-    minHeight: 40,
-  },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "flex-start",
   },
-
   recapButton: {
     flexDirection: "row",
     alignItems: "center",

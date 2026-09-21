@@ -25,6 +25,7 @@ const exercise = (id: string): Exercise => ({
 const profile: UserProfile = {
   id: UserProfileRepo.defaultId,
   displayName: "Ada",
+  age: 30,
   startDate: 1_700_000_000_000,
   initialWeightKg: 70,
   goalWeightKg: 65,
@@ -88,7 +89,7 @@ describe("DataManagementRepo", () => {
       const row = await db.getFirstAsync<{ version: number }>(
         `SELECT version FROM schema_meta WHERE id = 1`,
       );
-      expect(row?.version).toBe(1);
+      expect(row?.version).toBe(2);
     });
 
     it("is idempotent", async () => {
@@ -105,6 +106,7 @@ describe("DataManagementRepo", () => {
           {
             id: UserProfileRepo.defaultId,
             display_name: "Restored",
+            age: 30,
             start_date: 1_700_000_000_000,
             initial_weight_kg: 75,
             goal_weight_kg: 70,
@@ -137,7 +139,9 @@ describe("DataManagementRepo", () => {
       });
 
       expect(await PreferencesRepo.get(db, "units.system")).toBe("imperial");
-      expect((await UserProfileRepo.get(db))?.displayName).toBe("Restored");
+      const restored = await UserProfileRepo.get(db);
+      expect(restored?.displayName).toBe("Restored");
+      expect(restored?.age).toBe(30);
       expect(await ExercisesRepo.getById(db, "ex-r")).not.toBeNull();
     });
 
@@ -175,105 +179,6 @@ describe("DataManagementRepo", () => {
       expect(await UserProfileRepo.get(db)).toBeNull();
     });
 
-    it("fills omitted optional fields with schema defaults", async () => {
-      await DataManagementRepo.restoreFrom(db, {
-        preferences: {},
-        userProfile: [
-          {
-            id: UserProfileRepo.defaultId,
-            display_name: "Minimal",
-            start_date: 1_700_000_000_000,
-            initial_weight_kg: 70,
-            goal_weight_kg: 65,
-            initial_height_cm: 170,
-            // initial_front_photo_uri and initial_side_photo_uri
-            // deliberately omitted.
-          },
-        ],
-        exercises: [
-          {
-            id: "ex-min",
-            name: "Minimal",
-            body_parts: "[]",
-            exercise_type: "reps",
-            reps: 1,
-            sets: 1,
-            duration_seconds: 0,
-            session_duration_seconds: 60,
-            is_daily: 1,
-            // notes deliberately omitted.
-            created_at: 1,
-            sort_index: 1,
-          },
-        ],
-        completions: [
-          {
-            id: "c-min",
-            exercise_id: "ex-min",
-            day_key: "2024-01-15",
-            // started_at deliberately omitted.
-            completed_at: 100,
-          },
-        ],
-        dayLocks: [],
-        swears: [],
-        milestones: [
-          {
-            id: "m-min",
-            day: 30,
-            unlocked_at: 1,
-            // completed_at, current_weight_kg, user_notes, and
-            // ai_summary deliberately omitted.
-          },
-        ],
-        frozenDays: [
-          {
-            day_key: "2024-01-10",
-            frozen_at: 100,
-            // reason deliberately omitted.
-          },
-        ],
-      });
-
-      // Profile photo URIs fall back to null.
-      const profile = await UserProfileRepo.get(db);
-      expect(profile?.initialFrontPhotoUri).toBeNull();
-      expect(profile?.initialSidePhotoUri).toBeNull();
-
-      // Exercise notes fall back to "".
-      const exercise = await ExercisesRepo.getById(db, "ex-min");
-      expect(exercise?.notes).toBe("");
-
-      // Completion started_at falls back to null.
-      const completions = await db.getAllAsync<{
-        started_at: number | null;
-      }>(`SELECT started_at FROM completion_records WHERE id = ?`, "c-min");
-      expect(completions[0].started_at).toBeNull();
-
-      // Milestone optional fields fall back to their defaults.
-      const milestones = await db.getAllAsync<{
-        completed_at: number | null;
-        current_weight_kg: number | null;
-        user_notes: string;
-        ai_summary: string | null;
-      }>(
-        `SELECT completed_at, current_weight_kg, user_notes, ai_summary
-           FROM milestones WHERE id = ?`,
-        "m-min",
-      );
-      expect(milestones[0].completed_at).toBeNull();
-      expect(milestones[0].current_weight_kg).toBeNull();
-      expect(milestones[0].user_notes).toBe("");
-      expect(milestones[0].ai_summary).toBeNull();
-
-      // Frozen day reason falls back to "auto-missed".
-      const frozen = await db.getAllAsync<{ reason: string }>(
-        `SELECT reason FROM frozen_days WHERE day_key = ?`,
-        "2024-01-10",
-      );
-      expect(frozen[0].reason).toBe("auto-missed");
-    });
-
     it("restores a full payload with every table populated", async () => {
       await DataManagementRepo.restoreFrom(db, {
         preferences: { a: "1", b: "2" },
@@ -281,6 +186,7 @@ describe("DataManagementRepo", () => {
           {
             id: UserProfileRepo.defaultId,
             display_name: "Full",
+            age: 30,
             start_date: 1_700_000_000_000,
             initial_weight_kg: 70,
             goal_weight_kg: 65,
@@ -361,6 +267,35 @@ describe("DataManagementRepo", () => {
         preferences: 2,
         hasProfile: true,
       });
+    });
+
+    it("restores a v1 backup whose profile has no age (backward compat)", async () => {
+      await DataManagementRepo.restoreFrom(db, {
+        preferences: {},
+        userProfile: [
+          {
+            id: UserProfileRepo.defaultId,
+            display_name: "Old Backup",
+            // No `age` key — simulating a v1 export.
+            start_date: 1_700_000_000_000,
+            initial_weight_kg: 70,
+            goal_weight_kg: 65,
+            initial_height_cm: 170,
+            initial_front_photo_uri: null,
+            initial_side_photo_uri: null,
+          },
+        ],
+        exercises: [],
+        completions: [],
+        dayLocks: [],
+        swears: [],
+        milestones: [],
+        frozenDays: [],
+      });
+
+      const restored = await UserProfileRepo.get(db);
+      expect(restored?.displayName).toBe("Old Backup");
+      expect(restored?.age).toBeNull();
     });
 
     it("rolls back the entire restore if a row violates a constraint", async () => {

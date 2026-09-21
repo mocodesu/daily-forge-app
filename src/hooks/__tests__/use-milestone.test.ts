@@ -17,6 +17,7 @@ const INTERVAL = 2;
 const profile: UserProfile = {
   id: UserProfileRepo.defaultId,
   displayName: "Ada",
+  age: 30,
   startDate: 1_700_000_000_000,
   initialWeightKg: 70,
   goalWeightKg: 65,
@@ -147,16 +148,12 @@ describe("useMilestone", () => {
     const { result } = await renderHook(() => useMilestone(INTERVAL, true));
     await waitFor(() => expect(result.current.pending).not.toBeNull());
 
-    // Async act even for the sync dismiss — React 19 always returns
-    // a thenable from act, and the awaiting flushes the state update
-    // deterministically.
     await act(async () => {
       result.current.dismiss();
     });
 
     expect(result.current.pending).toBeNull();
 
-    // Row still exists, still pending.
     const stored = await MilestonesRepo.getByDay(db, INTERVAL);
     expect(stored).not.toBeNull();
     expect(stored!.completedAt).toBeNull();
@@ -226,20 +223,16 @@ describe("useMilestone", () => {
       });
     });
 
-    // pending is not cleared because the write failed
     expect(result.current.pending).not.toBeNull();
 
     spy.mockRestore();
     warnSpy.mockRestore();
   });
+
   it("complete() is a no-op when there is no pending milestone", async () => {
-    // Streak 0 → interval 2 → no milestone created. pending stays null.
     const { result } = await renderHook(() => useMilestone(0, true));
     expect(result.current.pending).toBeNull();
 
-    // Calling complete() with no pending is a contract no-op: no
-    // write, no throw, no state change. Covers the `if (!pending)
-    // return;` true-branch in the hook.
     await act(async () => {
       await result.current.complete({
         currentWeightKg: 68,

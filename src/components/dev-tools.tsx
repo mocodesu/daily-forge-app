@@ -524,6 +524,15 @@ function DevToolsInner() {
         disabled={busy !== null}
       />
 
+      <DevButton
+        icon="color-palette-outline"
+        label="Open Skia Preview"
+        subtitle="Inspect Flame, StreakRing, and WaxSeal in isolation"
+        onPress={() => router.push("/(main)/dev/skia-preview")}
+        busy={false}
+        disabled={busy !== null}
+      />
+
       {/* ── Exercises ───────────────────────────────────── */}
       <SectionHeader icon="barbell-outline" title="Exercises" />
 

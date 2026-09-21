@@ -26,14 +26,14 @@ describe("initializeDatabase", () => {
     );
   });
 
-  it("sets schema_meta.version to 1 on a fresh install", async () => {
+  it("sets schema_meta.version to 2 on a fresh install", async () => {
     const db = createTestDb();
     await initializeDatabase(db);
 
     const row = await db.getFirstAsync<{ version: number }>(
       `SELECT version FROM schema_meta WHERE id = 1`,
     );
-    expect(row?.version).toBe(1);
+    expect(row?.version).toBe(2);
   });
 
   it("is idempotent — running twice does not error and does not change the version", async () => {
@@ -44,7 +44,7 @@ describe("initializeDatabase", () => {
     const row = await db.getFirstAsync<{ version: number }>(
       `SELECT version FROM schema_meta WHERE id = 1`,
     );
-    expect(row?.version).toBe(1);
+    expect(row?.version).toBe(2);
   });
 
   it("enables foreign key enforcement (cascade delete works)", async () => {
@@ -106,5 +106,98 @@ describe("initializeDatabase", () => {
         1_700_000_000_000,
       ),
     ).rejects.toThrow();
+  });
+
+  it("migrates a v1 install to v2 by adding the age column", async () => {
+    const db = createTestDb();
+
+    // Simulate a v1 install: schema_meta at version 1, user_profile
+    // without the age column. This is the exact v1 shape — hand-written
+    // here rather than pulled from a prior commit so the test is
+    // deterministic and self-documenting.
+    await db.execAsync(`
+      CREATE TABLE schema_meta (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        version INTEGER NOT NULL
+      );
+      INSERT INTO schema_meta (id, version) VALUES (1, 1);
+
+      CREATE TABLE user_profile (
+        id                      TEXT PRIMARY KEY NOT NULL,
+        display_name            TEXT NOT NULL,
+        start_date              INTEGER NOT NULL,
+        initial_weight_kg       REAL NOT NULL,
+        goal_weight_kg          REAL NOT NULL,
+        initial_height_cm       REAL NOT NULL,
+        initial_front_photo_uri TEXT,
+        initial_side_photo_uri  TEXT
+      );
+    `);
+
+    // Insert a v1-era profile — no age column to fill.
+    await db.runAsync(
+      `INSERT INTO user_profile (
+        id, display_name, start_date,
+        initial_weight_kg, goal_weight_kg, initial_height_cm,
+        initial_front_photo_uri, initial_side_photo_uri
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      "default",
+      "Ada",
+      1_700_000_000_000,
+      70,
+      65,
+      170,
+      null,
+      null,
+    );
+
+    await initializeDatabase(db);
+
+    // Version bumped to 2.
+    const meta = await db.getFirstAsync<{ version: number }>(
+      `SELECT version FROM schema_meta WHERE id = 1`,
+    );
+    expect(meta?.version).toBe(2);
+
+    // Age column exists, and the pre-existing row got NULL.
+    const profile = await db.getFirstAsync<{ age: number | null }>(
+      `SELECT age FROM user_profile WHERE id = ?`,
+      "default",
+    );
+    expect(profile?.age).toBeNull();
+  });
+
+  it("a fresh install lands at v2 with age already in the schema", async () => {
+    const db = createTestDb();
+    await initializeDatabase(db);
+
+    const meta = await db.getFirstAsync<{ version: number }>(
+      `SELECT version FROM schema_meta WHERE id = 1`,
+    );
+    expect(meta?.version).toBe(2);
+
+    // Insert a profile with age; read it back to prove the base
+    // schema includes the column.
+    await db.runAsync(
+      `INSERT INTO user_profile (
+        id, display_name, age, start_date,
+        initial_weight_kg, goal_weight_kg, initial_height_cm,
+        initial_front_photo_uri, initial_side_photo_uri
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      "default",
+      "Ada",
+      30,
+      1_700_000_000_000,
+      70,
+      65,
+      170,
+      null,
+      null,
+    );
+    const row = await db.getFirstAsync<{ age: number | null }>(
+      `SELECT age FROM user_profile WHERE id = ?`,
+      "default",
+    );
+    expect(row?.age).toBe(30);
   });
 });

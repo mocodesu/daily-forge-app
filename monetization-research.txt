@@ -1,0 +1,493 @@
+================================================================================
+DAILYFORGE — MONETIZATION STRATEGY & RESEARCH
+================================================================================
+Date compiled: 2026-09-21
+Status: Research phase — no implementation started
+Sources: RevenueCat State of Subscription Apps 2026, Airbridge Mobile
+         Monetization Report, Marketing Science (mHealth premium adoption),
+         App Store competitive analysis (fitness + habit tracker categories)
+
+
+================================================================================
+SECTION 1 — WHAT DAILYFORGE ACTUALLY SELLS
+================================================================================
+
+The product's value proposition is anti-feature:
+
+    "One set of exercises. Every day. No edits, no excuses."
+
+You are not selling more features. You are selling commitment enforcement.
+The voice oath, the immutable exercise lock, the streak freeze — these are
+friction intentionally designed to make quitting hard. That IS the product.
+
+DIRECT IMPLICATION FOR THE PAYWALL:
+
+    You cannot paywall the commitment mechanics.
+
+If the voice oath, the daily seal, or the streak fall behind a paywall, the
+app becomes a weaker product for free users and the whole identity collapses.
+The core loop must stay free forever.
+
+What CAN be paywalled:
+    - Depth (analytics, insights)
+    - Personalization (themes, more exercises)
+    - Convenience (multiple reminders, unlimited freezes)
+
+What CANNOT be paywalled:
+    - The seal itself
+    - The streak
+    - Basic history
+    - Basic reminders
+
+
+================================================================================
+SECTION 2 — FEATURE SPLIT: FREE VS PRO
+================================================================================
+
+--------------------------------------------------------------------------------
+FREE FOREVER (the core loop)
+--------------------------------------------------------------------------------
+
+Feature                    | Rationale
+---------------------------|----------------------------------------------------
+Create up to 3-5 exercises | Enough for a full daily routine. Habit apps
+                           | (Streak-it, Mastery, Habitify) all cap free
+                           | tiers in this range. Final cap TBD — see
+                           | Open Questions.
+                           |
+Daily seal (voice oath)    | The identity of the app. Never paywall this.
+                           |
+Streak tracking + freeze   | Same reason. The streak is the hook.
+                           |
+30-day history grid        | Seeing your own consistency drives retention.
+                           | Free growth through weekly recap shares.
+                           |
+Weekly recap               | Shareable progress. Free marketing.
+                           |
+Basic reminders (1 daily)  | Retention driver, not a premium lever.
+                           |
+Swear phrase editor        | Personalization of the free core.
+                           |
+Theme mode (light/dark)    | Accessibility, not a feature.
+                           |
+Data export (JSON)         | GDPR-friendly. Do not gate it.
+
+--------------------------------------------------------------------------------
+PRO (yearly only)
+--------------------------------------------------------------------------------
+
+Feature                          | Rationale
+---------------------------------|--------------------------------------------
+Unlimited exercises              | The most natural upgrade. 3-5 is plenty for
+                                 | a starter; 10+ is for people who've
+                                 | committed.
+                                 |
+All accent color schemes (6)     | Cosmetic but visible. Low dev cost, high
+                                 | perceived value. Default scheme stays free.
+                                 |
+Advanced streak analytics        | Monthly completion rate, best days, pattern
+                                 | detection. Classic Pro-tier territory for
+                                 | habit apps (Habitify, Trackly).
+                                 |
+Unlimited freeze balance         | Currently capped at 2/month. Pro removes
+                                 | the cap.
+                                 |
+Multiple reminders per day       | Free gets one. Pro gets up to 5 with
+                                 | custom times.
+                                 |
+Ad-free                          | The clearest Pro benefit if ads run.
+
+--------------------------------------------------------------------------------
+EXPLICITLY NOT IN PRO
+--------------------------------------------------------------------------------
+
+    - Voice oath (core)
+    - Daily seal (core)
+    - Basic history (core)
+    - Reminders' basic function (core)
+    - Any feature whose absence would make the free tier feel broken
+
+THE RULE:
+    A free user must be able to run the app indefinitely, seal every day,
+    and feel the streak working. Pro is for people who want MORE ROOM and
+    MORE INSIGHT — not for people who want the app to WORK.
+
+
+================================================================================
+SECTION 3 — PRICING
+================================================================================
+
+--------------------------------------------------------------------------------
+MODEL: YEARLY ONLY
+--------------------------------------------------------------------------------
+
+Rationale for no monthly tier:
+    - Yearly plans retain at 83.4% renewal vs. 39.2% for monthly.
+    - Annual subscribers churn 2-3x less than monthly subscribers.
+    - Two-plan paywalls (yearly + lifetime, or yearly alone) dominate at
+      41-60% of top apps.
+    - Adding monthly for this usage pattern only adds churn surface.
+
+--------------------------------------------------------------------------------
+PRICE: $39.99/YEAR
+--------------------------------------------------------------------------------
+
+Reasoning:
+    - Health & fitness yearly plans cluster at $29.99-$79.99 for freemium.
+      (Strava $79.99, Fitbod $95.99, Cronometer $49.99)
+    - Habit trackers specifically sit lower: $12.99-$44.99 yearly.
+    - DailyForge is a habit tracker with a fitness surface, not a full
+      fitness platform. Price in the habit band, not the Strava band.
+    - $39.99 lands at the upper-middle of the habit band — serious enough
+      to signal value, low enough that a committed user doesn't blink.
+
+Why NOT $29.99:
+    - Higher-priced apps convert paying users at ~2x the rate of cheap
+      ones (9.8% vs. 4.3%).
+    - Underpricing is more dangerous than overpricing for a first app.
+    - $2.99/month signals "even the founder doesn't think this is worth
+      much."
+
+Why NOT $49.99+:
+    - You'd compete with apps offering video content, adaptive AI
+      programming, or nutrition databases. DailyForge doesn't.
+    - Price what you deliver.
+
+--------------------------------------------------------------------------------
+OPTIONAL: LIFETIME ANCHOR AT $79.99
+--------------------------------------------------------------------------------
+
+Data:
+    - One-time purchases and lifetime plans grew from 6.4% to 10.3% of
+      plan types between 2023 and 2025.
+
+Benefits:
+    - Serves users with subscription fatigue
+    - Acts as an anchor making $39.99/year look cheap
+    - Caps exposure to a small group who'd never subscribe anyway
+
+Recommendation: OPTIONAL. Yearly alone is defensible. If A/B testing a
+second price point, lifetime is the more interesting lever than monthly.
+
+--------------------------------------------------------------------------------
+TRIAL: 7-DAY FREE, NO CARD REQUIRED
+--------------------------------------------------------------------------------
+
+Rationale:
+    - Data shows trials do NOT create stickier users (freemium and hard-
+      paywall year-one retention is nearly identical).
+    - But trials DO increase conversion.
+    - DailyForge's loop is fast: one week of daily seals is enough to
+      feel the streak working.
+    - Health/wellness category recommends 14-day minimum, but DailyForge's
+      loop is faster than most.
+
+--------------------------------------------------------------------------------
+HARD PAYWALL VS. FREEMIUM
+--------------------------------------------------------------------------------
+
+Numbers:
+    - Hard paywall converts at 12.1%
+    - Freemium converts at 2.2%
+    - Hard paywall refund rates are 1.7x higher
+    - Hard-paywall apps above 4.2% D35 conversion are rare
+
+DECISION: FREEMIUM WITH A SOFT PAYWALL.
+    - The free tier must be genuinely useful.
+    - Pro is offered at natural limitation moments (see Section 5).
+
+
+================================================================================
+SECTION 4 — AD STRATEGY
+================================================================================
+
+OVERARCHING PRINCIPLE:
+
+    Ads are the baseline monetization for free users, not the primary
+    revenue. Pro subscription is the primary revenue. Ads capture the
+    long tail of users who will never subscribe — and give Pro a concrete,
+    immediately-felt benefit ("no more ads").
+
+    The 2026 consensus: over 60% of top-grossing apps combine multiple
+    revenue streams. Hybrid is the standard.
+
+--------------------------------------------------------------------------------
+WHERE NOT TO PUT ADS (CRITICAL LIST)
+--------------------------------------------------------------------------------
+
+Location                                  | Why not
+------------------------------------------|--------------------------------------
+During a session timer                    | Ruins the workout. User is mid-exercise.
+                                          |
+On the swear modal                        | The oath is sacred. An ad here is a
+                                          | betrayal of the product's identity.
+                                          |
+On the celebration screen                 | The payoff moment. Never interrupt it.
+                                          |
+Between the seal and the streak update    | Same reason.
+                                          |
+On Today screen while exercises pending   | User is here to work. Don't distract.
+                                          |
+Interstitial after completing an exercise | The completion flow is 3 taps. An
+                                          | interstitial between them is hostile.
+
+--------------------------------------------------------------------------------
+WHERE ADS BELONG
+--------------------------------------------------------------------------------
+
+PLACEMENT 1: Banner at the bottom of the History tab
+-----------------------------------------------------
+
+Why this works:
+    - History is read-only, non-time-sensitive
+    - Users spend 5-15 seconds there at most
+    - No competing interest on the screen
+
+Layout:
+    ┌─────────────────────┐
+    │  History header     │
+    │  streak 12/30       │
+    │  [This week] button │
+    │                     │
+    │  ○ ○ ○ ○ ○ ○ ○      │  <- 30-day grid
+    │  ○ ○ ○ ○ ○ ○ ○      │
+    │  ○ ○ ○ ○ ○ ○ ○      │
+    │  ○ ○ ○ ○ ○ ○ ○      │
+    │                     │
+    │  [  banner ad  ]    │  <- bottom, scrolls with content
+    └─────────────────────┘
+
+Format: 320x50 adaptive banner
+Position: Bottom of scroll content (scrolls with content, not fixed)
+
+PLACEMENT 2: Interstitial after the weekly recap is dismissed
+--------------------------------------------------------------
+
+Why this works:
+    - User explicitly opened the recap modal
+    - Dismissing returns to History (a transition moment)
+    - Standard, expected pattern
+
+Frequency cap:
+    - MAX once per day
+    - NEVER if the user opened the recap in the last 24 hours
+    - NEVER two in a row
+
+Flow:
+    Weekly Recap modal
+           ↓
+      User taps "Close"
+           ↓
+    [ Interstitial appears ]     <- once per day max
+           ↓
+      History screen
+
+--------------------------------------------------------------------------------
+AD FORMAT RECOMMENDATIONS
+--------------------------------------------------------------------------------
+
+Format           | Use                                    | Frequency
+-----------------|----------------------------------------|---------------------
+Adaptive banner  | History bottom                         | Always visible there
+                 |                                        |
+Interstitial     | After weekly recap dismiss             | Max 1/day, never 2x
+                 |                                        |
+Rewarded         | "Watch ad to freeze a missed day"      | User-initiated only
+                 | (SEE WARNING BELOW)                    |
+                 |                                        |
+App open         | NO                                     | Never — poison
+
+APP OPEN ADS — SPECIAL WARNING:
+    They generate good revenue because every session starts with one.
+    They also produce the highest uninstall rate of any ad format.
+    For an app whose value is "open it daily and feel good," a cold-start
+    ad is poison. DO NOT USE.
+
+REWARDED ADS — WARNING:
+    Concept "watch a 30-second ad to earn a streak freeze" is compelling:
+    opt-in, gives real value, monetizes 3-5x better than banners.
+    BUT it cheapens the freeze mechanic. If free users can earn unlimited
+    freezes by watching ads, the freeze stops meaning anything.
+    RECOMMENDATION: SKIP for now. Freezes should be earned by
+    consistency, not by watching videos.
+
+--------------------------------------------------------------------------------
+AD SDK
+--------------------------------------------------------------------------------
+
+Use: react-native-google-mobile-ads
+    - Maintained community fork of AdMob's RN SDK
+    - Regularly updated by Google
+    - Better mediation support than expo-ads-admob
+    - Works with Expo bare workflow and EAS builds
+
+Do NOT use: expo-ads-admob
+    - Fewer advanced options
+    - Updates less frequently
+
+START WITH ADMOB ONLY:
+    Once you have traffic data, layer in Meta Audience Network or
+    AppLovin via mediation. Starting with mediation before you have
+    volume is premature optimization.
+
+--------------------------------------------------------------------------------
+REALISTIC AD REVENUE EXPECTATIONS
+--------------------------------------------------------------------------------
+
+Banner eCPMs (US-heavy fitness audience):     $2-$6 per 1,000 impressions
+Interstitial eCPMs:                            $8-$15
+
+If a free user opens the app daily and views one banner + one interstitial:
+
+    Per user per day:      ~$0.005-$0.012
+    Per user per year:     ~$1.80-$4.40
+
+Compare to Pro:
+    $39.99/year for one Pro subscriber
+    = 10-20 free ad-supported users
+
+This is why ads are the floor, not the strategy. Pro is where the
+business lives.
+
+
+================================================================================
+SECTION 5 — PAYWALL PLACEMENT AND UX
+================================================================================
+
+--------------------------------------------------------------------------------
+WHEN TO SHOW THE PAYWALL
+--------------------------------------------------------------------------------
+
+NOT on first launch
+NOT during onboarding
+NOT on the Today screen unprompted
+
+SHOW IT AT MOMENTS OF NATURAL LIMITATION:
+
+    1. User taps "Add Exercise" and already has 3-5
+       -> Soft sheet: "You've reached the free limit. Pro unlocks
+          unlimited exercises."
+          Buttons: "Upgrade" / "Maybe later"
+
+    2. User opens advanced analytics screen (if it exists)
+       -> Free users see a preview with blurred/teased overlay
+
+    3. User taps "Remove Ads" from Settings
+       -> Self-selected path. Highest intent.
+
+    4. After the 7th day of consecutive streaks
+       -> Milestone moment: "You've sealed 7 days straight. Pro keeps
+          the streak alive with unlimited freezes."
+
+NEVER SHOW THE PAYWALL ON:
+    - The swear modal
+    - The celebration screen
+    - During a session
+
+--------------------------------------------------------------------------------
+PAYWALL SCREEN REQUIREMENTS
+--------------------------------------------------------------------------------
+
+Three things it needs:
+
+    1. The yearly price, clearly labeled as the only option.
+       "$39.99/year" — no fake "was $79.99" strike-through.
+       No dark patterns.
+
+    2. The trial: "7 days free. Cancel anytime."
+       No card required means the trial starts automatically when they
+       tap "Start Free Trial."
+
+    3. A single benefit list. FOUR BULLETS MAX. Everything else is noise.
+
+Design language should match the app: clean, no guilt, no manipulation.
+
+POSITIONING NOTE:
+    The Habit Tracker Kit explicitly markets itself as "no streak shame,
+    no dark patterns" — that's exactly the positioning DailyForge should
+    claim.
+
+
+================================================================================
+SECTION 6 — RISKS AND HONEST CONCERNS
+================================================================================
+
+RISK 1: Ads damage the "serious, no-BS" brand
+------------------------------------------------
+DailyForge positions itself as an anti-frivolous app. Ads are inherently
+frivolous. A banner on the History screen is a visible compromise.
+
+If brand damage outweighs the ~$2-$4/year per free user, drop ads entirely
+and go pure freemium. The subscription revenue is what matters.
+
+RISK 2: The 3-exercise cap may be wrong for this app
+--------------------------------------------------------
+DailyForge's premise is "you set your daily routine and commit." A user
+might genuinely want 5 exercises from day one. Capping at 3 might force
+an upgrade before the user has felt the value.
+
+Consider: cap at 5 instead of 3.
+    - Costs some upgrade pressure
+    - Makes the free tier a complete product for most users
+    - Upsell becomes "unlimited + analytics + themes" rather than
+      "unlimited vs. limited"
+
+RISK 3: Premium adoption shows a burst that fades
+------------------------------------------------------
+Research from Marketing Science found that premium adoption in mHealth
+apps generates an immediate engagement lift that ATTENUATES within several
+weeks. It does NOT translate into sustained behavior change.
+
+Paying for an app doesn't make people stick with it.
+
+Implication: Pro features need to be ones users keep using. Advanced
+analytics and unlimited exercises fit. Cosmetic themes do not.
+
+RISK 4: "Free tier is too good" -> nobody upgrades
+--------------------------------------------------------
+The opposite of Risk 2. If the free tier gives everything a user needs,
+conversion sits at freemium's 2.2% floor.
+
+The balance: free must be COMPLETE but not SATISFYING — the user should
+feel the ceiling without feeling cheated.
+
+
+================================================================================
+SECTION 7 — OPEN QUESTIONS / DECISIONS NEEDED
+================================================================================
+
+1. FREE EXERCISE CAP: 3 or 5?
+
+   Recommendation: 5.
+   Makes the free tier a genuinely usable product. Upsell pressure comes
+   from analytics and themes instead of the exercise cap.
+
+2. ADS: YES OR NO?
+
+   Recommendation: Yes, but only the two placements above, and only if
+   comfortable with the brand trade-off.
+
+3. LIFETIME PRICE POINT: ADD ONE OR NOT?
+
+   Recommendation: Yes at $79.99 as an anchor, even if nobody buys it.
+   Makes $39.99/year look right.
+
+4. WHICH PRO FEATURES ARE BUILDABLE IN THE NEXT MONTH?
+
+   - Unlimited exercises: trivial (remove a cap)
+   - Themes: trivial (unlock existing color schemes)
+   - Advanced analytics: real work (new queries, new charts)
+   - Multi-reminder: scheduler changes
+
+   Which of these are worth the build time?
+
+5. HARD TRIAL OR OPT-IN TRIAL?
+
+   Hard:   auto-starts when they tap "Start Free Trial" and charges
+           after 7 days unless cancelled. Converts better.
+   Opt-in: they explicitly activate the trial. Fewer refunds.
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================

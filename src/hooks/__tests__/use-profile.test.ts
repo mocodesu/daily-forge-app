@@ -10,6 +10,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 const profile: UserProfile = {
   id: UserProfileRepo.defaultId,
   displayName: "Ada",
+  age: 30,
   startDate: 1_700_000_000_000,
   initialWeightKg: 70,
   goalWeightKg: 65,

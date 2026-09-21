@@ -116,6 +116,13 @@ export default function MainGroupLayout() {
           animation: "slide_from_bottom",
         }}
       />
+      <Stack.Screen
+        name="dev/skia-preview"
+        options={{
+          presentation: "modal",
+          animation: "slide_from_bottom",
+        }}
+      />
     </Stack>
   );
 }
