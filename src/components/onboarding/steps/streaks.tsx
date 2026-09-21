@@ -15,10 +15,12 @@ export function StreaksStep() {
       <View style={styles.animationWrap}>
         <StreakDemoRing
           size={RING_SIZE}
-          strokeWidth={16}
+          strokeWidth={13}
           trackColor={theme.colors.panelBorder}
           primaryColor={theme.colors.primary}
           illuminationColor={theme.colors.primaryIllumination}
+          outlineColor={theme.colors.mutedText}
+          completeColor={theme.colors.active}
           onDayChange={setDay}
         />
 
@@ -26,7 +28,8 @@ export function StreaksStep() {
           <Text variant="display" color="onSurface" style={styles.dayNumber}>
             {day}
           </Text>
-          <Text variant="subhead" color="mutedText">
+
+          <Text variant="subhead" color="mutedText" style={styles.daysLabel}>
             of 7 days
           </Text>
         </View>
@@ -48,6 +51,7 @@ function Rule({ text }: { text: string }) {
   return (
     <View style={styles.ruleRow}>
       <View style={styles.bullet} />
+
       <Text variant="subhead" color="onSurface" style={styles.ruleText}>
         {text}
       </Text>
@@ -62,36 +66,46 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing.lg,
     paddingHorizontal: theme.spacing.md,
   },
+
   animationWrap: {
     width: RING_SIZE,
     height: RING_SIZE,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
+
   centerOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    paddingTop: 2,
   },
+
   dayNumber: {
-    fontSize: Math.round(RING_SIZE * 0.28),
-    lineHeight: Math.round(RING_SIZE * 0.32),
-    letterSpacing: -1.5,
+    fontSize: Math.round(RING_SIZE * 0.29),
+    lineHeight: Math.round(RING_SIZE * 0.31),
+    letterSpacing: -2,
     fontVariant: ["tabular-nums"],
   },
+
+  daysLabel: {
+    marginTop: 5,
+  },
+
   title: {
     textAlign: "center",
     letterSpacing: -0.6,
     maxWidth: 340,
   },
+
   body: {
     textAlign: "center",
     maxWidth: 340,
     lineHeight: 22,
     marginTop: theme.spacing.xs,
   },
+
   rules: {
     gap: theme.spacing.sm,
     paddingTop: theme.spacing.lg,
@@ -99,17 +113,20 @@ const styles = StyleSheet.create((theme) => ({
     maxWidth: 360,
     width: "100%",
   },
+
   ruleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.sm,
   },
+
   bullet: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: theme.colors.primary,
   },
+
   ruleText: {
     flex: 1,
   },

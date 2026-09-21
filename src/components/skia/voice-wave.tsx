@@ -6,14 +6,19 @@
 // concentric rings pulse outward from the center at staggered
 // intervals — the visual language of sound leaving a source.
 //
-// The wave is a single Path rebuilt every frame inside a Skia
-// worklet. 72 sample points, connected with lineTo. At this
-// resolution the polyline reads as a smooth curve.
+// The waves are rebuilt every frame inside a Skia worklet using
+// Skia.PathBuilder. 72 sample points connected with lineTo. At
+// this resolution the polyline reads as a smooth curve.
 //
 // Envelope: the wave's amplitude is gaussian-distributed, tallest
 // in the middle and tapering to zero at the edges. This is what
 // makes it read as "coming from the center" rather than "playing
 // across the screen."
+//
+// API note: PathBuilder.Make() is the current API. Skia.Path.Make()
+// is deprecated and its moveTo/lineTo/cubicTo methods emit
+// warnings and will be removed in a future react-native-skia
+// release.
 // ─────────────────────────────────────────────────────────────
 import { Canvas, Circle, Group, Path, Skia } from "@shopify/react-native-skia";
 import React, { useEffect, useMemo } from "react";
@@ -57,7 +62,7 @@ const VoiceWave = React.memo(function VoiceWave({
   // Background wave — thicker, softer, offset phase for depth.
   const bgWavePath = useDerivedValue(() => {
     "worklet";
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     const N = 72;
     const stepX = size / N;
     const t = driver.value * Math.PI * 2 + 1.2;
@@ -70,13 +75,13 @@ const VoiceWave = React.memo(function VoiceWave({
       if (i === 0) path.moveTo(x, y);
       else path.lineTo(x, y);
     }
-    return path;
+    return path.build();
   }, [size, centerY, maxAmplitude]);
 
   // Foreground wave — thinner, brighter, in phase with the driver.
   const fgWavePath = useDerivedValue(() => {
     "worklet";
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     const N = 72;
     const stepX = size / N;
     const t = driver.value * Math.PI * 2;
@@ -89,7 +94,7 @@ const VoiceWave = React.memo(function VoiceWave({
       if (i === 0) path.moveTo(x, y);
       else path.lineTo(x, y);
     }
-    return path;
+    return path.build();
   }, [size, centerY, maxAmplitude]);
 
   const canvasStyle = useMemo(() => ({ width: size, height: size }), [size]);
