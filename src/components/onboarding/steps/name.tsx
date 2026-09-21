@@ -1,8 +1,11 @@
 import { Field, onboardingInputStyle } from "@/components/onboarding/shared";
+import { SignatureLine } from "@/components/skia";
 import Text from "@/components/text";
 import React from "react";
 import { TextInput, View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
+
+const SIG_WIDTH = 220;
 
 export function NameStep({
   value,
@@ -11,10 +14,18 @@ export function NameStep({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const theme = UnistylesRuntime.getTheme();
+  const { theme } = useUnistyles();
 
   return (
     <View style={styles.step}>
+      <View style={styles.animationWrap}>
+        <SignatureLine
+          width={SIG_WIDTH}
+          primaryColor={theme.colors.primary}
+          illuminationColor={theme.colors.primaryIllumination}
+        />
+      </View>
+
       <Text variant="h2" color="onBackground" style={styles.title}>
         What should we call you?
       </Text>
@@ -34,10 +45,6 @@ export function NameStep({
           />
         </Field>
       </View>
-
-      <Text variant="caption" color="mutedText" style={styles.body}>
-        Only used to greet you on the Today screen. Stays on your device.
-      </Text>
     </View>
   );
 }
@@ -48,9 +55,13 @@ const styles = StyleSheet.create((theme) => ({
     width: "100%",
     gap: theme.spacing.lg,
     paddingHorizontal: theme.spacing.md,
-    // Extra top padding so the input never crowds the progress
-    // dots when the keyboard is up and the KAV shifts the layout.
-    paddingTop: theme.spacing.xl,
+  },
+  animationWrap: {
+    width: SIG_WIDTH,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: theme.spacing.sm,
   },
   title: {
     textAlign: "center",

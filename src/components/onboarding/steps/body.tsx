@@ -4,10 +4,13 @@ import {
   computeBMI,
   type UnitSystem,
 } from "@/components/onboarding/types";
+import { BMIGauge } from "@/components/skia";
 import Text from "@/components/text";
 import React, { useMemo } from "react";
-import { TextInput, View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { TextInput, useWindowDimensions, View } from "react-native";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
+
+const GAUGE_MAX_WIDTH = 340;
 
 export function BodyStep({
   system,
@@ -34,7 +37,10 @@ export function BodyStep({
   onWeight: (v: string) => void;
   onGoal: (v: string) => void;
 }) {
-  const theme = UnistylesRuntime.getTheme();
+  const { theme } = useUnistyles();
+  const { width: screenWidth } = useWindowDimensions();
+
+  const gaugeWidth = Math.min(GAUGE_MAX_WIDTH, screenWidth - 96);
 
   const bmi = useMemo(() => {
     let heightCmNum: number;
@@ -57,6 +63,7 @@ export function BodyStep({
   }, [system, heightCm, heightFeet, heightInches, weight]);
 
   const weightUnit = system === "metric" ? "kg" : "lb";
+  const showGauge = bmi !== null && bmi >= 15 && bmi <= 40;
 
   return (
     <View style={styles.step}>
@@ -129,28 +136,32 @@ export function BodyStep({
           />
         </Field>
 
-        {bmi !== null && (
+        {showGauge && (
           <View testID="onboarding-bmi-preview" style={styles.bmiCard}>
-            <Text variant="caption" color="mutedText">
-              Your BMI
-            </Text>
-            <View style={styles.bmiRow}>
-              <Text variant="display" color="onSurface" style={styles.bmiValue}>
-                {bmi.toFixed(1)}
+            <View style={styles.bmiHeader}>
+              <Text variant="caption" color="mutedText">
+                Your BMI
               </Text>
-              <View style={styles.bmiCategoryChip}>
-                <Text variant="caption" color="primary">
-                  {bmiCategory(bmi)}
+              <View style={styles.bmiValueRow}>
+                <Text variant="title" color="onSurface" style={styles.bmiValue}>
+                  {bmi!.toFixed(1)}
                 </Text>
+                <View style={styles.bmiCategoryChip}>
+                  <Text variant="caption" color="primary">
+                    {bmiCategory(bmi!)}
+                  </Text>
+                </View>
               </View>
             </View>
+
+            <BMIGauge
+              width={gaugeWidth}
+              bmi={bmi!}
+              markerColor={theme.colors.onSurface}
+            />
           </View>
         )}
       </View>
-
-      <Text variant="caption" color="mutedText" style={styles.body}>
-        These are private. They never leave your device.
-      </Text>
     </View>
   );
 }
@@ -186,7 +197,7 @@ const styles = StyleSheet.create((theme) => ({
   bmiCard: {
     width: "100%",
     alignItems: "center",
-    gap: theme.spacing.xs,
+    gap: theme.spacing.md,
     padding: theme.spacing.lg,
     borderRadius: theme.radii.md,
     backgroundColor: theme.colors.panel,
@@ -194,13 +205,19 @@ const styles = StyleSheet.create((theme) => ({
     borderColor: theme.colors.panelBorder,
     marginTop: theme.spacing.xs,
   },
-  bmiRow: {
+  bmiHeader: {
+    width: "100%",
+    alignItems: "center",
+    gap: theme.spacing.xs,
+  },
+  bmiValueRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing.md,
   },
   bmiValue: {
-    letterSpacing: -1,
+    letterSpacing: -0.6,
+    fontVariant: ["tabular-nums"],
   },
   bmiCategoryChip: {
     paddingHorizontal: theme.spacing.md,

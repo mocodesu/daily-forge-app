@@ -84,8 +84,7 @@ export function SummaryStep({
       </View>
 
       <Text variant="caption" color="mutedText" style={styles.body}>
-        Everything is stored on your device. You can change any of this in
-        Settings.
+        You can change any of this in Settings.
       </Text>
     </View>
   );

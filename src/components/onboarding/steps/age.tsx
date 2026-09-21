@@ -1,8 +1,11 @@
 import { Field, onboardingInputStyle } from "@/components/onboarding/shared";
+import { AgeTimeline } from "@/components/skia";
 import Text from "@/components/text";
 import React from "react";
 import { TextInput, View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
+
+const TIMELINE_WIDTH = 260;
 
 export function AgeStep({
   value,
@@ -11,10 +14,30 @@ export function AgeStep({
   value: string;
   onChange: (v: string) => void;
 }) {
-  const theme = UnistylesRuntime.getTheme();
+  const { theme } = useUnistyles();
+
+  const age = parseInt(value, 10) || 0;
 
   return (
     <View style={styles.step}>
+      <View style={styles.animationWrap}>
+        <AgeTimeline
+          width={TIMELINE_WIDTH}
+          age={age}
+          primaryColor={theme.colors.primary}
+          illuminationColor={theme.colors.primaryIllumination}
+          trackColor={theme.colors.panelBorder}
+        />
+        <View style={styles.timelineLabels} pointerEvents="none">
+          <Text variant="micro" color="mutedText">
+            0
+          </Text>
+          <Text variant="micro" color="mutedText">
+            100
+          </Text>
+        </View>
+      </View>
+
       <Text variant="h2" color="onBackground" style={styles.title}>
         How old are you?
       </Text>
@@ -49,7 +72,18 @@ const styles = StyleSheet.create((theme) => ({
     width: "100%",
     gap: theme.spacing.lg,
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.xl,
+  },
+  animationWrap: {
+    width: TIMELINE_WIDTH,
+    alignItems: "center",
+    marginBottom: theme.spacing.sm,
+  },
+  timelineLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: TIMELINE_WIDTH,
+    paddingHorizontal: 12,
+    marginTop: -4,
   },
   title: {
     textAlign: "center",

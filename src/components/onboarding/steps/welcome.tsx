@@ -1,5 +1,6 @@
 import { AppLottie } from "@/components/lottie";
 import Text from "@/components/text";
+import { APP_NAME } from "@/constants";
 import React from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
@@ -14,15 +15,11 @@ export function WelcomeStep() {
       </View>
 
       <Text variant="h1" color="onBackground" style={styles.title}>
-        Welcome to DailyForge
+        Welcome to {APP_NAME}
       </Text>
 
       <Text variant="callout" color="mutedText" style={styles.lead}>
         One set of exercises. Every day. No edits, no excuses.
-      </Text>
-
-      <Text variant="subhead" color="mutedText" style={styles.sub}>
-        A few quick questions so we can set things up. Takes about a minute.
       </Text>
     </View>
   );

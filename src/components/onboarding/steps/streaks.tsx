@@ -40,12 +40,6 @@ export function StreaksStep() {
         Seal each day with your voice, and the ring fills. Miss a day, and it
         resets.
       </Text>
-
-      <View style={styles.rules}>
-        <Rule text="Seal every day to grow the streak" />
-        <Rule text="One missed day resets to zero" />
-        <Rule text="2 freezes per month protect your streak" />
-      </View>
     </View>
   );
 }

@@ -1,8 +1,12 @@
+import { PhotoFrames } from "@/components/skia";
 import Text from "@/components/text";
+import { APP_NAME } from "@/constants";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Pressable, View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
+
+const FRAMES_WIDTH = 220;
 
 export function PhotosStep({
   frontUri,
@@ -15,7 +19,7 @@ export function PhotosStep({
   onFront: (uri: string | null) => void;
   onSide: (uri: string | null) => void;
 }) {
-  const theme = UnistylesRuntime.getTheme();
+  const { theme } = useUnistyles();
 
   const handleTap = (_which: "front" | "side") => {
     // Placeholder — Step E wires the picker.
@@ -23,12 +27,20 @@ export function PhotosStep({
 
   return (
     <View style={styles.step}>
+      <View style={styles.animationWrap}>
+        <PhotoFrames
+          width={FRAMES_WIDTH}
+          primaryColor={theme.colors.primary}
+          illuminationColor={theme.colors.primaryIllumination}
+        />
+      </View>
+
       <Text variant="h2" color="onBackground" style={styles.title}>
         Your before photos
       </Text>
 
       <Text variant="callout" color="mutedText" style={styles.body}>
-        Take two photos today. When you reach your goal, DailyForge will show
+        Take two photos today. When you reach your goal, {APP_NAME} will show
         you the comparison side by side.
       </Text>
 
@@ -46,10 +58,6 @@ export function PhotosStep({
           onPress={() => handleTap("side")}
         />
       </View>
-
-      <Text variant="caption" color="mutedText" style={styles.body}>
-        Photos stay on your device. They're never uploaded.
-      </Text>
 
       <Pressable testID="onboarding-photos-skip" hitSlop={12}>
         <Text variant="caption" color="primary">
@@ -71,7 +79,7 @@ function PhotoSlot({
   uri: string | null;
   onPress: () => void;
 }) {
-  const theme = UnistylesRuntime.getTheme();
+  const { theme } = useUnistyles();
 
   return (
     <Pressable
@@ -98,6 +106,11 @@ const styles = StyleSheet.create((theme) => ({
     width: "100%",
     gap: theme.spacing.lg,
     paddingHorizontal: theme.spacing.md,
+  },
+  animationWrap: {
+    width: FRAMES_WIDTH,
+    alignItems: "center",
+    marginBottom: theme.spacing.sm,
   },
   title: {
     textAlign: "center",

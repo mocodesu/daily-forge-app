@@ -1,10 +1,13 @@
 import { HapticPressable } from "@/components/haptic-pressable";
+import { NotificationPulse } from "@/components/skia";
 import Text from "@/components/text";
 import { Ionicons } from "@expo/vector-icons";
 import * as Notifications from "expo-notifications";
 import React, { useCallback } from "react";
 import { View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
+
+const PULSE_SIZE = 160;
 
 export function NotificationsStep({
   status,
@@ -13,7 +16,7 @@ export function NotificationsStep({
   status: "idle" | "granted" | "denied";
   onStatusChange: (status: "idle" | "granted" | "denied") => void;
 }) {
-  const theme = UnistylesRuntime.getTheme();
+  const { theme } = useUnistyles();
 
   const handleRequest = useCallback(async () => {
     try {
@@ -43,8 +46,19 @@ export function NotificationsStep({
 
   return (
     <View style={styles.step}>
-      <View style={styles.iconWrap}>
-        <Ionicons name="notifications" size={64} color={theme.colors.primary} />
+      <View style={styles.animationWrap}>
+        <NotificationPulse
+          size={PULSE_SIZE}
+          primaryColor={theme.colors.primary}
+          illuminationColor={theme.colors.primaryIllumination}
+        />
+        <View style={styles.bellOverlay} pointerEvents="none">
+          <Ionicons
+            name="notifications"
+            size={32}
+            color={theme.colors.onPrimary}
+          />
+        </View>
       </View>
 
       <Text variant="h2" color="onBackground" style={styles.title}>
@@ -54,10 +68,6 @@ export function NotificationsStep({
       <Text variant="callout" color="mutedText" style={styles.body}>
         DailyForge sends one gentle reminder a day — at a time you choose — when
         your exercises aren't done yet.
-      </Text>
-
-      <Text variant="subhead" color="mutedText" style={styles.sub}>
-        No spam. No marketing. Just a nudge.
       </Text>
 
       {status === "idle" ? (
@@ -98,9 +108,17 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing.md,
   },
   flex: { flex: 1 },
-  iconWrap: {
-    paddingVertical: theme.spacing.md,
+  animationWrap: {
+    width: PULSE_SIZE,
+    height: PULSE_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: theme.spacing.sm,
+  },
+  bellOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     textAlign: "center",

@@ -1,7 +1,15 @@
 import { AppLottie } from "@/components/lottie";
 import { ScrollScreen } from "@/components/screen";
 import { ScreenHeader } from "@/components/screen-header";
-import { StreakDemoRing, StreakRing, VoiceWave } from "@/components/skia";
+import {
+  AgeTimeline,
+  BMIGauge,
+  NotificationPulse,
+  PhotoFrames,
+  SignatureLine,
+  StreakDemoRing,
+  VoiceWave,
+} from "@/components/skia";
 import Text from "@/components/text";
 import React from "react";
 import { View } from "react-native";
@@ -14,72 +22,66 @@ export default function SkiaPreviewScreen() {
 
   return (
     <ScrollScreen header={<ScreenHeader title="Animations Preview" />}>
-      <Section title="Loop Flame — Lottie">
+      <Section title="Flame — Lottie">
         <View style={styles.row}>
-          <AppLottie source={FLAME_SOURCE} size={80} loop />
-          <AppLottie source={FLAME_SOURCE} size={140} loop />
+          <AppLottie source={FLAME_SOURCE} size={100} loop />
         </View>
       </Section>
 
-      <Section title="Streak Demo Ring — Skia, segmented">
-        <View style={styles.row}>
-          <StreakDemoRing
-            size={180}
-            strokeWidth={14}
-            trackColor={theme.colors.panelBorder}
-            primaryColor={theme.colors.primary}
-            illuminationColor={theme.colors.primaryIllumination}
-          />
-          <StreakDemoRing
-            size={240}
-            strokeWidth={18}
-            trackColor={theme.colors.panelBorder}
-            primaryColor={theme.colors.primary}
-            illuminationColor={theme.colors.primaryIllumination}
-          />
-        </View>
-        <Text variant="caption" color="mutedText">
-          Seven segments fill in sequence, a bright dot tracks the leading edge.
-        </Text>
+      <Section title="Streak Demo Ring — Skia">
+        <StreakDemoRing
+          size={160}
+          strokeWidth={14}
+          trackColor={theme.colors.panelBorder}
+          primaryColor={theme.colors.primary}
+          illuminationColor={theme.colors.primaryIllumination}
+        />
       </Section>
 
-      <Section title="VoiceWave — Skia">
-        <View style={styles.row}>
-          <VoiceWave
-            size={180}
-            primaryColor={theme.colors.primary}
-            illuminationColor={theme.colors.primaryIllumination}
-          />
-          <VoiceWave
-            size={260}
-            primaryColor={theme.colors.primary}
-            illuminationColor={theme.colors.primaryIllumination}
-          />
-        </View>
-        <Text variant="caption" color="mutedText">
-          Layered sine waves across a pulsing background.
-        </Text>
+      <Section title="Voice Wave — Skia">
+        <VoiceWave
+          size={180}
+          primaryColor={theme.colors.primary}
+          illuminationColor={theme.colors.primaryIllumination}
+        />
       </Section>
 
-      <Section title="Streak Ring — Skia, continuous (History)">
-        <View style={styles.row}>
-          <StreakRing
-            size={140}
-            strokeWidth={10}
-            trackColor={theme.colors.panelBorder}
-            primaryColor={theme.colors.primary}
-            illuminationColor={theme.colors.primaryIllumination}
-            value={0.35}
-          />
-          <StreakRing
-            size={140}
-            strokeWidth={10}
-            trackColor={theme.colors.panelBorder}
-            primaryColor={theme.colors.primary}
-            illuminationColor={theme.colors.primaryIllumination}
-            value={0.7}
-          />
-        </View>
+      <Section title="Signature Line — Skia">
+        <SignatureLine
+          width={240}
+          primaryColor={theme.colors.primary}
+          illuminationColor={theme.colors.primaryIllumination}
+        />
+      </Section>
+
+      <Section title="Age Timeline — Skia">
+        <AgeTimeline
+          width={260}
+          age={35}
+          primaryColor={theme.colors.primary}
+          illuminationColor={theme.colors.primaryIllumination}
+          trackColor={theme.colors.panelBorder}
+        />
+      </Section>
+
+      <Section title="BMI Gauge — Skia">
+        <BMIGauge width={300} bmi={24} markerColor={theme.colors.onSurface} />
+      </Section>
+
+      <Section title="Photo Frames — Skia">
+        <PhotoFrames
+          width={220}
+          primaryColor={theme.colors.primary}
+          illuminationColor={theme.colors.primaryIllumination}
+        />
+      </Section>
+
+      <Section title="Notification Pulse — Skia">
+        <NotificationPulse
+          size={160}
+          primaryColor={theme.colors.primary}
+          illuminationColor={theme.colors.primaryIllumination}
+        />
       </Section>
     </ScrollScreen>
   );
@@ -97,7 +99,7 @@ function Section({
       <Text variant="subheadBold" color="onSurface">
         {title}
       </Text>
-      {children}
+      <View style={styles.center}>{children}</View>
     </View>
   );
 }
@@ -116,5 +118,8 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: theme.spacing.lg,
     flexWrap: "wrap",
+  },
+  center: {
+    alignItems: "center",
   },
 }));

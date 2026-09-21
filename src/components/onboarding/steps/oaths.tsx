@@ -27,10 +27,6 @@ export function OathsStep() {
         When your exercises are done, say your oath out loud. The app listens —
         not to record you, but to hear you commit.
       </Text>
-
-      <Text variant="subhead" color="mutedText" style={styles.sub}>
-        Your voice stays on your device. We never upload audio.
-      </Text>
     </View>
   );
 }
