@@ -1,24 +1,9 @@
 // ─────────────────────────────────────────────────────────────
 // VoiceWave — animated sound-wave visual for onboarding
 //
-// Visual concept: the voice as a living waveform. A smooth sine
-// wave oscillates across the middle of the canvas, while three
-// concentric rings pulse outward from the center at staggered
-// intervals — the visual language of sound leaving a source.
-//
-// The waves are rebuilt every frame inside a Skia worklet using
-// Skia.PathBuilder. 72 sample points connected with lineTo. At
-// this resolution the polyline reads as a smooth curve.
-//
-// Envelope: the wave's amplitude is gaussian-distributed, tallest
-// in the middle and tapering to zero at the edges. This is what
-// makes it read as "coming from the center" rather than "playing
-// across the screen."
-//
-// API note: PathBuilder.Make() is the current API. Skia.Path.Make()
-// is deprecated and its moveTo/lineTo/cubicTo methods emit
-// warnings and will be removed in a future react-native-skia
-// release.
+// Reanimated 4 auto-captures dependencies for useDerivedValue.
+// Passing an explicit dependencies array is a web-only feature
+// and triggers a warning on native. Removed here.
 // ─────────────────────────────────────────────────────────────
 import { Canvas, Circle, Group, Path, Skia } from "@shopify/react-native-skia";
 import React, { useEffect, useMemo } from "react";
@@ -59,7 +44,6 @@ const VoiceWave = React.memo(function VoiceWave({
     );
   }, [driver]);
 
-  // Background wave — thicker, softer, offset phase for depth.
   const bgWavePath = useDerivedValue(() => {
     "worklet";
     const path = Skia.PathBuilder.Make();
@@ -76,9 +60,8 @@ const VoiceWave = React.memo(function VoiceWave({
       else path.lineTo(x, y);
     }
     return path.build();
-  }, [size, centerY, maxAmplitude]);
+  });
 
-  // Foreground wave — thinner, brighter, in phase with the driver.
   const fgWavePath = useDerivedValue(() => {
     "worklet";
     const path = Skia.PathBuilder.Make();
@@ -95,13 +78,12 @@ const VoiceWave = React.memo(function VoiceWave({
       else path.lineTo(x, y);
     }
     return path.build();
-  }, [size, centerY, maxAmplitude]);
+  });
 
   const canvasStyle = useMemo(() => ({ width: size, height: size }), [size]);
 
   return (
     <Canvas style={canvasStyle}>
-      {/* Concentric pulses radiating from the center */}
       <Pulse size={size} color={illuminationColor} duration={2000} delay={0} />
       <Pulse
         size={size}
@@ -116,7 +98,6 @@ const VoiceWave = React.memo(function VoiceWave({
         delay={1333}
       />
 
-      {/* Background wave */}
       <Path
         path={bgWavePath}
         style="stroke"
@@ -126,7 +107,6 @@ const VoiceWave = React.memo(function VoiceWave({
         opacity={0.35}
       />
 
-      {/* Foreground wave */}
       <Path
         path={fgWavePath}
         style="stroke"
@@ -135,8 +115,6 @@ const VoiceWave = React.memo(function VoiceWave({
         color={illuminationColor}
       />
 
-      {/* The voice source — a solid dot at the center, with a
-          soft glow behind it. */}
       <Group>
         <Circle
           cx={size / 2}
@@ -156,10 +134,6 @@ const VoiceWave = React.memo(function VoiceWave({
   );
 });
 
-// ─────────────────────────────────────────────────────────────
-// Pulse — a single expanding ring, looping from small to large
-// with an ease-out. Fades to nothing as it approaches the edge.
-// ─────────────────────────────────────────────────────────────
 function Pulse({
   size,
   color,

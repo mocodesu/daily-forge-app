@@ -32,7 +32,7 @@ Notifications.setNotificationHandler({
 // All per-screen presentation/animation options and the tablet
 // orientation policy live in app/(main)/_layout.tsx.
 export const unstable_settings = {
-  initialRouteName: "(main)",
+  anchor: "(main)",
 };
 
 const RootLayout = () => {

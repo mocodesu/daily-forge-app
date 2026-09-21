@@ -35,7 +35,7 @@ const IS_TABLET = (() => {
 // this, expo-router picks the alphabetically-first route, which
 // would open `create-exercise` (a modal) on cold start.
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  anchor: "(tabs)",
 };
 
 export default function MainGroupLayout() {
