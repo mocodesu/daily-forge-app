@@ -5,6 +5,8 @@
     "jsx": "react-native",
     "allowImportingTsExtensions": true,
 
+    "types": ["jest", "node"],
+
     "paths": {
       "@/*": ["./src/*"],
       "@/assets/*": ["./assets/*"]
