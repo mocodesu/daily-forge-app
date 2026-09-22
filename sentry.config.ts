@@ -20,6 +20,7 @@ export const sentryConfig = {
   replaysOnErrorSampleRate: 1.0,
   dsn: "https://0c85330f3d1c863b99f3111cbe2a104a@o4511920472326144.ingest.us.sentry.io/4512113682284544",
   sendDefaultPii: true,
+  enableTombstone: true,
   integrations: [
     Sentry.mobileReplayIntegration({
       maskAllText: false,
