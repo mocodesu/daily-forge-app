@@ -26,7 +26,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
@@ -47,6 +47,8 @@ type BusyKey =
   | "cancelAll"
   | null;
 
+const FLASH_DURATION_MS = 3500;
+
 export function DevTools() {
   if (!__DEV__) return null;
   return <DevToolsInner />;
@@ -60,6 +62,11 @@ function DevToolsInner() {
   const [permission, setPermission] = useState<string>("—");
   const [scheduled, setScheduled] = useState<ScheduledNotificationInfo[]>([]);
   const [showScheduled, setShowScheduled] = useState(false);
+
+  // Track the pending "clear status" timer so a rapid second flash
+  // replaces the message instead of being cut short by the first
+  // flash's still-scheduled clear.
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -80,10 +87,25 @@ function DevToolsInner() {
     refresh();
   }, [refresh]);
 
-  const flash = (msg: string) => {
+  useEffect(() => {
+    return () => {
+      if (statusTimerRef.current !== null) {
+        clearTimeout(statusTimerRef.current);
+        statusTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const flash = useCallback((msg: string) => {
+    if (statusTimerRef.current !== null) {
+      clearTimeout(statusTimerRef.current);
+    }
     setStatus(msg);
-    setTimeout(() => setStatus(null), 3500);
-  };
+    statusTimerRef.current = setTimeout(() => {
+      setStatus(null);
+      statusTimerRef.current = null;
+    }, FLASH_DURATION_MS);
+  }, []);
 
   // ── Wrap every action so busy + refresh + error handling is uniform ──
   const run = async (
@@ -222,7 +244,6 @@ function DevToolsInner() {
       "notifNow",
       async () => {
         await fireTestNotificationNow();
-        flash("Immediate notification fired.");
       },
       "Fired immediately.",
     );
@@ -232,9 +253,8 @@ function DevToolsInner() {
       "notif5s",
       async () => {
         await scheduleTestNotificationIn(5);
-        flash("Test notification scheduled for 5s from now.");
       },
-      "Scheduled (+5s).",
+      "Test notification scheduled (+5s).",
     );
 
   const handleDevDaily = () =>
@@ -242,7 +262,6 @@ function DevToolsInner() {
       "devDaily",
       async () => {
         await scheduleDevDailyReminderIn(1);
-        flash("DEV daily reminder scheduled for 1 min from now.");
       },
       "DEV daily reminder scheduled (+1 min).",
     );
@@ -252,7 +271,6 @@ function DevToolsInner() {
       "devRetention",
       async () => {
         await scheduleDevRetentionReminderIn(1);
-        flash("DEV retention reminder scheduled for 1 min from now.");
       },
       "DEV retention scheduled (+1 min).",
     );

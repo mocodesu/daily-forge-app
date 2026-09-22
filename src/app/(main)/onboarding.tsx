@@ -78,8 +78,7 @@ export default function OnboardingScreen() {
         console.warn("[onboarding] notification status read failed", err);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [update]);
 
   const canContinue = useMemo(
     () => canContinueFromStep(step, data, system),

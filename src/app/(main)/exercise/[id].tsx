@@ -2,7 +2,11 @@ import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
 import { ScreenHeader } from "@/components/screen-header";
 import Text from "@/components/text";
-import { PrimaryIcon } from "@/components/themed";
+import {
+  OnPrimaryIcon,
+  PrimaryIcon,
+  ThemedActivityIndicator,
+} from "@/components/themed";
 import { CompletionsRepo } from "@/repositories/completions-repo";
 import { ExercisesRepo } from "@/repositories/exercises-repo";
 import type { Exercise } from "@/types/dailyforge";
@@ -12,8 +16,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { View } from "react-native";
+import { StyleSheet } from "react-native-unistyles";
 
 export default function ExerciseDetailScreen() {
   const db = useSQLiteContext();
@@ -58,10 +62,7 @@ export default function ExerciseDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator
-          color={UnistylesRuntime.getTheme().colors.primary}
-          size="large"
-        />
+        <ThemedActivityIndicator size="large" />
       </View>
     );
   }
@@ -199,11 +200,7 @@ export default function ExerciseDetailScreen() {
           onPress={handleStart}
           style={styles.startButton}
         >
-          <Ionicons
-            name="play"
-            size={18}
-            color={UnistylesRuntime.getTheme().colors.onPrimary}
-          />
+          <OnPrimaryIcon name="play" size={18} />
           <Text variant="subheadBold" color="onPrimary">
             Start Workout
           </Text>

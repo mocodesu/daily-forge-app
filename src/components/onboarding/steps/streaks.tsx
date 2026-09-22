@@ -47,18 +47,6 @@ export function StreaksStep() {
   );
 }
 
-function Rule({ text }: { text: string }) {
-  return (
-    <View style={styles.ruleRow}>
-      <View style={styles.bullet} />
-
-      <Text variant="subhead" color="onSurface" style={styles.ruleText}>
-        {text}
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create((theme) => ({
   step: {
     alignItems: "center",
@@ -104,30 +92,5 @@ const styles = StyleSheet.create((theme) => ({
     maxWidth: 340,
     lineHeight: 22,
     marginTop: theme.spacing.xs,
-  },
-
-  rules: {
-    gap: theme.spacing.sm,
-    paddingTop: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.md,
-    maxWidth: 360,
-    width: "100%",
-  },
-
-  ruleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing.sm,
-  },
-
-  bullet: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: theme.colors.primary,
-  },
-
-  ruleText: {
-    flex: 1,
   },
 }));

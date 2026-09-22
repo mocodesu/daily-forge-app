@@ -1,9 +1,12 @@
 import { HapticPressable } from "@/components/haptic-pressable";
 import Text from "@/components/text";
-import { PrimaryIcon } from "@/components/themed";
+import {
+  OnPrimaryIcon,
+  PrimaryIcon,
+  ThemedTextInput,
+} from "@/components/themed";
 import { useUnitSystem } from "@/hooks/use-unit-system";
 import type { Milestone, UserProfile } from "@/types/dailyforge";
-import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -12,10 +15,9 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  TextInput,
   View,
 } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 
 export function MilestoneModal({
   visible,
@@ -88,8 +90,6 @@ export function MilestoneModal({
     return { direction, amount: kgToDisplay(abs) };
   })();
 
-  const placeholderColor = UnistylesRuntime.getTheme().colors.mutedText;
-
   return (
     <Modal
       visible={visible}
@@ -150,13 +150,12 @@ export function MilestoneModal({
                       Today
                     </Text>
                     <View style={styles.weightInputBox}>
-                      <TextInput
+                      <ThemedTextInput
                         value={weightText}
                         onChangeText={(v) =>
                           setWeightText(v.replace(/[^0-9.]/g, ""))
                         }
                         placeholder={weightUnit}
-                        placeholderTextColor={placeholderColor}
                         keyboardType="decimal-pad"
                         style={styles.weightInput}
                       />
@@ -194,11 +193,10 @@ export function MilestoneModal({
                 <Text variant="caption" color="mutedText">
                   How do you feel?
                 </Text>
-                <TextInput
+                <ThemedTextInput
                   value={notes}
                   onChangeText={setNotes}
                   placeholder="Notes about your progress…"
-                  placeholderTextColor={placeholderColor}
                   multiline
                   numberOfLines={4}
                   style={styles.notesInput}
@@ -220,11 +218,7 @@ export function MilestoneModal({
                 onPress={handleSave}
                 style={styles.primaryButton}
               >
-                <Ionicons
-                  name="checkmark"
-                  size={16}
-                  color={UnistylesRuntime.getTheme().colors.onPrimary}
-                />
+                <OnPrimaryIcon name="checkmark" size={16} />
                 <Text variant="subheadBold" color="onPrimary">
                   Save Milestone
                 </Text>

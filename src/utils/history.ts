@@ -17,6 +17,23 @@ export interface DayProgress {
   isSealed: boolean;
 }
 
+/**
+ * Structural equality for two DayProgress entries. Used by the
+ * History screen to preserve object identity across refreshes so
+ * unchanged days don't force the grid to re-render.
+ */
+export function dayProgressEqual(a: DayProgress, b: DayProgress): boolean {
+  return (
+    a.dayKey === b.dayKey &&
+    a.date.getTime() === b.date.getTime() &&
+    a.completed === b.completed &&
+    a.total === b.total &&
+    a.isToday === b.isToday &&
+    a.isFrozen === b.isFrozen &&
+    a.isSealed === b.isSealed
+  );
+}
+
 export async function computeHistory(
   db: SQLiteDatabase,
   days: number,
@@ -42,30 +59,36 @@ export async function computeHistory(
   const frozenKeys = new Set(frozen.map((f) => f.dayKey));
   const sealedKeys = new Set(lockRows.map((r) => r.day_key));
 
+  // Build the per-day completion index without non-null assertions.
   const byDay = new Map<string, Set<string>>();
   for (const row of completions) {
-    if (!byDay.has(row.day_key)) byDay.set(row.day_key, new Set());
-    byDay.get(row.day_key)!.add(row.exercise_id);
+    let set = byDay.get(row.day_key);
+    if (!set) {
+      set = new Set<string>();
+      byDay.set(row.day_key, set);
+    }
+    set.add(row.exercise_id);
   }
 
   const out: DayProgress[] = [];
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
   for (let offset = 0; offset < days; offset++) {
     const d = new Date(today);
     d.setDate(d.getDate() - offset);
     const key = dayKey(d);
     const dayStart = d.getTime();
-    const dayEnd = dayStart + 24 * 60 * 60 * 1000 - 1;
+    const dayEnd = dayStart + ONE_DAY_MS - 1;
 
     const due = exercises.filter((e) => {
-      if (e.is_daily === 1) {
-        return e.created_at <= dayEnd;
-      }
+      if (e.is_daily === 1) return e.created_at <= dayEnd;
       return e.created_at >= dayStart && e.created_at <= dayEnd;
     });
 
-    const completedSet = byDay.get(key) ?? new Set<string>();
-    const done = due.filter((e) => completedSet.has(e.id)).length;
+    const completedSet = byDay.get(key);
+    const done = completedSet
+      ? due.filter((e) => completedSet.has(e.id)).length
+      : 0;
 
     out.push({
       dayKey: key,

@@ -49,7 +49,7 @@ export function ScreenHeader({
         </View>
       )}
 
-      <View style={{ flex: 1 }} />
+      <View style={styles.flex} />
 
       {right}
     </View>
@@ -63,6 +63,7 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing.md,
     minHeight: 44,
   },
+  flex: { flex: 1 },
   spacer: {
     width: 40,
     height: 40,

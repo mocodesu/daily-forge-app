@@ -19,7 +19,7 @@ const STAGGER_STEP = 45;
 const STAGGER_CAP = 12;
 const ENTRY_DURATION = 400;
 
-export function SwipeableExerciseCard({
+export const SwipeableExerciseCard = React.memo(function SwipeableExerciseCard({
   exercise,
   isDone,
   index,
@@ -29,18 +29,19 @@ export function SwipeableExerciseCard({
   exercise: Exercise;
   isDone: boolean;
   index: number;
-  onPress: () => void;
-  onDelete: () => void;
+  onPress: (exercise: Exercise) => void;
+  onDelete: (exercise: Exercise) => void;
 }) {
   const translateX = useSharedValue(0);
   const startX = useSharedValue(0);
 
   const animateClose = useCallback(() => {
-    translateX.value = withSpring(0, { damping: 20, stiffness: 220 });
+    translateX.set(withSpring(0, { damping: 20, stiffness: 220 }));
   }, [translateX]);
 
   const confirmAndDelete = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     Alert.alert(
       `Delete "${exercise.name}"?`,
       "This also removes its completion history. This cannot be undone.",
@@ -53,9 +54,7 @@ export function SwipeableExerciseCard({
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => {
-            onDelete();
-          },
+          onPress: () => onDelete(exercise),
         },
       ],
       {
@@ -63,38 +62,48 @@ export function SwipeableExerciseCard({
         onDismiss: animateClose,
       },
     );
-  }, [exercise.name, onDelete, animateClose]);
+  }, [exercise, onDelete, animateClose]);
 
   const pan = Gesture.Pan()
     .activeOffsetX([-15, 15])
     .failOffsetY([-10, 10])
     .onStart(() => {
-      startX.value = translateX.value;
+      startX.set(translateX.get());
     })
-    .onUpdate((e) => {
-      const next = startX.value + e.translationX;
-      translateX.value = Math.min(0, Math.max(-ACTION_WIDTH, next));
+    .onUpdate((event) => {
+      const next = startX.get() + event.translationX;
+      const clamped = Math.min(0, Math.max(-ACTION_WIDTH, next));
+
+      translateX.set(clamped);
     })
-    .onEnd((e) => {
+    .onEnd((event) => {
       const shouldOpen =
-        translateX.value < -ACTION_WIDTH / 2 || e.velocityX < -500;
-      translateX.value = withSpring(shouldOpen ? -ACTION_WIDTH : 0, {
-        damping: 20,
-        stiffness: 220,
-      });
+        translateX.get() < -ACTION_WIDTH / 2 || event.velocityX < -500;
+
+      translateX.set(
+        withSpring(shouldOpen ? -ACTION_WIDTH : 0, {
+          damping: 20,
+          stiffness: 220,
+        }),
+      );
     });
 
   const cardStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
+    transform: [{ translateX: translateX.get() }],
   }));
 
   const actionStyle = useAnimatedStyle(() => {
-    const progress = Math.min(1, Math.abs(translateX.value) / ACTION_WIDTH);
+    const progress = Math.min(1, Math.abs(translateX.get()) / ACTION_WIDTH);
+
     return {
       opacity: progress,
       transform: [{ translateX: (1 - progress) * 20 }],
     };
   });
+
+  const handleCardPress = useCallback(() => {
+    onPress(exercise);
+  }, [onPress, exercise]);
 
   const handleDeletePress = useCallback(() => {
     confirmAndDelete();
@@ -116,6 +125,7 @@ export function SwipeableExerciseCard({
             accessibilityLabel={`Delete ${exercise.name}`}
           >
             <Ionicons name="trash" size={22} color="#FFFFFF" />
+
             <Text variant="micro" color="onPrimary">
               DELETE
             </Text>
@@ -128,14 +138,14 @@ export function SwipeableExerciseCard({
               testID={`exercise-card-${index}`}
               exercise={exercise}
               isDone={isDone}
-              onPress={onPress}
+              onPress={handleCardPress}
             />
           </Animated.View>
         </GestureDetector>
       </View>
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create((theme) => ({
   container: {

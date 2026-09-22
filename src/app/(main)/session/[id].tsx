@@ -47,7 +47,11 @@ const RING_STROKE_PHONE = 16;
 const RING_STROKE_TABLET = 22;
 
 // ─────────────────────────────────────────────────────────────
-// ProgressRing — memoized Skia canvas
+// ProgressRing — Skia canvas driven by shared values
+//
+// Split into its own component so the canvas doesn't re-render
+// with the parent's timer state. React Compiler handles memoization
+// automatically; no manual React.memo wrapper is needed.
 // ─────────────────────────────────────────────────────────────
 interface ProgressRingProps {
   progress: SharedValue<number>;
@@ -61,7 +65,7 @@ interface ProgressRingProps {
   successColor: string;
 }
 
-const ProgressRing = React.memo(function ProgressRing({
+function ProgressRing({
   progress,
   completion,
   size,
@@ -72,23 +76,18 @@ const ProgressRing = React.memo(function ProgressRing({
   trackColor,
   successColor,
 }: ProgressRingProps) {
-  const canvasStyle = useMemo(() => ({ width: size, height: size }), [size]);
-  const center = useMemo(() => vec(size / 2, size / 2), [size]);
+  const center = vec(size / 2, size / 2);
 
-  const sweepColors = useMemo(
-    () => [
-      primaryColor,
-      primaryIllumination,
-      primaryColor,
-      primaryIllumination,
-      primaryColor,
-    ],
-    [primaryColor, primaryIllumination],
-  );
-  const sweepPositions = useMemo(() => [0, 0.25, 0.5, 0.75, 1], []);
+  const sweepColors = [
+    primaryColor,
+    primaryIllumination,
+    primaryColor,
+    primaryIllumination,
+    primaryColor,
+  ];
 
   return (
-    <Canvas style={canvasStyle}>
+    <Canvas style={{ width: size, height: size }}>
       <Path
         path={path}
         style="stroke"
@@ -107,7 +106,7 @@ const ProgressRing = React.memo(function ProgressRing({
         <SweepGradient
           c={center}
           colors={sweepColors}
-          positions={sweepPositions}
+          positions={[0, 0.25, 0.5, 0.75, 1]}
         />
       </Path>
 
@@ -123,7 +122,7 @@ const ProgressRing = React.memo(function ProgressRing({
       />
     </Canvas>
   );
-});
+}
 
 export default function SessionScreen() {
   const db = useSQLiteContext();
@@ -217,8 +216,7 @@ export default function SessionScreen() {
       duration,
       easing: ReanimatedEasing.linear,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, exercise]);
+  }, [loading, exercise, progress]);
 
   useEffect(() => {
     if (loading || !exercise) return;

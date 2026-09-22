@@ -39,7 +39,13 @@ const RootLayout = () => {
   useRetentionReminders();
   const navigationRef = useNavigationContainerRef();
 
+  // Register the container once, on mount. Sentry's integration
+  // accepts the ref *object* — not `ref.current`, which is still
+  // null on the render this effect runs. Guarding on `ref.current`
+  // silently disabled navigation breadcrumbs/transactions.
   useEffect(() => {
+    navigationIntegration.registerNavigationContainer(navigationRef);
+
     initializeUpdateChannel().catch((error) => {
       console.error("Failed to set up the update notification channel:", error);
     });
@@ -47,10 +53,6 @@ const RootLayout = () => {
     initSounds().catch((err) => {
       console.warn("[app] sounds init failed:", err);
     });
-
-    if (navigationRef?.current) {
-      navigationIntegration.registerNavigationContainer(navigationRef);
-    }
   }, [navigationRef]);
 
   return (

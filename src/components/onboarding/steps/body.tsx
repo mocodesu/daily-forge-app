@@ -1,4 +1,4 @@
-import { Field, onboardingInputStyle } from "@/components/onboarding/shared";
+import { Field, onboardingStyles } from "@/components/onboarding/shared";
 import {
   bmiCategory,
   computeBMI,
@@ -82,7 +82,7 @@ export function BodyStep({
               placeholderTextColor={theme.colors.mutedText}
               keyboardType="decimal-pad"
               returnKeyType="done"
-              style={onboardingInputStyle(theme)}
+              style={onboardingStyles.input}
             />
           </Field>
         ) : (
@@ -95,7 +95,7 @@ export function BodyStep({
                 placeholder="ft"
                 placeholderTextColor={theme.colors.mutedText}
                 keyboardType="number-pad"
-                style={[onboardingInputStyle(theme), styles.flex]}
+                style={[onboardingStyles.input, styles.flex]}
               />
               <TextInput
                 testID="onboarding-height-in"
@@ -104,7 +104,7 @@ export function BodyStep({
                 placeholder="in"
                 placeholderTextColor={theme.colors.mutedText}
                 keyboardType="decimal-pad"
-                style={[onboardingInputStyle(theme), styles.flex]}
+                style={[onboardingStyles.input, styles.flex]}
               />
             </View>
           </Field>
@@ -119,7 +119,7 @@ export function BodyStep({
             placeholderTextColor={theme.colors.mutedText}
             keyboardType="decimal-pad"
             returnKeyType="done"
-            style={onboardingInputStyle(theme)}
+            style={onboardingStyles.input}
           />
         </Field>
 
@@ -132,7 +132,7 @@ export function BodyStep({
             placeholderTextColor={theme.colors.mutedText}
             keyboardType="decimal-pad"
             returnKeyType="done"
-            style={onboardingInputStyle(theme)}
+            style={onboardingStyles.input}
           />
         </Field>
 

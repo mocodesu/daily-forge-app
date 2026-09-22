@@ -251,18 +251,28 @@ const fieldStyles = StyleSheet.create((theme) => ({
   hint: { paddingHorizontal: theme.spacing.xs },
 }));
 
-export const onboardingInputStyle = (
-  theme: ReturnType<typeof UnistylesRuntime.getTheme>,
-) => ({
-  width: "100%" as const,
-  borderRadius: theme.radii.md,
-  borderWidth: theme.borderWidth.thin,
-  paddingHorizontal: theme.spacing.lg,
-  paddingVertical: theme.spacing.md,
-  fontSize: 17,
-  minHeight: 56,
-  textAlign: "center" as const,
-  color: theme.colors.onSurface,
-  borderColor: theme.colors.panelBorder,
-  backgroundColor: theme.colors.panel,
-});
+/**
+ * Shared text-input styling for onboarding steps.
+ *
+ * Previously this was a `onboardingInputStyle(theme)` function that
+ * constructed a plain object on every render — including on every
+ * keystroke in every onboarding input. Moving it into a proper
+ * Unistyles stylesheet lets the shadow tree manage updates without
+ * per-render object allocation, and keeps the styling consistent
+ * with the rest of the app.
+ */
+export const onboardingStyles = StyleSheet.create((theme) => ({
+  input: {
+    width: "100%",
+    borderRadius: theme.radii.md,
+    borderWidth: theme.borderWidth.thin,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    fontSize: 17,
+    minHeight: 56,
+    textAlign: "center",
+    color: theme.colors.onSurface,
+    borderColor: theme.colors.panelBorder,
+    backgroundColor: theme.colors.panel,
+  },
+}));

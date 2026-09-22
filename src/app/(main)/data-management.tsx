@@ -2,7 +2,11 @@ import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
 import { ScreenHeader } from "@/components/screen-header";
 import Text from "@/components/text";
-import { MutedIcon, PrimaryIcon } from "@/components/themed";
+import {
+  MutedIcon,
+  PrimaryIcon,
+  ThemedActivityIndicator,
+} from "@/components/themed";
 import {
   DataManagementRepo,
   type TableCounts,
@@ -19,8 +23,8 @@ import { router, useFocusEffect } from "expo-router";
 import * as Sharing from "expo-sharing";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { Alert, Pressable, View } from "react-native";
+import { StyleSheet } from "react-native-unistyles";
 
 export default function DataManagementScreen() {
   const db = useSQLiteContext();
@@ -209,9 +213,7 @@ export default function DataManagementScreen() {
         </Text>
 
         {counts === null ? (
-          <ActivityIndicator
-            color={UnistylesRuntime.getTheme().colors.primary}
-          />
+          <ThemedActivityIndicator />
         ) : (
           <View style={styles.grid}>
             <StatTile label="Exercises" value={counts.exercises} />
@@ -317,10 +319,7 @@ function ActionRow({
     >
       <View style={styles.actionIcon}>
         {busy ? (
-          <ActivityIndicator
-            size="small"
-            color={UnistylesRuntime.getTheme().colors.primary}
-          />
+          <ThemedActivityIndicator size="small" />
         ) : (
           <PrimaryIcon name={icon} size={20} />
         )}

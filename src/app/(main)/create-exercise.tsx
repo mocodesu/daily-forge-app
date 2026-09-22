@@ -4,7 +4,12 @@ import { CatalogPickerSheet } from "@/components/catalog-picker-sheet";
 import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
 import Text from "@/components/text";
-import { PrimaryIcon } from "@/components/themed";
+import {
+  OnPrimaryIcon,
+  PrimaryIcon,
+  ThemedSwitch,
+  ThemedTextInput,
+} from "@/components/themed";
 import type { CatalogExercise } from "@/constants/workout-catalog";
 import { ExercisesRepo } from "@/repositories/exercises-repo";
 import {
@@ -18,15 +23,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  Switch,
-  TextInput,
-  View,
-} from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { KeyboardAvoidingView, Platform, Pressable, View } from "react-native";
+import { StyleSheet } from "react-native-unistyles";
 
 export default function CreateExerciseScreen() {
   const db = useSQLiteContext();
@@ -46,8 +44,6 @@ export default function CreateExerciseScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0);
-
-  const placeholderColor = UnistylesRuntime.getTheme().colors.mutedText;
 
   function togglePart(part: BodyPart) {
     setSelectedParts((prev) => {
@@ -197,11 +193,7 @@ export default function CreateExerciseScreen() {
           style={styles.quickStartCard}
         >
           <View style={styles.quickStartIcon}>
-            <Ionicons
-              name="sparkles"
-              size={20}
-              color={UnistylesRuntime.getTheme().colors.onPrimary}
-            />
+            <OnPrimaryIcon name="sparkles" size={20} />
           </View>
           <View style={styles.quickStartBody}>
             <Text variant="subheadBold" color="onSurface">
@@ -215,12 +207,11 @@ export default function CreateExerciseScreen() {
         </Pressable>
 
         <Field label="Name">
-          <TextInput
+          <ThemedTextInput
             testID="create-exercise-name"
             value={name}
             onChangeText={setName}
             placeholder="e.g. Push-ups"
-            placeholderTextColor={placeholderColor}
             style={styles.input}
             autoCapitalize="words"
             returnKeyType="done"
@@ -271,15 +262,10 @@ export default function CreateExerciseScreen() {
                   : "Only appears today, then retires."}
               </Text>
             </View>
-            <Switch
+            <ThemedSwitch
               testID="create-exercise-is-daily"
               value={isDaily}
               onValueChange={setIsDaily}
-              trackColor={{
-                false: UnistylesRuntime.getTheme().colors.panelBorder,
-                true: UnistylesRuntime.getTheme().colors.primary,
-              }}
-              thumbColor={UnistylesRuntime.getTheme().colors.surface}
             />
           </View>
         </View>
@@ -355,12 +341,11 @@ export default function CreateExerciseScreen() {
         </View>
 
         <Field label="Notes (optional)">
-          <TextInput
+          <ThemedTextInput
             testID="create-exercise-notes"
             value={notes}
             onChangeText={setNotes}
             placeholder="Form cues, reminders…"
-            placeholderTextColor={placeholderColor}
             style={[styles.input, styles.textArea]}
             multiline
             numberOfLines={3}
@@ -380,13 +365,7 @@ export default function CreateExerciseScreen() {
               confirmLock ? styles.checkboxOn : styles.checkboxOff,
             ]}
           >
-            {confirmLock && (
-              <Ionicons
-                name="checkmark"
-                size={14}
-                color={UnistylesRuntime.getTheme().colors.onPrimary}
-              />
-            )}
+            {confirmLock && <OnPrimaryIcon name="checkmark" size={14} />}
           </View>
           <Text variant="callout" color="onSurface" style={styles.flex}>
             I understand this exercise is permanent and cannot be changed.
@@ -483,12 +462,14 @@ function NumberInput({
   width?: number;
 }) {
   return (
-    <TextInput
+    <ThemedTextInput
       value={value}
       onChangeText={(v) => onChange(v.replace(/[^0-9]/g, ""))}
       keyboardType="number-pad"
-      style={[styles.input, { width, textAlign: width ? "right" : "left" }]}
-      placeholderTextColor={UnistylesRuntime.getTheme().colors.mutedText}
+      style={[
+        styles.input,
+        width !== undefined && styles.inputWithWidth(width),
+      ]}
       returnKeyType="done"
     />
   );
@@ -540,6 +521,10 @@ const styles = StyleSheet.create((theme, rt) => ({
     borderColor: theme.colors.panelBorder,
     color: theme.colors.onSurface,
   },
+  inputWithWidth: (width: number) => ({
+    width,
+    textAlign: "right" as const,
+  }),
   textArea: {
     minHeight: 80,
     paddingTop: theme.spacing.sm,

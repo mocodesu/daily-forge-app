@@ -1,23 +1,3 @@
-// ─────────────────────────────────────────────────────────────
-// DayCircle — the History grid's per-day cell
-//
-// One ring per day. Four visual states, all built from the same
-// three primitives as the session timer ring:
-//
-//   1. Track ring   — subdued outline, always visible
-//   2. Fill arc     — accent gradient, fills to completion
-//   3. Center slot  — day number, checkmark, or snowflake
-//
-// States:
-//   in-progress  →  partial accent arc, day number in center
-//   complete     →  full green arc, green checkmark in center
-//   frozen       →  solid accent track, snowflake in center
-//   inactive     →  faded track, muted day number (no arc)
-//
-// The checkmark uses `theme.colors.active` — the same green as
-// the session timer's completion icon — so a sealed day and a
-// finished workout read as the same success moment.
-// ─────────────────────────────────────────────────────────────
 import Text from "@/components/text";
 import type { DayProgress } from "@/utils/history";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,7 +18,17 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import {
+  StyleSheet,
+  UnistylesRuntime,
+  withUnistyles,
+} from "react-native-unistyles";
+
+// Wrapped with withUnistyles so the colour updates via the Shadow
+// Tree without re-rendering the whole DayCircle component.
+const ThemedIonicons = withUnistyles(Ionicons, (theme) => ({
+  color: theme.colors.primary,
+}));
 
 export function DayCircle({
   day,
@@ -49,7 +39,7 @@ export function DayCircle({
   size: number;
   onPress: () => void;
 }) {
-  const { theme } = useUnistyles();
+  const theme = UnistylesRuntime.getTheme();
 
   const isFrozen = day.isFrozen;
   const isInactive = !isFrozen && day.total === 0;
@@ -57,8 +47,6 @@ export function DayCircle({
 
   const rawProgress =
     day.total > 0 ? Math.min(day.completed / day.total, 1) : 0;
-  // A sealed day is always a full ring, regardless of what the raw
-  // completed/total ratio says.
   const targetProgress = isSealed ? 1 : rawProgress;
   const isComplete = !isInactive && !isFrozen && targetProgress >= 1;
 
@@ -83,7 +71,10 @@ export function DayCircle({
   const mountOpacity = useSharedValue(0);
   const mountTranslateY = useSharedValue(6);
 
-  // Stagger on mount so the grid assembles top-left to bottom-right.
+  // Mount-only entry animation. Staggered by how recent the day is
+  // so the grid "assembles" from today outward. This must NOT depend
+  // on `day.date` — otherwise a background refresh that produces a
+  // new Date object would replay the animation on every render.
   useEffect(() => {
     const daysAgo = Math.abs(
       Math.round(
@@ -122,29 +113,20 @@ export function DayCircle({
     ],
   }));
 
-  // Track color / opacity per state.
   const trackColor = isFrozen ? theme.colors.primary : theme.colors.panelBorder;
   const trackOpacity = isInactive ? 0.3 : isFrozen ? 0.55 : 0.5;
 
-  // Arc gradient: green when complete, accent otherwise.
   const arcColors: [string, string] = isComplete
     ? [theme.colors.active, theme.colors.active]
     : [theme.colors.primary, theme.colors.primaryIllumination];
 
-  // Center content — exactly one item per cell.
   const centerContent = (() => {
     if (isFrozen) {
-      return (
-        <Ionicons
-          name="snow"
-          size={Math.round(size * 0.42)}
-          color={theme.colors.primary}
-        />
-      );
+      return <ThemedIonicons name="snow" size={Math.round(size * 0.42)} />;
     }
     if (isComplete) {
       return (
-        <Ionicons
+        <ThemedIonicons
           name="checkmark"
           size={Math.round(size * 0.42)}
           color={theme.colors.active}
@@ -155,12 +137,7 @@ export function DayCircle({
       <Text
         variant="title"
         color={isInactive ? "mutedText" : "onSurface"}
-        style={{
-          fontSize: Math.round(size * 0.38),
-          lineHeight: Math.round(size * 0.44),
-          letterSpacing: -0.5,
-          fontVariant: ["tabular-nums"],
-        }}
+        style={styles.dayNumber(size)}
       >
         {day.date.getDate()}
       </Text>
@@ -178,7 +155,6 @@ export function DayCircle({
       <Animated.View style={containerStyle}>
         <View style={{ width: size, height: size }}>
           <Canvas style={{ width: size, height: size }}>
-            {/* Track ring */}
             <Path
               path={ringPath}
               style="stroke"
@@ -187,7 +163,6 @@ export function DayCircle({
               opacity={trackOpacity}
             />
 
-            {/* Progress arc — skipped for frozen and inactive days */}
             {targetProgress > 0 && !isFrozen && (
               <Path
                 path={ringPath}
@@ -215,7 +190,7 @@ export function DayCircle({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
   cell: {
     alignItems: "center",
   },
@@ -224,4 +199,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-});
+  dayNumber: (size: number) => ({
+    fontSize: Math.round(size * 0.38),
+    lineHeight: Math.round(size * 0.44),
+    letterSpacing: -0.5,
+    fontVariant: ["tabular-nums"] as const,
+  }),
+}));

@@ -3,7 +3,7 @@ import { DevTools } from "@/components/dev-tools";
 import { ScrollScreen } from "@/components/screen";
 import { SwearPhraseEditor } from "@/components/swear-phrase-editor";
 import Text from "@/components/text";
-import { MutedIcon, PrimaryIcon } from "@/components/themed";
+import { MutedIcon, PrimaryIcon, ThemedTextInput } from "@/components/themed";
 import { UnitSystemPicker } from "@/components/unit-system-picker";
 import {
   MINIMUM_EXERCISES_OPTIONS,
@@ -22,8 +22,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Application from "expo-application";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { Pressable, View } from "react-native";
+import { StyleSheet } from "react-native-unistyles";
 
 const THEME_MODES: {
   key: ThemeMode;
@@ -233,15 +233,12 @@ export default function SettingsScreen() {
 
             {showCustomTarget && (
               <View style={styles.customRow}>
-                <TextInput
+                <ThemedTextInput
                   value={customTargetText}
                   onChangeText={(v) =>
                     setCustomTargetText(v.replace(/[^0-9]/g, ""))
                   }
                   placeholder={String(targetDays)}
-                  placeholderTextColor={
-                    UnistylesRuntime.getTheme().colors.mutedText
-                  }
                   keyboardType="number-pad"
                   style={styles.customInput}
                   autoFocus
@@ -339,15 +336,12 @@ export default function SettingsScreen() {
 
             {showCustomMin && (
               <View style={styles.customRow}>
-                <TextInput
+                <ThemedTextInput
                   value={customMinText}
                   onChangeText={(v) =>
                     setCustomMinText(v.replace(/[^0-9]/g, ""))
                   }
                   placeholder={String(minimumExercises)}
-                  placeholderTextColor={
-                    UnistylesRuntime.getTheme().colors.mutedText
-                  }
                   keyboardType="number-pad"
                   style={styles.customInput}
                   autoFocus

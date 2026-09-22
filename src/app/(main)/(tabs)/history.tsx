@@ -4,24 +4,25 @@ import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
 import { StreakProgressCard } from "@/components/streak-progress";
 import Text from "@/components/text";
-import { PrimaryIcon } from "@/components/themed";
+import {
+  MutedIcon,
+  PrimaryIcon,
+  ThemedActivityIndicator,
+} from "@/components/themed";
 import { HISTORY_WINDOW_DAYS } from "@/constants/dailyforge";
 import { useTargetDays } from "@/hooks/use-target-days";
 import type { DayProgress } from "@/utils/history";
-import { computeHistory } from "@/utils/history";
+import { computeHistory, dayProgressEqual } from "@/utils/history";
 import { calculateStreak } from "@/utils/streak";
-import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, useWindowDimensions, View } from "react-native";
-import {
-  StyleSheet,
-  UnistylesRuntime,
-  useUnistyles,
-} from "react-native-unistyles";
+import { useWindowDimensions, View } from "react-native";
+import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
 
+// ─────────────────────────────────────────────────────────────
 // History-grid geometry.
+// ─────────────────────────────────────────────────────────────
 const CELL_GAP = 12;
 const MIN_CELL_PHONE = 64;
 const MAX_CELL_PHONE = 84;
@@ -32,11 +33,12 @@ export default function HistoryScreen() {
   const db = useSQLiteContext();
   const { width } = useWindowDimensions();
   const { targetDays } = useTargetDays();
-  const { rt } = useUnistyles();
-  const theme = UnistylesRuntime.getTheme();
 
-  const isTablet =
-    rt.breakpoint === "tablet" || rt.breakpoint === "largeTablet";
+  // Read the breakpoint directly from the runtime. This is NOT a
+  // hook — it does not subscribe to theme or runtime changes, so
+  // the screen will not re-render when the theme changes.
+  const breakpoint = UnistylesRuntime.breakpoint;
+  const isTablet = breakpoint === "tablet" || breakpoint === "largeTablet";
 
   const [days, setDays] = useState<DayProgress[]>([]);
   const [streak, setStreak] = useState(0);
@@ -44,6 +46,11 @@ export default function HistoryScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
+  // Tracks whether the first successful load has happened. Used to
+  // distinguish the initial mount (which shows the loading spinner)
+  // from subsequent focus refreshes (which must not unmount the grid).
+  const hasLoadedRef = useRef(false);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -52,22 +59,39 @@ export default function HistoryScreen() {
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    const isInitialLoad = !hasLoadedRef.current;
+    if (isInitialLoad) setLoading(true);
+
     try {
       const [result, streakResult] = await Promise.all([
         computeHistory(db, HISTORY_WINDOW_DAYS),
         calculateStreak(db),
       ]);
       if (!mountedRef.current) return;
-      setDays(result);
+
+      hasLoadedRef.current = true;
+      setError(null);
+
+      // Preserve referential equality when nothing has changed.
+      // Without this, every focus creates new DayProgress objects
+      // and forces a full re-render of every DayCircle in the grid.
+      setDays((prev) => {
+        if (
+          prev.length === result.length &&
+          prev.every((d, i) => dayProgressEqual(d, result[i]))
+        ) {
+          return prev;
+        }
+        return result;
+      });
+
       setStreak(streakResult.streak);
     } catch (err) {
       if (!mountedRef.current) return;
       console.warn("[history] load failed:", err);
       setError(err instanceof Error ? err.message : "Could not load history.");
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (isInitialLoad && mountedRef.current) setLoading(false);
     }
   }, [db]);
 
@@ -80,15 +104,15 @@ export default function HistoryScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator
-          color={UnistylesRuntime.getTheme().colors.primary}
-          size="large"
-        />
+        <ThemedActivityIndicator size="large" />
       </View>
     );
   }
 
-  if (error) {
+  // Only show the full-screen error when we have no data to fall
+  // back to. A failed background refresh after a successful load
+  // should keep the existing grid visible.
+  if (error && days.length === 0) {
     return (
       <ScrollScreen>
         <ErrorState
@@ -100,6 +124,7 @@ export default function HistoryScreen() {
     );
   }
 
+  const theme = UnistylesRuntime.getTheme();
   const contentMax = isTablet
     ? theme.layout.contentMaxWidthTablet
     : theme.layout.contentMaxWidth;
@@ -156,11 +181,7 @@ export default function HistoryScreen() {
             A snapshot of the last 7 days
           </Text>
         </View>
-        <Ionicons
-          name="chevron-forward"
-          size={18}
-          color={theme.colors.mutedText}
-        />
+        <MutedIcon name="chevron-forward" size={18} />
       </HapticPressable>
 
       <View style={[styles.grid, { gap: CELL_GAP }]}>

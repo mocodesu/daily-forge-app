@@ -106,12 +106,6 @@ export function StreakProgressCard({
     transform: [{ scale: checkScale.value }],
   }));
 
-  // Two sizes for the fraction: the streak is prominent, the
-  // "/ target" is intentionally smaller so the eye lands on the
-  // numerator first.
-  const streakFontSize = Math.round(size * 0.3);
-  const targetFontSize = Math.round(size * 0.14);
-
   return (
     <View testID="streak-progress-card" style={styles.card}>
       <View style={[styles.ringWrap, { width: size, height: size }]}>
@@ -134,13 +128,7 @@ export function StreakProgressCard({
             <Text
               variant="display"
               color="onSurface"
-              style={[
-                styles.streakNumber,
-                {
-                  fontSize: streakFontSize,
-                  lineHeight: streakFontSize * 1.05,
-                },
-              ]}
+              style={styles.streakNumber(size)}
             >
               {displayStreak}
             </Text>
@@ -148,26 +136,14 @@ export function StreakProgressCard({
               <Text
                 variant="caption"
                 color="mutedText"
-                style={[
-                  styles.slash,
-                  {
-                    fontSize: targetFontSize * 1.4,
-                    lineHeight: targetFontSize * 1.3,
-                  },
-                ]}
+                style={styles.slash(size)}
               >
                 /
               </Text>
               <Text
                 variant="subheadBold"
                 color="mutedText"
-                style={[
-                  styles.target,
-                  {
-                    fontSize: targetFontSize,
-                    lineHeight: targetFontSize * 1.2,
-                  },
-                ]}
+                style={styles.target(size)}
               >
                 {targetDays}
               </Text>
@@ -258,21 +234,27 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: 2,
   },
-  streakNumber: {
+  streakNumber: (size: number) => ({
     letterSpacing: -1.5,
-    fontVariant: ["tabular-nums"],
-  },
+    fontVariant: ["tabular-nums"] as const,
+    fontSize: Math.round(size * 0.3),
+    lineHeight: Math.round(size * 0.3) * 1.05,
+  }),
   denominatorBlock: {
     flexDirection: "row",
     alignItems: "baseline",
     marginTop: 6,
   },
-  slash: {
-    fontVariant: ["tabular-nums"],
-  },
-  target: {
-    fontVariant: ["tabular-nums"],
-  },
+  slash: (size: number) => ({
+    fontVariant: ["tabular-nums"] as const,
+    fontSize: Math.round(size * 0.14) * 1.4,
+    lineHeight: Math.round(size * 0.14) * 1.3,
+  }),
+  target: (size: number) => ({
+    fontVariant: ["tabular-nums"] as const,
+    fontSize: Math.round(size * 0.14),
+    lineHeight: Math.round(size * 0.14) * 1.2,
+  }),
   checkCircle: {
     alignItems: "center",
     justifyContent: "center",

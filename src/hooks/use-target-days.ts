@@ -55,14 +55,10 @@ export function useTargetDays() {
     }
   }, [db]);
 
-  // Initial read on mount
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  // Re-read every time the hosting screen regains focus. This catches
-  // the case where the user changed the target in Settings and then
-  // navigated back to this screen.
+  // `useFocusEffect` covers both the initial mount and every subsequent
+  // focus (e.g. returning from Settings after changing the target).
+  // The extra `useEffect(refresh)` in the previous version was
+  // redundant and caused a double fetch on cold start.
   useFocusEffect(
     useCallback(() => {
       refresh();

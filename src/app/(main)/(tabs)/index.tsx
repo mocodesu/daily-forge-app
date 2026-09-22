@@ -10,7 +10,11 @@ import { StreakBadge } from "@/components/streak-badge";
 import { SwearModal } from "@/components/swear-modal";
 import { SwipeableExerciseCard } from "@/components/swipeable-exercise-card";
 import Text from "@/components/text";
-import { MutedIcon, PrimaryIcon } from "@/components/themed";
+import {
+  MutedIcon,
+  PrimaryIcon,
+  ThemedActivityIndicator,
+} from "@/components/themed";
 import { useAppBadge } from "@/hooks/use-app-badge";
 import { cancelDailyReminderForToday } from "@/hooks/use-daily-reminder";
 import { useDayState } from "@/hooks/use-day-state";
@@ -38,12 +42,8 @@ import {
 } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
-import {
-  StyleSheet,
-  UnistylesRuntime,
-  useUnistyles,
-} from "react-native-unistyles";
+import { View } from "react-native";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 const SWEAR_TO_BURST_DELAY = 400;
 const BURST_TO_GRAND_DELAY = 400;
@@ -55,10 +55,7 @@ export default function TodayScreen() {
   if (profile.loading || minLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator
-          size="large"
-          color={UnistylesRuntime.getTheme().colors.primary}
-        />
+        <ThemedActivityIndicator size="large" />
       </View>
     );
   }
@@ -112,16 +109,6 @@ function TodayContent({
   const celebratingRef = useRef(false);
   const pendingStreakPulseRef = useRef(false);
 
-  // ── Deep link handling: ?seal=1 opens the swear modal ─────
-  //
-  // The medium widget's seal button links to
-  // `scheme://?seal=1`. When that URL resolves, this effect
-  // fires once, checks the day's state, and opens the modal if
-  // everything is ready.
-  //
-  // The ref guards against re-firing on subsequent state changes
-  // and re-firing if the user navigates back to Today with the
-  // param still in the URL.
   const { seal } = useLocalSearchParams<{ seal?: string }>();
   const sealTriggeredRef = useRef(false);
 
@@ -130,11 +117,8 @@ function TodayContent({
     if (seal !== "1") return;
     if (day.loading) return;
 
-    // Mark handled regardless of outcome so a subsequent day-state
-    // change doesn't re-open the modal unexpectedly.
     sealTriggeredRef.current = true;
 
-    // Conditions must match the widget's `canSeal` computation.
     const canSeal =
       !day.isLocked &&
       day.exercises.length >= minimumExercises &&
@@ -158,12 +142,13 @@ function TodayContent({
   const badgeCount = day.isLocked ? 0 : remainingToday;
   useAppBadge(badgeCount);
 
+  const refreshDay = day.refresh;
+
   useFocusEffect(
     useCallback(() => {
-      day.refresh();
+      refreshDay();
       onProfileRefresh();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [day.refresh, onProfileRefresh]),
+    }, [refreshDay, onProfileRefresh]),
   );
 
   useEffect(() => {
@@ -176,10 +161,27 @@ function TodayContent({
     prevAllDoneRef.current = day.allDone;
   }, [day.allDone, day.isLocked, day.sworeToday]);
 
-  const requestLock = () => {
+  // Stable navigation callback. Passed directly to TodayBanners and
+  // to the exercise list — no per-item closures.
+  const handleAddExercise = useCallback(() => {
+    router.push("/(main)/create-exercise");
+  }, []);
+
+  const requestLock = useCallback(() => {
     setPromptVisible(false);
     setSwearVisible(true);
-  };
+  }, []);
+
+  // Stable per-item callbacks. Combined with identity-preserving
+  // Exercise objects from useDayState, existing cards receive
+  // shallow-equal props on a refresh that only adds a new exercise,
+  // and React Compiler skips re-rendering them.
+  const handleCardPress = useCallback((exercise: Exercise) => {
+    router.push({
+      pathname: "/(main)/exercise/[id]",
+      params: { id: exercise.id },
+    });
+  }, []);
 
   const handleDeleteExercise = useCallback(
     async (exercise: Exercise) => {
@@ -187,9 +189,8 @@ function TodayContent({
         await db.withTransactionAsync(async () => {
           await ExercisesRepo.delete(db, exercise.id);
         });
-        await day.refresh();
+        await refreshDay();
 
-        // The day's totals just changed. Refresh the widget.
         refreshDailyWidget(db).catch(() => {
           // Non-fatal.
         });
@@ -197,7 +198,7 @@ function TodayContent({
         console.error("[today] delete exercise failed:", err);
       }
     },
-    [db, day],
+    [db, refreshDay],
   );
 
   const fireStreakPulse = useCallback(() => {
@@ -206,74 +207,71 @@ function TodayContent({
     setStreakPulseKey((k) => k + 1);
   }, []);
 
-  const handleSworn = async (data: {
-    transcript: string;
-    matchedPhrase: string;
-  }) => {
-    setSwearVisible(false);
-    try {
-      const today = dayKey();
-      const now = Date.now();
+  const handleSworn = useCallback(
+    async (data: { transcript: string; matchedPhrase: string }) => {
+      setSwearVisible(false);
+      try {
+        const today = dayKey();
+        const now = Date.now();
 
-      await SwearsRepo.insert(db, {
-        id: randomUUID(),
-        dayKey: today,
-        swornAt: now,
-        transcript: data.transcript,
-        matchedPhrase: data.matchedPhrase,
-      });
+        await SwearsRepo.insert(db, {
+          id: randomUUID(),
+          dayKey: today,
+          swornAt: now,
+          transcript: data.transcript,
+          matchedPhrase: data.matchedPhrase,
+        });
 
-      await DayLocksRepo.insert(db, {
-        id: randomUUID(),
-        dayKey: today,
-        lockedAt: now,
-      });
+        await DayLocksRepo.insert(db, {
+          id: randomUUID(),
+          dayKey: today,
+          lockedAt: now,
+        });
 
-      cancelDailyReminderForToday().catch((err) => {
-        console.warn("[today] cancel today's reminder failed:", err);
-      });
+        cancelDailyReminderForToday().catch((err) => {
+          console.warn("[today] cancel today's reminder failed:", err);
+        });
 
-      await trackUserActivity();
+        await trackUserActivity();
 
-      const streakResult = await calculateStreak(db);
-      const newStreak = streakResult.streak;
-      await day.refresh();
+        const streakResult = await calculateStreak(db);
+        const newStreak = streakResult.streak;
+        await refreshDay();
 
-      const reachedTarget = newStreak >= targetDays;
-      const grandDue = reachedTarget
-        ? !(await hasCelebratedTarget(db, targetDays))
-        : false;
+        const reachedTarget = newStreak >= targetDays;
+        const grandDue = reachedTarget
+          ? !(await hasCelebratedTarget(db, targetDays))
+          : false;
 
-      if (grandDue) {
-        pendingGrandRef.current = { streak: newStreak, target: targetDays };
-      } else {
-        pendingGrandRef.current = null;
+        if (grandDue) {
+          pendingGrandRef.current = { streak: newStreak, target: targetDays };
+        } else {
+          pendingGrandRef.current = null;
+        }
+
+        pendingStreakPulseRef.current = true;
+        celebratingRef.current = true;
+
+        refreshDailyWidget(db).catch(() => {
+          // Non-fatal — logged inside refreshDailyWidget.
+        });
+
+        setTimeout(() => {
+          setBurstStreak(newStreak);
+          setBurstVisible(true);
+        }, SWEAR_TO_BURST_DELAY);
+      } catch (err) {
+        console.error("[today] lock+swear failed:", err);
+        celebratingRef.current = false;
+        pendingStreakPulseRef.current = false;
       }
+    },
+    [db, refreshDay, targetDays],
+  );
 
-      pendingStreakPulseRef.current = true;
-      celebratingRef.current = true;
+  const handleAddMore = useCallback(() => setPromptVisible(false), []);
 
-      // The day is sealed. Push a fresh render to the widget so it
-      // shows "Sealed today" immediately instead of waiting up to
-      // 30 minutes for Android's next scheduled update.
-      refreshDailyWidget(db).catch(() => {
-        // Non-fatal — logged inside refreshDailyWidget.
-      });
-
-      setTimeout(() => {
-        setBurstStreak(newStreak);
-        setBurstVisible(true);
-      }, SWEAR_TO_BURST_DELAY);
-    } catch (err) {
-      console.error("[today] lock+swear failed:", err);
-      celebratingRef.current = false;
-      pendingStreakPulseRef.current = false;
-    }
-  };
-
-  const handleAddMore = () => setPromptVisible(false);
-
-  const handleDismissBurst = () => {
+  const handleDismissBurst = useCallback(() => {
     setBurstVisible(false);
 
     const pending = pendingGrandRef.current;
@@ -288,9 +286,9 @@ function TodayContent({
       celebratingRef.current = false;
       fireStreakPulse();
     }
-  };
+  }, [fireStreakPulse]);
 
-  const handleDismissGrand = async () => {
+  const handleDismissGrand = useCallback(async () => {
     try {
       await markTargetCelebrated(db, grandTarget);
     } catch (err) {
@@ -300,7 +298,16 @@ function TodayContent({
       celebratingRef.current = false;
       fireStreakPulse();
     }
-  };
+  }, [db, grandTarget, fireStreakPulse]);
+
+  const handleMilestoneComplete = useCallback(
+    async (data: { currentWeightKg: number | null; userNotes: string }) => {
+      await milestone.complete(data);
+      milestone.dismiss();
+      await refreshDay();
+    },
+    [milestone, refreshDay],
+  );
 
   const today = new Date();
   const dateLabel = today.toLocaleDateString(undefined, {
@@ -312,10 +319,7 @@ function TodayContent({
   if (day.loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator
-          size="large"
-          color={UnistylesRuntime.getTheme().colors.primary}
-        />
+        <ThemedActivityIndicator size="large" />
       </View>
     );
   }
@@ -326,7 +330,7 @@ function TodayContent({
         <ErrorState
           title="Couldn't load today"
           message={day.error}
-          onRetry={day.refresh}
+          onRetry={refreshDay}
         />
       </ScrollScreen>
     );
@@ -336,17 +340,15 @@ function TodayContent({
     !day.isLocked && day.exercises.length > 0 && !day.meetsMinimum;
   const showAllDoneBanner = !day.isLocked && day.allDone && !day.sworeToday;
 
-  const bannersContent = (
-    <>
-      {showMinimumBanner && (
-        <MinimumNotMetBanner
-          count={day.exercises.length}
-          minimum={minimumExercises}
-          onAdd={() => router.push("/(main)/create-exercise")}
-        />
-      )}
-      {showAllDoneBanner && <AllDoneBanner onLock={requestLock} />}
-    </>
+  const banners = (
+    <TodayBanners
+      showMinimum={showMinimumBanner}
+      showAllDone={showAllDoneBanner}
+      exerciseCount={day.exercises.length}
+      minimumExercises={minimumExercises}
+      onAdd={handleAddExercise}
+      onLock={requestLock}
+    />
   );
 
   const listContent =
@@ -355,30 +357,19 @@ function TodayContent({
     ) : day.isLocked ? (
       <LockedState streak={day.streak} swore={day.sworeToday} />
     ) : (
-      <View style={styles.list}>
-        {day.exercises.map((exercise, index) => (
-          <SwipeableExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            isDone={day.completedIds.has(exercise.id)}
-            index={index}
-            onPress={() =>
-              router.push({
-                pathname: "/(main)/exercise/[id]",
-                params: { id: exercise.id },
-              })
-            }
-            onDelete={() => handleDeleteExercise(exercise)}
-          />
-        ))}
-      </View>
+      <TodayExerciseList
+        exercises={day.exercises}
+        completedIds={day.completedIds}
+        onPress={handleCardPress}
+        onDelete={handleDeleteExercise}
+      />
     );
 
   const addButtonContent = !day.isLocked ? (
     <HapticPressable
       testID="today-add-exercise"
       haptic="medium"
-      onPress={() => router.push("/(main)/create-exercise")}
+      onPress={handleAddExercise}
       style={styles.addButton}
     >
       <PrimaryIcon name="add" size={20} />
@@ -394,7 +385,7 @@ function TodayContent({
         {twoColumn ? (
           <View style={styles.columns}>
             <View style={styles.primaryColumn}>
-              {bannersContent}
+              {banners}
               {listContent}
               {addButtonContent}
             </View>
@@ -467,7 +458,7 @@ function TodayContent({
               />
             </View>
 
-            {bannersContent}
+            {banners}
             {listContent}
             {addButtonContent}
           </>
@@ -492,11 +483,7 @@ function TodayContent({
         milestone={milestone.pending}
         profile={milestone.profile}
         onCancel={milestone.dismiss}
-        onComplete={async (data) => {
-          await milestone.complete(data);
-          milestone.dismiss();
-          await day.refresh();
-        }}
+        onComplete={handleMilestoneComplete}
       />
 
       <CelebrationBurst
@@ -512,6 +499,77 @@ function TodayContent({
         onDismiss={handleDismissGrand}
       />
     </>
+  );
+}
+
+/**
+ * The banners subtree. Isolated so unrelated state changes in
+ * TodayContent (modal visibility, celebration state, streak pulse)
+ * don't re-render it. All callbacks from the parent are stable.
+ */
+function TodayBanners({
+  showMinimum,
+  showAllDone,
+  exerciseCount,
+  minimumExercises,
+  onAdd,
+  onLock,
+}: {
+  showMinimum: boolean;
+  showAllDone: boolean;
+  exerciseCount: number;
+  minimumExercises: number;
+  onAdd: () => void;
+  onLock: () => void;
+}) {
+  return (
+    <>
+      {showMinimum && (
+        <MinimumNotMetBanner
+          count={exerciseCount}
+          minimum={minimumExercises}
+          onAdd={onAdd}
+        />
+      )}
+      {showAllDone && <AllDoneBanner onLock={onLock} />}
+    </>
+  );
+}
+
+/**
+ * The exercise list subtree. Isolated from the rest of TodayContent
+ * so that a change to `promptVisible`, celebration state, or streak
+ * pulse doesn't cause the list to re-render.
+ *
+ * When a new exercise is added, this re-renders (the array changed),
+ * but existing cards receive identity-preserved Exercise objects
+ * plus stable callbacks, so React Compiler skips them and only the
+ * new card actually renders.
+ */
+function TodayExerciseList({
+  exercises,
+  completedIds,
+  onPress,
+  onDelete,
+}: {
+  exercises: Exercise[];
+  completedIds: Set<string>;
+  onPress: (exercise: Exercise) => void;
+  onDelete: (exercise: Exercise) => void;
+}) {
+  return (
+    <View style={styles.list}>
+      {exercises.map((exercise, index) => (
+        <SwipeableExerciseCard
+          key={exercise.id}
+          exercise={exercise}
+          isDone={completedIds.has(exercise.id)}
+          index={index}
+          onPress={onPress}
+          onDelete={onDelete}
+        />
+      ))}
+    </View>
   );
 }
 

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { ActivityIndicator, Switch, TextInput } from "react-native";
 import { withUnistyles } from "react-native-unistyles";
 
 /**
@@ -30,4 +31,39 @@ export const SurfaceIcon = withUnistyles(Ionicons, (theme) => ({
 /** Ionicons with the on-primary colour (for use inside filled buttons). */
 export const OnPrimaryIcon = withUnistyles(Ionicons, (theme) => ({
   color: theme.colors.onPrimary,
+}));
+
+/** ActivityIndicator tinted with the primary accent colour. */
+export const ThemedActivityIndicator = withUnistyles(
+  ActivityIndicator,
+  (theme) => ({ color: theme.colors.primary }),
+);
+
+/** ActivityIndicator tinted with the muted text colour. */
+export const MutedActivityIndicator = withUnistyles(
+  ActivityIndicator,
+  (theme) => ({ color: theme.colors.mutedText }),
+);
+
+/**
+ * TextInput with a themed placeholder colour.
+ *
+ * Everything else — value, onChangeText, keyboard type, style — is
+ * still owned by the caller and passed through as normal props. Only
+ * `placeholderTextColor` needs the shadow-tree path here.
+ */
+export const ThemedTextInput = withUnistyles(TextInput, (theme) => ({
+  placeholderTextColor: theme.colors.mutedText,
+}));
+
+/**
+ * Switch with themed track and thumb colours. Used anywhere the app
+ * exposes a boolean preference toggle.
+ */
+export const ThemedSwitch = withUnistyles(Switch, (theme) => ({
+  trackColor: {
+    false: theme.colors.panelBorder,
+    true: theme.colors.primary,
+  },
+  thumbColor: theme.colors.surface,
 }));

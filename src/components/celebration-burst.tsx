@@ -20,7 +20,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 
 // ── Timing ────────────────────────────────────────────────────
@@ -52,9 +52,10 @@ export function CelebrationBurst({
   const [dismissable, setDismissable] = useState(false);
   const [confettiKey, setConfettiKey] = useState(0);
 
-  // Reactive theme + active scheme. Both must be called
-  // unconditionally, before the early return below.
-  const { theme } = useUnistyles();
+  // Reactive active scheme. Theme tokens themselves flow through
+  // `StyleSheet.create` (auto-updated by the Unistyles shadow tree),
+  // so no `useUnistyles()` read is needed here — that would only
+  // force an extra re-render on every theme change.
   const { schemeId } = useThemePreference();
   const palette = getConfettiPalette(schemeId);
 

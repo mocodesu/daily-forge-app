@@ -61,10 +61,11 @@ export function useMinimumExercises() {
     }
   }, [db]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
+  // `useFocusEffect` fires on initial mount and on every subsequent
+  // focus — it covers both the cold-start read and the case where the
+  // user changes the minimum in Settings and navigates back. Running
+  // a separate `useEffect(refresh)` alongside it was double-fetching
+  // on mount with no benefit.
   useFocusEffect(
     useCallback(() => {
       refresh();

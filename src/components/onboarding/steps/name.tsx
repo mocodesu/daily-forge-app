@@ -1,4 +1,4 @@
-import { Field, onboardingInputStyle } from "@/components/onboarding/shared";
+import { Field, onboardingStyles } from "@/components/onboarding/shared";
 import { SignatureLine } from "@/components/skia";
 import Text from "@/components/text";
 import React from "react";
@@ -41,7 +41,7 @@ export function NameStep({
             autoFocus
             autoCapitalize="words"
             returnKeyType="done"
-            style={onboardingInputStyle(theme)}
+            style={onboardingStyles.input}
           />
         </Field>
       </View>

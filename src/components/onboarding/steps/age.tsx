@@ -1,4 +1,4 @@
-import { Field, onboardingInputStyle } from "@/components/onboarding/shared";
+import { Field, onboardingStyles } from "@/components/onboarding/shared";
 import { AgeTimeline } from "@/components/skia";
 import Text from "@/components/text";
 import React from "react";
@@ -53,7 +53,7 @@ export function AgeStep({
             keyboardType="number-pad"
             autoFocus
             returnKeyType="done"
-            style={onboardingInputStyle(theme)}
+            style={onboardingStyles.input}
           />
         </Field>
       </View>

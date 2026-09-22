@@ -1,23 +1,11 @@
 import React from "react";
 import {
-  Platform,
   ScrollView,
   type ScrollViewProps,
-  StatusBar,
   View,
   type ViewProps,
 } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-
-function resolveTopInset(rtTop: number): number {
-  if (Platform.OS !== "android") return rtTop;
-  const systemTop = StatusBar.currentHeight ?? 0;
-  return Math.max(rtTop, systemTop);
-}
-
-function resolveBottomInset(rtBottom: number): number {
-  return rtBottom;
-}
 
 interface ScreenProps extends ViewProps {
   children: React.ReactNode;
@@ -103,76 +91,71 @@ export function ScrollScreen({
   );
 }
 
-const styles = StyleSheet.create((theme, rt) => {
-  const topInset = resolveTopInset(rt.insets.top);
-  const bottomInset = resolveBottomInset(rt.insets.bottom);
+const styles = StyleSheet.create((theme, rt) => ({
+  root: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  paddedRoot: {
+    paddingHorizontal: theme.layout.screenPaddingH,
+  },
 
-  return {
-    root: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
+  headerOuter: {
+    paddingHorizontal: theme.layout.screenPaddingH,
+    paddingTop: rt.insets.top + theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+  },
+  headerInner: {
+    width: "100%",
+    maxWidth: {
+      phone: theme.layout.contentMaxWidth,
+      tablet: theme.layout.contentMaxWidthTablet,
     },
-    paddedRoot: {
-      paddingHorizontal: theme.layout.screenPaddingH,
+    alignSelf: "center",
+  },
+  headerInnerWide: {
+    maxWidth: {
+      phone: theme.layout.contentMaxWidth,
+      tablet: theme.layout.contentMaxWidthWide,
     },
+  },
 
-    headerOuter: {
-      paddingHorizontal: theme.layout.screenPaddingH,
-      paddingTop: topInset + theme.spacing.md,
-      paddingBottom: theme.spacing.sm,
-    },
-    headerInner: {
-      width: "100%",
-      maxWidth: {
-        phone: theme.layout.contentMaxWidth,
-        tablet: theme.layout.contentMaxWidthTablet,
-      },
-      alignSelf: "center",
-    },
-    headerInnerWide: {
-      maxWidth: {
-        phone: theme.layout.contentMaxWidth,
-        tablet: theme.layout.contentMaxWidthWide,
-      },
-    },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  scrollContentWithSafeTop: {
+    paddingTop: rt.insets.top + theme.spacing.lg,
+  },
+  scrollContentWithHeader: {
+    paddingTop: theme.spacing.lg,
+  },
+  scrollContentWithSafeBottom: {
+    paddingBottom: rt.insets.bottom + theme.spacing.giant,
+  },
 
-    scrollContent: {
-      flexGrow: 1,
+  content: {
+    width: "100%",
+    maxWidth: {
+      phone: theme.layout.contentMaxWidth,
+      tablet: theme.layout.contentMaxWidthTablet,
     },
-    scrollContentWithSafeTop: {
-      paddingTop: topInset + theme.spacing.lg,
+    alignSelf: "center",
+    gap: theme.spacing.lg,
+    // Without `flexGrow`, a `flex: 1` child has nothing to grow into,
+    // so `justifyContent: "center"` on the onboarding step container
+    // becomes a no-op.
+    flexGrow: 1,
+  },
+  contentWide: {
+    maxWidth: {
+      phone: theme.layout.contentMaxWidth,
+      tablet: theme.layout.contentMaxWidthWide,
     },
-    scrollContentWithHeader: {
-      paddingTop: theme.spacing.lg,
-    },
-    scrollContentWithSafeBottom: {
-      paddingBottom: bottomInset + theme.spacing.giant,
-    },
-
-    content: {
-      width: "100%",
-      maxWidth: {
-        phone: theme.layout.contentMaxWidth,
-        tablet: theme.layout.contentMaxWidthTablet,
-      },
-      alignSelf: "center",
-      gap: theme.spacing.lg,
-      // This is the fix. Without `flexGrow`, a `flex: 1` child has
-      // nothing to grow into, so `justifyContent: "center"` on the
-      // onboarding step container becomes a no-op.
-      flexGrow: 1,
-    },
-    contentWide: {
-      maxWidth: {
-        phone: theme.layout.contentMaxWidth,
-        tablet: theme.layout.contentMaxWidthWide,
-      },
-    },
-    contentWithSafeTop: {
-      paddingTop: topInset + theme.spacing.lg,
-    },
-    contentWithSafeBottom: {
-      paddingBottom: bottomInset + theme.spacing.giant,
-    },
-  };
-});
+  },
+  contentWithSafeTop: {
+    paddingTop: rt.insets.top + theme.spacing.lg,
+  },
+  contentWithSafeBottom: {
+    paddingBottom: rt.insets.bottom + theme.spacing.giant,
+  },
+}));

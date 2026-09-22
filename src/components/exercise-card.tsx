@@ -87,8 +87,9 @@ export function ExerciseCard({
     transform: [{ scale: doneCheckScale.value }],
   }));
 
-  const iconName =
+  const iconName: "timer-outline" | "barbell-outline" =
     exercise.exerciseType === "timer" ? "timer-outline" : "barbell-outline";
+
   const summary =
     exercise.exerciseType === "timer"
       ? `${exercise.sets} × ${formatDuration(exercise.durationSeconds)}`
@@ -110,7 +111,7 @@ export function ExerciseCard({
               <Ionicons name="checkmark" size={20} color={onPrimaryColor} />
             </Animated.View>
           ) : (
-            <PrimaryIcon name={iconName as any} size={20} />
+            <PrimaryIcon name={iconName} size={20} />
           )}
         </Animated.View>
 

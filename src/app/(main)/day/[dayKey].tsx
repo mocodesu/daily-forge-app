@@ -1,13 +1,13 @@
 import { ScrollScreen } from "@/components/screen";
 import { ScreenHeader } from "@/components/screen-header";
 import Text from "@/components/text";
-import { MutedIcon } from "@/components/themed";
+import { MutedIcon, ThemedActivityIndicator } from "@/components/themed";
 import { formatLongDuration } from "@/utils/format";
 import { useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, useWindowDimensions, View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { useWindowDimensions, View } from "react-native";
+import { StyleSheet } from "react-native-unistyles";
 
 interface RecordRow {
   id: string;
@@ -95,10 +95,7 @@ export default function DayDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator
-          color={UnistylesRuntime.getTheme().colors.primary}
-          size="large"
-        />
+        <ThemedActivityIndicator size="large" />
       </View>
     );
   }

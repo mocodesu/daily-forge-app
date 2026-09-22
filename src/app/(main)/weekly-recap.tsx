@@ -3,7 +3,11 @@ import { HapticPressable } from "@/components/haptic-pressable";
 import { ScrollScreen } from "@/components/screen";
 import { ScreenHeader } from "@/components/screen-header";
 import Text from "@/components/text";
-import { PrimaryIcon } from "@/components/themed";
+import {
+  OnPrimaryIcon,
+  PrimaryIcon,
+  ThemedActivityIndicator,
+} from "@/components/themed";
 import { formatLongDuration } from "@/utils/format";
 import {
   computeWeeklyRecap,
@@ -14,14 +18,14 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSQLiteContext } from "expo-sqlite";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Share, View } from "react-native";
+import { Share, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
   withTiming,
 } from "react-native-reanimated";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 
 // ─────────────────────────────────────────────────────────────
 // Weekly Recap
@@ -41,9 +45,9 @@ export default function WeeklyRecapScreen() {
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
 
+  // Guards against setState after unmount for the async load.
   const mountedRef = useRef(true);
   useEffect(() => {
-    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
@@ -88,10 +92,7 @@ export default function WeeklyRecapScreen() {
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator
-          color={UnistylesRuntime.getTheme().colors.primary}
-          size="large"
-        />
+        <ThemedActivityIndicator size="large" />
       </View>
     );
   }
@@ -180,11 +181,7 @@ export default function WeeklyRecapScreen() {
         disabled={sharing}
         style={styles.shareButton}
       >
-        <Ionicons
-          name="share-outline"
-          size={18}
-          color={UnistylesRuntime.getTheme().colors.onPrimary}
-        />
+        <OnPrimaryIcon name="share-outline" size={18} />
         <Text variant="subheadBold" color="onPrimary">
           {sharing ? "Sharing…" : "Share my week"}
         </Text>
@@ -232,6 +229,23 @@ function buildSubline(recap: WeeklyRecap): string {
 // 7-day strip chip
 // ─────────────────────────────────────────────────────────────
 
+type ChipState = "sealed" | "frozen" | "rest" | "open";
+
+function chipStateFromDay(day: DayRecap): ChipState {
+  if (day.isSealed) return "sealed";
+  if (day.isFrozen) return "frozen";
+  if (day.isRest) return "rest";
+  return "open";
+}
+
+function chipTextColor(
+  state: ChipState,
+): "onPrimary" | "onSurface" | "mutedText" {
+  if (state === "sealed") return "onPrimary";
+  if (state === "rest") return "mutedText";
+  return "onSurface";
+}
+
 function DayChip({ day, index }: { day: DayRecap; index: number }) {
   // Stagger a subtle fade-in on mount so the strip "assembles"
   // as the screen opens. Matches the DayCircle animation pattern.
@@ -242,29 +256,27 @@ function DayChip({ day, index }: { day: DayRecap; index: number }) {
     const delay = index * 40;
     opacity.value = withDelay(delay, withTiming(1, { duration: 320 }));
     translateY.value = withDelay(delay, withTiming(0, { duration: 320 }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [index, opacity, translateY]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
 
-  const theme = UnistylesRuntime.getTheme();
-  const { bg, fg, border } = chipColors(day, theme);
+  const state = chipStateFromDay(day);
 
   return (
     <Animated.View style={[styles.chipWrap, animatedStyle]}>
       <Text variant="micro" color="mutedText">
         {day.dayName.toUpperCase()}
       </Text>
-      <View style={[styles.chip, { backgroundColor: bg, borderColor: border }]}>
+      <View style={[styles.chip, styles.chipColor(state)]}>
         {day.isFrozen ? (
-          <Ionicons name="snow" size={18} color={theme.colors.primary} />
+          <PrimaryIcon name="snow" size={18} />
         ) : day.isSealed ? (
-          <Ionicons name="checkmark" size={20} color={theme.colors.onPrimary} />
+          <OnPrimaryIcon name="checkmark" size={20} />
         ) : (
-          <Text variant="subheadBold" color={fg}>
+          <Text variant="subheadBold" color={chipTextColor(state)}>
             {day.dayNumber}
           </Text>
         )}
@@ -272,44 +284,6 @@ function DayChip({ day, index }: { day: DayRecap; index: number }) {
       {day.isToday && <View style={styles.todayDot} />}
     </Animated.View>
   );
-}
-
-type ChipColors = {
-  bg: string;
-  fg: "onSurface" | "onPrimary" | "mutedText";
-  border: string;
-};
-
-function chipColors(
-  day: DayRecap,
-  theme: ReturnType<typeof UnistylesRuntime.getTheme>,
-): ChipColors {
-  if (day.isSealed) {
-    return {
-      bg: theme.colors.primary,
-      fg: "onPrimary",
-      border: theme.colors.primary,
-    };
-  }
-  if (day.isFrozen) {
-    return {
-      bg: theme.colors.panel,
-      fg: "onSurface",
-      border: theme.colors.primary,
-    };
-  }
-  if (day.isRest) {
-    return {
-      bg: "transparent",
-      fg: "mutedText",
-      border: theme.colors.panelBorder,
-    };
-  }
-  return {
-    bg: theme.colors.surface,
-    fg: "onSurface",
-    border: theme.colors.panelBorder,
-  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -450,6 +424,31 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
+  },
+  chipColor: (state: ChipState) => {
+    switch (state) {
+      case "sealed":
+        return {
+          backgroundColor: theme.colors.primary,
+          borderColor: theme.colors.primary,
+        };
+      case "frozen":
+        return {
+          backgroundColor: theme.colors.panel,
+          borderColor: theme.colors.primary,
+        };
+      case "rest":
+        return {
+          backgroundColor: "transparent",
+          borderColor: theme.colors.panelBorder,
+        };
+      case "open":
+      default:
+        return {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.panelBorder,
+        };
+    }
   },
   todayDot: {
     width: 5,

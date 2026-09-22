@@ -151,25 +151,26 @@ export async function readSettingsFromPrefs(
 
 let chain: Promise<void> = Promise.resolve();
 
-async function doReschedule(
-  db: SQLiteDatabase,
-  settings: DailyReminderSettings,
-): Promise<void> {
+async function doReschedule(settings: DailyReminderSettings): Promise<void> {
   const granted = await hasPermission();
   await cancelAllReminders();
   if (settings.enabled && granted) {
     await scheduleUpcoming(settings.hour, settings.minute);
   }
-  // `db` is unused inside this function today, but keep the
-  // parameter so future versions can read/write per-user state.
-  void db;
 }
 
+/**
+ * `db` is part of the public signature for symmetry with the reader
+ * helpers and to leave room for future per-user scheduling. It is
+ * not used internally today, so it is intentionally not forwarded to
+ * `doReschedule`.
+ */
 export function rescheduleDailyReminders(
   db: SQLiteDatabase,
   settings: DailyReminderSettings,
 ): Promise<void> {
-  const result = chain.then(() => doReschedule(db, settings));
+  void db;
+  const result = chain.then(() => doReschedule(settings));
   // Keep `chain` always resolved so a rejection doesn't kill
   // subsequent reschedules. The real promise (with real errors)
   // is what we return to the caller.

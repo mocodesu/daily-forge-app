@@ -1,11 +1,10 @@
 import { HapticPressable } from "@/components/haptic-pressable";
 import Text from "@/components/text";
-import { PrimaryIcon } from "@/components/themed";
+import { MutedIcon, PrimaryIcon, ThemedSwitch } from "@/components/themed";
 import { useDailyReminder } from "@/hooks/use-daily-reminder";
-import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Linking, Platform, Pressable, Switch, View } from "react-native";
-import { StyleSheet, UnistylesRuntime } from "react-native-unistyles";
+import { Linking, Platform, Pressable, View } from "react-native";
+import { StyleSheet } from "react-native-unistyles";
 
 /** Presets the user can tap to jump to a common time. */
 const TIME_PRESETS: { label: string; hour: number; minute: number }[] = [
@@ -36,8 +35,6 @@ export function DailyReminderEditor() {
     setTime,
     requestPermission,
   } = useDailyReminder();
-
-  const theme = UnistylesRuntime.getTheme();
 
   if (loading) {
     return (
@@ -75,15 +72,7 @@ export function DailyReminderEditor() {
               : "Off"}
           </Text>
         </View>
-        <Switch
-          value={settings.enabled}
-          onValueChange={setEnabled}
-          trackColor={{
-            false: theme.colors.panelBorder,
-            true: theme.colors.primary,
-          }}
-          thumbColor={theme.colors.surface}
-        />
+        <ThemedSwitch value={settings.enabled} onValueChange={setEnabled} />
       </View>
 
       {/* ── Time presets ───────────────────────────────── */}
@@ -157,14 +146,13 @@ export function DailyReminderEditor() {
 
       {/* ── Helper text ────────────────────────────────── */}
       <View style={styles.helpRow}>
-        <Ionicons
+        <MutedIcon
           name={
             Platform.OS === "ios"
               ? "information-circle-outline"
               : "information-circle"
           }
           size={14}
-          style={{ color: theme.colors.mutedText }}
         />
         <Text variant="caption" color="mutedText" style={styles.helpText}>
           Skipped automatically if you've already completed the day.

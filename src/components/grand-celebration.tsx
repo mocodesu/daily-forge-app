@@ -21,7 +21,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 
 export function GrandCelebration({
   visible,
@@ -41,9 +41,8 @@ export function GrandCelebration({
   /** Incrementing this re-mounts the confetti, forcing a fresh burst. */
   const [confettiKey, setConfettiKey] = useState(0);
 
-  // Reactive theme + active scheme. Both must be called
-  // unconditionally, before the early return below.
-  const { theme } = useUnistyles();
+  // Reactive active scheme. Theme tokens themselves flow through
+  // `StyleSheet.create` — no `useUnistyles()` read is needed here.
   const { schemeId } = useThemePreference();
   const palette = getConfettiPalette(schemeId);
 

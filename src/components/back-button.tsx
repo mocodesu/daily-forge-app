@@ -40,6 +40,6 @@ const styles = StyleSheet.create((theme) => ({
     borderColor: theme.colors.panelBorder,
   },
   buttonPressed: {
-    opacity: 0.7,
+    opacity: theme.opacity.pressed,
   },
 }));
